@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>DaBingaBongo - Underground Music Streaming</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <div class="banner-container">
+            <img id="banner-image" class="banner-image" alt="Banner Image">
+        </div>
+
+        <marquee>Welcome to DaBingaBongo - The most exclusive music streaming site on the web!</marquee>
+
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search for songs...">
+            <button id="search-button">🔍 Search</button>
+        </div>
+
+        <div class="song-list">
+            <h3>🔥 Hot Tracks 🔥</h3>
+            <div id="loading-message">Loading songs...</div>
+            <!-- Songs will be loaded here automatically -->
+        </div>
+
+        <div class="player-container">
+            <div class="player-controls">
+                <button id="prev-btn" title="Previous Track">⏮</button>
+                <button id="play-pause-btn" title="Play/Pause">▶</button>
+                <button id="next-btn" title="Next Track">⏭</button>
+            </div>
+            
+            <!-- Visualization Canvas -->
+            <div class="visualization-container">
+                <canvas id="visualization" width="500" height="100"></canvas>
+            </div>
+            
+            <audio id="audio-player" controls>
+                Your browser does not support the audio element.
+            </audio>
+            <div id="now-playing-info"></div>
+            
+            <!-- Visualization Type Selector -->
+            <div class="vis-controls">
+                <label for="vis-type">Visualization:</label>
+                <select id="vis-type">
+                    <option value="bars">Bars</option>
+                    <option value="wave">Wave</option>
+                    <option value="circle">Circle</option>
+                </select>
+                <button id="toggle-fullscreen-vis">Fullscreen</button>
+            </div>
+        </div>
+
+        <div class="keyboard-shortcuts">
+            <button id="shortcuts-toggle">Keyboard Shortcuts</button>
+            <div id="shortcuts-panel" class="hidden">
+                <h4>Keyboard Controls</h4>
+                <ul>
+                    <li><kbd>Space</kbd> - Play/Pause</li>
+                    <li><kbd>←</kbd> - Previous Track</li>
+                    <li><kbd>→</kbd> - Next Track</li>
+                    <li><kbd>↑</kbd> - Volume Up</li>
+                    <li><kbd>↓</kbd> - Volume Down</li>
+                    <li><kbd>M</kbd> - Mute/Unmute</li>
+                    <li><kbd>/</kbd> - Focus Search</li>
+                    <li><kbd>V</kbd> - Change Visualization</li>
+                    <li><kbd>F</kbd> - Toggle Fullscreen Visualization</li>
+                    <li><kbd>Esc</kbd> - Close Shortcuts/Exit Fullscreen</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Fullscreen visualization modal -->
+        <div id="fullscreen-vis-modal" class="hidden">
+            <div class="fullscreen-vis-controls">
+                <button id="close-fullscreen-vis">Close</button>
+                <select id="full-vis-type">
+                    <option value="bars">Bars</option>
+                    <option value="wave">Wave</option>
+                    <option value="circle">Circle</option>
+                </select>
+            </div>
+            <canvas id="fullscreen-visualization"></canvas>
+        </div>
+
+        <script>
+            // Array of banner image paths
+            const bannerImages = [
+                'images/DBB_Banner1.jpg',
+                'images/DBB_Banner2.jpg',
+                'images/DBB_Banner3.jpg',
+                'images/DBB_Banner4.jpg',
+                'images/DBB_Banner5.jpg'
+            ];
+            
+            // Function to select a random banner
+            function setRandomBanner() {
+                const randomIndex = Math.floor(Math.random() * bannerImages.length);
+                const bannerImage = document.getElementById('banner-image');
+                console.log("Setting banner to:", bannerImages[randomIndex]);
+                bannerImage.src = bannerImages[randomIndex];
+            }
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                // Set random banner when page loads
+                setRandomBanner();
+                
+                const audioPlayer = document.getElementById('audio-player');
+                const songList = document.querySelector('.song-list');
+                const searchInput = document.getElementById('search-input');
+                const searchButton = document.getElementById('search-button');
+                const loadingMessage = document.getElementById('loading-message');
+                const nowPlayingInfo = document.getElementById('now-playing-info');
+                const playPauseBtn = document.getElementById('play-pause-btn');
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+                const shortcutsToggle = document.getElementById('shortcuts-toggle');
+                const shortcutsPanel = document.getElementById('shortcuts-panel');
+                const visTypeSelect = document.getElementById('vis-type');
+                const fullVisTypeSelect = document.getElementById('full-vis-type');
+                const toggleFullscreenBtn = document.getElementById('toggle-fullscreen-vis');
+                const fullscreenVisModal = document.getElementById('fullscreen-vis-modal');
+                const closeFullscreenBtn = document.getElementById('close-fullscreen-vis');
+                
+                let currentlyPlaying = null;
+                let allSongs = []; // Array to store all songs for searching
+                let currentSongIndex = -1; // Index of current song in allSongs array
+                
+                // Audio visualization variables
+                let audioContext;
+                let analyser;
+                let source;
+                let canvas = document.getElementById('visualization');
+                let canvasCtx = canvas.getContext('2d');
+                let fullCanvas = document.getElementById('fullscreen-visualization');
+                let fullCanvasCtx = fullCanvas.getContext('2d');
+                let visualizationType = 'bars'; // Default visualization type
+                let isVisualizationActive = false;
+                
+                // Initialize audio visualization
+                function setupAudioVisualization() {
+                    if (!audioContext) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioContext.createAnalyser();
+                        analyser.fftSize = 256;
+                        source = audioContext.createMediaElementSource(audioPlayer);
+                        source.connect(analyser);
+                        analyser.connect(audioContext.destination);
+                    }
+                    
+                    isVisualizationActive = true;
+                    visualize();
+                }
+                
+                // Draw visualization based on current audio data
+                function visualize() {
+                    if (!isVisualizationActive) return;
+                    
+                    requestAnimationFrame(visualize);
+                    
+                    const bufferLength = analyser.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    
+                    if (fullscreenVisModal.classList.contains('hidden')) {
+                        // Regular visualization
+                        analyser.getByteFrequencyData(dataArray);
+                        drawVisualization(canvas, canvasCtx, dataArray, bufferLength, visualizationType);
+                    } else {
+                        // Fullscreen visualization
+                        // Resize fullscreen canvas to match window
+                        fullCanvas.width = window.innerWidth;
+                        fullCanvas.height = window.innerHeight;
+                        
+                        analyser.getByteFrequencyData(dataArray);
+                        drawVisualization(fullCanvas, fullCanvasCtx, dataArray, bufferLength, 
+                                         fullVisTypeSelect.value);
+                    }
+                }
+                
+                // Draw the visualization based on type
+                function drawVisualization(canvas, ctx, dataArray, bufferLength, type) {
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    
+                    // Clear the canvas
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    if (type === 'bars') {
+                        // Bar visualization
+                        const barWidth = (width / bufferLength) * 2.5;
+                        let barHeight;
+                        let x = 0;
+                        
+                        for (let i = 0; i < bufferLength; i++) {
+                            barHeight = dataArray[i] / 255 * height;
+                            
+                            // Gradient based on frequency
+                            const hue = i / bufferLength * 120 + 120; // Green to blue
+                            ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                            
+                            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+                            
+                            x += barWidth + 1;
+                        }
+                    } else if (type === 'wave') {
+                        // Wave visualization
+                        analyser.getByteTimeDomainData(dataArray);
+                        
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#00ff00';
+                        ctx.beginPath();
+                        
+                        const sliceWidth = width / bufferLength;
+                        let x = 0;
+                        
+                        for (let i = 0; i < bufferLength; i++) {
+                            const v = dataArray[i] / 128.0;
+                            const y = v * height / 2;
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                            
+                            x += sliceWidth;
+                        }
+                        
+                        ctx.lineTo(width, height / 2);
+                        ctx.stroke();
+                    } else if (type === 'circle') {
+                        // Circle visualization
+                        const centerX = width / 2;
+                        const centerY = height / 2;
+                        const radius = Math.min(width, height) / 4;
+                        
+                        for (let i = 0; i < bufferLength; i++) {
+                            const amplitude = dataArray[i] / 255;
+                            const hue = i / bufferLength * 360;
+                            
+                            ctx.beginPath();
+                            const radians = (i / bufferLength) * Math.PI * 2;
+                            const circleRadius = radius + amplitude * radius;
+                            
+                            const x = centerX + Math.cos(radians) * circleRadius;
+                            const y = centerY + Math.sin(radians) * circleRadius;
+                            
+                            ctx.arc(x, y, 2 + amplitude * 5, 0, Math.PI * 2);
+                            ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                            ctx.fill();
+                        }
+                    }
+                }
+                
+                // Switch visualization type
+                visTypeSelect.addEventListener('change', function() {
+                    visualizationType = this.value;
+                });
+                
+                // Synchronize visualization type selects
+                visTypeSelect.addEventListener('change', function() {
+                    fullVisTypeSelect.value = this.value;
+                });
+                
+                fullVisTypeSelect.addEventListener('change', function() {
+                    visTypeSelect.value = this.value;
+                });
+                
+                // Toggle fullscreen visualization
+                toggleFullscreenBtn.addEventListener('click', function() {
+                    fullscreenVisModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                });
+                
+                // Close fullscreen visualization
+                closeFullscreenBtn.addEventListener('click', function() {
+                    fullscreenVisModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                });
+                
+                // Show/hide keyboard shortcuts panel
+                shortcutsToggle.addEventListener('click', function() {
+                    shortcutsPanel.classList.toggle('hidden');
+                });
+
+                // Function to play a specific song by index
+                function playSong(index) {
+                    if (index < 0 || index >= allSongs.length) return;
+                    
+                    // Update current song index
+                    currentSongIndex = index;
+                    
+                    // Find the song item in the DOM
+                    const songItems = document.querySelectorAll('.song-item');
+                    const songToPlay = songItems[index];
+                    
+                    if (!songToPlay) return;
+                    
+                    // Reset previous playing song
+                    if (currentlyPlaying) {
+                        currentlyPlaying.classList.remove('now-playing');
+                        currentlyPlaying.querySelector('.play-btn').textContent = '▶';
+                    }
+                    
+                    // Set up new song
+                    audioPlayer.src = songToPlay.dataset.src;
+                    
+                    // Initialize audio context on first play (needed for browser autoplay policies)
+                    if (!audioContext) {
+                        setupAudioVisualization();
+                    } else if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                    
+                    audioPlayer.play();
+                    songToPlay.classList.add('now-playing');
+                    songToPlay.querySelector('.play-btn').textContent = '⏸';
+                    currentlyPlaying = songToPlay;
+                    
+                    // Update now playing info and play button
+                    nowPlayingInfo.textContent = `Now Playing: ${songToPlay.dataset.name} (${songToPlay.dataset.type})`;
+                    playPauseBtn.textContent = '⏸';
+                }
+
+                // Play/pause the current song
+                function togglePlayPause() {
+                    if (!currentlyPlaying) {
+                        // If no song is playing, play the first song
+                        if (allSongs.length > 0) {
+                            playSong(0);
+                        }
+                        return;
+                    }
+                    
+                    if (audioPlayer.paused) {
+                        // Resume audio context if suspended
+                        if (audioContext && audioContext.state === 'suspended') {
+                            audioContext.resume();
+                        }
+                        
+                        audioPlayer.play();
+                        currentlyPlaying.querySelector('.play-btn').textContent = '⏸';
+                        playPauseBtn.textContent = '⏸';
+                    } else {
+                        audioPlayer.pause();
+                        currentlyPlaying.querySelector('.play-btn').textContent = '▶';
+                        playPauseBtn.textContent = '▶';
+                    }
+                }
+
+                // Play the previous song
+                function playPrevious() {
+                    if (currentSongIndex > 0) {
+                        playSong(currentSongIndex - 1);
+                    }
+                }
+
+                // Play the next song
+                function playNext() {
+                    if (currentSongIndex < allSongs.length - 1) {
+                        playSong(currentSongIndex + 1);
+                    }
+                }
+                
+                // Cycle through visualization types
+                function cycleVisualization() {
+                    const visTypes = ['bars', 'wave', 'circle'];
+                    const currentIndex = visTypes.indexOf(visualizationType);
+                    const nextIndex = (currentIndex + 1) % visTypes.length;
+                    visualizationType = visTypes[nextIndex];
+                    visTypeSelect.value = visualizationType;
+                    fullVisTypeSelect.value = visualizationType;
+                }
+                
+                // Toggle fullscreen visualization
+                function toggleFullscreenVis() {
+                    if (fullscreenVisModal.classList.contains('hidden')) {
+                        fullscreenVisModal.classList.remove('hidden');
+                        document.body.style.overflow = 'hidden';
+                    } else {
+                        fullscreenVisModal.classList.add('hidden');
+                        document.body.style.overflow = '';
+                    }
+                }
+
+                // Add event listeners for player controls
+                playPauseBtn.addEventListener('click', togglePlayPause);
+                prevBtn.addEventListener('click', playPrevious);
+                nextBtn.addEventListener('click', playNext);
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', function(event) {
+                    // Ignore keyboard shortcuts if typing in a text field
+                    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                        // Only handle Escape key for inputs
+                        if (event.key === 'Escape') {
+                            event.target.blur();
+                        }
+                        return;
+                    }
+                    
+                    switch (event.key) {
+                        case ' ': // Space bar
+                            event.preventDefault();
+                            togglePlayPause();
+                            break;
+                        case 'ArrowLeft': // Left arrow
+                            event.preventDefault();
+                            playPrevious();
+                            break;
+                        case 'ArrowRight': // Right arrow
+                            event.preventDefault();
+                            playNext();
+                            break;
+                        case 'ArrowUp': // Up arrow
+                            event.preventDefault();
+                            audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.1);
+                            break;
+                        case 'ArrowDown': // Down arrow
+                            event.preventDefault();
+                            audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.1);
+                            break;
+                        case 'm': // Mute toggle
+                        case 'M':
+                            event.preventDefault();
+                            audioPlayer.muted = !audioPlayer.muted;
+                            break;
+                        case 'v': // Visualization toggle
+                        case 'V':
+                            event.preventDefault();
+                            cycleVisualization();
+                            break;
+                        case 'f': // Fullscreen toggle
+                        case 'F':
+                            event.preventDefault();
+                            toggleFullscreenVis();
+                            break;
+                        case '/': // Focus search
+                            event.preventDefault();
+                            searchInput.focus();
+                            break;
+                        case 'Escape': // Close shortcuts panel or exit fullscreen
+                            if (!shortcutsPanel.classList.contains('hidden')) {
+                                shortcutsPanel.classList.add('hidden');
+                            } else if (!fullscreenVisModal.classList.contains('hidden')) {
+                                fullscreenVisModal.classList.add('hidden');
+                                document.body.style.overflow = '';
+                            }
+                            break;
+                    }
+                });
+
+                async function loadSongs() {
+                    try {
+                        // Load songs from the JSON file
+                        const response = await fetch('/songs.json');
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to load song list');
+                        }
+                        
+                        const songData = await response.json();
+                        
+                        // Hide loading message if songs were found
+                        if (songData.length > 0) {
+                            loadingMessage.style.display = 'none';
+                        } else {
+                            loadingMessage.textContent = 'No songs found in the songs directory.';
+                        }
+                        
+                        // Store songs for searching
+                        allSongs = songData;
+                        
+                        // Create and display all songs
+                        displaySongs(songData);
+                        
+                    } catch (error) {
+                        console.error('Error loading songs:', error);
+                        loadingMessage.textContent = 'Error loading songs. Make sure songs.json exists.';
+                        
+                        // Fallback to example songs
+                        const fallbackSongs = [
+                            { name: 'Cant You Read', file: 'cant_you_read.wav', type: 'WAV' },
+                            { name: 'Smooth Groove', file: 'smooth_groove.mp3', type: 'MP3' },
+                            { name: 'Electronic Dreams', file: 'electronic_dreams.mp3', type: 'MP3' },
+                            { name: 'Deep Bass', file: 'deep_bass.wav', type: 'WAV' },
+                            { name: 'Chill Vibes', file: 'chill_vibes.mp3', type: 'MP3' }
+                        ];
+                        
+                        // Store fallback songs for searching
+                        allSongs = fallbackSongs;
+                        
+                        // Create and display fallback songs
+                        displaySongs(fallbackSongs);
+                    }
+                }
+                
+                // Function to display songs
+                function displaySongs(songs) {
+                    // Clear existing songs (except the heading)
+                    const existingSongs = songList.querySelectorAll('.song-item');
+                    existingSongs.forEach(item => item.remove());
+                    
+                    if (songs.length === 0) {
+                        const noResults = document.createElement('div');
+                        noResults.className = 'no-results';
+                        noResults.textContent = 'No songs found matching your search.';
+                        songList.appendChild(noResults);
+                        return;
+                    }
+                    
+                    // Add each song to the list
+                    songs.forEach((song, index) => {
+                        const songItem = document.createElement('div');
+                        songItem.className = 'song-item';
+                        songItem.dataset.src = `/songs/${song.file}`;
+                        songItem.dataset.name = song.name;
+                        songItem.dataset.type = song.type;
+                        songItem.dataset.index = index;
+                        
+                        // Create play button
+                        const playBtn = document.createElement('button');
+                        playBtn.className = 'play-btn';
+                        playBtn.textContent = '▶';
+                        
+                        // Create song name span
+                        const songName = document.createElement('span');
+                        songName.textContent = song.name;
+                        songName.className = 'song-name';
+                        
+                        // Create file type indicator
+                        const fileType = document.createElement('span');
+                        fileType.className = 'file-type';
+                        fileType.textContent = song.type;
+                        
+                        songItem.appendChild(playBtn);
+                        songItem.appendChild(songName);
+                        songItem.appendChild(fileType);
+                        songList.appendChild(songItem);
+                        
+                        // Add click handler
+                        playBtn.addEventListener('click', function() {
+                            const clickedIndex = parseInt(songItem.dataset.index, 10);
+                            
+                            if (currentlyPlaying === songItem) {
+                                togglePlayPause();
+                            } else {
+                                playSong(clickedIndex);
+                            }
+                        });
+                    });
+                }
+
+                loadSongs();
+                
+                // Search functionality
+                function searchSongs() {
+                    const searchTerm = searchInput.value.toLowerCase().trim();
+                    
+                    if (searchTerm === '') {
+                        // If search is empty, show all songs
+                        displaySongs(allSongs);
+                    } else {
+                        // Filter songs that match the search term
+                        const filteredSongs = allSongs.filter(song => 
+                            song.name.toLowerCase().includes(searchTerm)
+                        );
+                        
+                        // Display the filtered songs
+                        displaySongs(filteredSongs);
+                    }
+                }
+                
+                // Add event listeners for search
+                searchButton.addEventListener('click', searchSongs);
+                searchInput.addEventListener('keyup', function(event) {
+                    if (event.key === 'Enter') {
+                        searchSongs();
+                    }
+                });
+
+                // Update when song ends - play next song
+                audioPlayer.addEventListener('ended', function() {
+                    if (currentSongIndex < allSongs.length - 1) {
+                        playNext();
+                    } else {
+                        // Reset if at the end of the list
+                        if (currentlyPlaying) {
+                            currentlyPlaying.classList.remove('now-playing');
+                            currentlyPlaying.querySelector('.play-btn').textContent = '▶';
+                            nowPlayingInfo.textContent = '';
+                            playPauseBtn.textContent = '▶';
+                            currentlyPlaying = null;
+                            currentSongIndex = -1;
+                        }
+                    }
+                });
+                
+                // Sync the play/pause button with the audio element's state
+                audioPlayer.addEventListener('play', function() {
+                    playPauseBtn.textContent = '⏸';
+                    if (currentlyPlaying) {
+                        currentlyPlaying.querySelector('.play-btn').textContent = '⏸';
+                    }
+                    
+                    // Resume audio context if it was created but suspended
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                    
+                    // Start visualization if not already active
+                    if (!isVisualizationActive && audioContext) {
+                        isVisualizationActive = true;
+                        visualize();
+                    }
+                });
+                
+                audioPlayer.addEventListener('pause', function() {
+                    playPauseBtn.textContent = '▶';
+                    if (currentlyPlaying) {
+                        currentlyPlaying.querySelector('.play-btn').textContent = '▶';
+                    }
+                });
+                
+                // Handle window resize for fullscreen visualization
+                window.addEventListener('resize', function() {
+                    if (!fullscreenVisModal.classList.contains('hidden')) {
+                        fullCanvas.width = window.innerWidth;
+                        fullCanvas.height = window.innerHeight;
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

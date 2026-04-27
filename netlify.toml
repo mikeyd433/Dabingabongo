@@ -1,0 +1,15 @@
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+
+[[redirects]]
+  from = "/songs"
+  to = "/songs/"
+  status = 200
+
+[[redirects]]
+  from = "/songs/*"
+  to = "/songs/:splat"
+  status = 200
+  force = true
