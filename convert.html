@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DaBingaBongo - IVR Audio Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .converter-container {
+            max-width: 700px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: clamp(20px, 4vw, 28px);
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+
+        .info-box {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: var(--accent-color);
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--accent-color);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: var(--surface-color);
+            color: var(--text-secondary);
+        }
+
+        .drop-zone.drag-over {
+            background-color: #1a2a1a;
+            color: var(--text-color);
+        }
+
+        .drop-zone p {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+        }
+
+        .drop-zone .hint {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .browse-btn {
+            background-color: #006600;
+            color: var(--text-color);
+            border: 2px solid #008800;
+            border-radius: 4px;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .browse-btn:hover {
+            background-color: #008800;
+        }
+
+        .file-list {
+            margin-top: 24px;
+        }
+
+        .file-entry {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-entry .file-name {
+            flex: 1;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status.pending  { color: var(--text-secondary); }
+        .status.processing { color: #ffaa00; }
+        .status.done     { color: var(--accent-color); }
+        .status.error    { color: #ff4444; }
+
+        .download-btn {
+            background-color: #006600;
+            color: var(--text-color);
+            border: 1px solid #008800;
+            border-radius: 4px;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+
+        .download-btn:hover {
+            background-color: #008800;
+        }
+
+        .convert-all-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #006600;
+            color: var(--text-color);
+            border: 2px solid #008800;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .convert-all-btn:hover:not(:disabled) {
+            background-color: #008800;
+        }
+
+        .convert-all-btn:disabled {
+            background-color: #333;
+            border-color: #444;
+            cursor: not-allowed;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="converter-container">
+        <a href="/" class="back-link">← Back to DaBingaBongo</a>
+
+        <h1>IVR Audio Converter</h1>
+
+        <div class="info-box">
+            Converts audio files to <strong>WAV · 8 kHz · Mono · 16-bit PCM</strong> — the standard format for
+            phone IVR systems (Twilio, Asterisk, Amazon Connect, etc.).
+            All processing happens in your browser; no files leave your machine.
+        </div>
+
+        <div class="drop-zone" id="drop-zone">
+            <p>Drag &amp; drop audio files here</p>
+            <p class="hint">Supports WAV, MP3, FLAC, OGG, AAC, and more</p>
+            <button class="browse-btn" id="browse-btn">Browse Files</button>
+            <input type="file" id="file-input" accept="audio/*" multiple>
+        </div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <button class="convert-all-btn" id="convert-all-btn" style="display:none">Convert All</button>
+    </div>
+
+    <script>
+        const dropZone       = document.getElementById('drop-zone');
+        const fileInput      = document.getElementById('file-input');
+        const browseBtn      = document.getElementById('browse-btn');
+        const fileListEl     = document.getElementById('file-list');
+        const convertAllBtn  = document.getElementById('convert-all-btn');
+
+        const TARGET_RATE = 8000;
+        let pendingFiles = [];
+
+        browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/')));
+        });
+
+        fileInput.addEventListener('change', () => { addFiles(Array.from(fileInput.files)); fileInput.value = ''; });
+
+        function addFiles(files) {
+            files.forEach(file => {
+                const entry = { file, id: crypto.randomUUID() };
+                pendingFiles.push(entry);
+                renderEntry(entry);
+            });
+            convertAllBtn.style.display = pendingFiles.length ? 'block' : 'none';
+        }
+
+        function renderEntry(entry) {
+            const div = document.createElement('div');
+            div.className = 'file-entry';
+            div.id = `entry-${entry.id}`;
+
+            const name = document.createElement('span');
+            name.className = 'file-name';
+            name.textContent = entry.file.name;
+
+            const status = document.createElement('span');
+            status.className = 'status pending';
+            status.id = `status-${entry.id}`;
+            status.textContent = 'Pending';
+
+            div.appendChild(name);
+            div.appendChild(status);
+            fileListEl.appendChild(div);
+        }
+
+        function setStatus(id, text, cls) {
+            const el = document.getElementById(`status-${id}`);
+            if (el) { el.textContent = text; el.className = `status ${cls}`; }
+        }
+
+        function addDownloadButton(id, blob, filename) {
+            const entry = document.getElementById(`entry-${id}`);
+            if (!entry) return;
+            const a = document.createElement('a');
+            a.className = 'download-btn';
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.textContent = 'Download';
+            entry.appendChild(a);
+        }
+
+        async function convertFile(entry) {
+            setStatus(entry.id, 'Processing…', 'processing');
+            try {
+                const arrayBuffer = await entry.file.arrayBuffer();
+
+                const decodeCtx = new AudioContext();
+                const decoded = await decodeCtx.decodeAudioData(arrayBuffer);
+                await decodeCtx.close();
+
+                const numSamples = Math.ceil(decoded.duration * TARGET_RATE);
+                const offlineCtx = new OfflineAudioContext(1, numSamples, TARGET_RATE);
+                const src = offlineCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(offlineCtx.destination);
+                src.start();
+                const rendered = await offlineCtx.startRendering();
+
+                const wav = encodeWAV(rendered.getChannelData(0), TARGET_RATE);
+                const baseName = entry.file.name.replace(/\.[^.]+$/, '');
+                const blob = new Blob([wav], { type: 'audio/wav' });
+
+                setStatus(entry.id, 'Done', 'done');
+                addDownloadButton(entry.id, blob, `${baseName}_ivr.wav`);
+            } catch (err) {
+                console.error(err);
+                setStatus(entry.id, `Error: ${err.message}`, 'error');
+            }
+        }
+
+        function encodeWAV(samples, sampleRate) {
+            const byteCount = samples.length * 2;
+            const buf = new ArrayBuffer(44 + byteCount);
+            const view = new DataView(buf);
+
+            const w = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+
+            w(0,  'RIFF');
+            view.setUint32(4,  36 + byteCount, true);
+            w(8,  'WAVE');
+            w(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1,  true);              // PCM
+            view.setUint16(22, 1,  true);              // mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);  // byte rate
+            view.setUint16(32, 2,  true);              // block align
+            view.setUint16(34, 16, true);              // bits per sample
+            w(36, 'data');
+            view.setUint32(40, byteCount, true);
+
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                offset += 2;
+            }
+            return buf;
+        }
+
+        convertAllBtn.addEventListener('click', async () => {
+            convertAllBtn.disabled = true;
+            const toConvert = [...pendingFiles];
+            pendingFiles = [];
+            convertAllBtn.style.display = 'none';
+            for (const entry of toConvert) {
+                await convertFile(entry);
+            }
+        });
+    </script>
+</body>
+</html>
