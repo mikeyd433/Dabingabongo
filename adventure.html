@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DaBingaBongo - Adventure Audio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .page { max-width: 800px; margin: 40px auto; }
+
+        /* Login */
+        .login-box {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            max-width: 360px;
+            margin: 80px auto;
+            text-align: center;
+        }
+        .login-box h2 {
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 28px;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0,255,0,0.3);
+        }
+        .login-box input {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .login-box input:focus { outline: none; border-color: var(--accent-color); }
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #006600;
+            color: var(--text-color);
+            border: 2px solid #008800;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .login-btn:hover { background-color: #008800; }
+        .login-error {
+            color: #ff4444;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Main page */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        h1 {
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: clamp(18px, 3vw, 26px);
+            text-shadow: 0 0 10px rgba(0,255,0,0.3);
+            margin: 0;
+        }
+        .logout-btn {
+            background-color: #333;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .logout-btn:hover { background-color: #444; color: var(--text-color); }
+
+        .back-link {
+            display: inline-block;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        .info-box {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .info-box strong { color: var(--accent-color); }
+        .info-box code {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 12px;
+            color: var(--text-color);
+        }
+
+        /* Clip list */
+        .clip-entry {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .clip-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .clip-name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+            min-width: 160px;
+        }
+        .clip-scene {
+            font-size: 12px;
+            color: var(--text-secondary);
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 2px 8px;
+            white-space: nowrap;
+        }
+        .copy-btn {
+            background-color: #006600;
+            color: var(--text-color);
+            border: 1px solid #008800;
+            border-radius: 4px;
+            padding: 5px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+        .copy-btn:hover { background-color: #008800; }
+        .copy-btn.copied { background-color: #004400; border-color: #006600; }
+
+        .clip-url {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .clip-audio {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-style: italic;
+            background-color: var(--surface-color);
+            border: 1px dashed var(--border-color);
+            border-radius: 6px;
+        }
+        .empty-state strong { display: block; margin-bottom: 8px; font-style: normal; color: var(--text-color); }
+    </style>
+</head>
+<body>
+
+    <!-- Login screen -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>Adventure Audio</h2>
+            <input type="text" id="username" placeholder="Username" autocomplete="username">
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+            <button class="login-btn" id="login-btn">Log In</button>
+            <div class="login-error" id="login-error">Incorrect username or password.</div>
+        </div>
+    </div>
+
+    <!-- Main page (hidden until logged in) -->
+    <div id="main-page" style="display:none">
+        <div class="page">
+            <a href="/" class="back-link">← Back to DaBingaBongo</a>
+            <div class="page-header">
+                <h1>Adventure Game Audio</h1>
+                <button class="logout-btn" id="logout-btn">Log Out</button>
+            </div>
+
+            <div class="info-box">
+                Audio clips for the phone adventure game. Upload files to the
+                <code>adventure/</code> folder in GitHub and add entries to <code>adventure.json</code>.
+                Click <strong>Copy URL</strong> on any clip to get the Twilio-ready link.
+            </div>
+
+            <div id="clip-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const CREDENTIALS = { username: 'admin', password: 'password' };
+        const SESSION_KEY = 'adventure_auth';
+
+        const loginScreen = document.getElementById('login-screen');
+        const mainPage    = document.getElementById('main-page');
+        const loginError  = document.getElementById('login-error');
+
+        function showMain() {
+            loginScreen.style.display = 'none';
+            mainPage.style.display = 'block';
+            loadClips();
+        }
+
+        function showLogin() {
+            sessionStorage.removeItem(SESSION_KEY);
+            mainPage.style.display = 'none';
+            loginScreen.style.display = 'block';
+        }
+
+        // Check existing session
+        if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+            showMain();
+        }
+
+        document.getElementById('login-btn').addEventListener('click', attemptLogin);
+        document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+        document.getElementById('logout-btn').addEventListener('click', showLogin);
+
+        function attemptLogin() {
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value;
+            if (u === CREDENTIALS.username && p === CREDENTIALS.password) {
+                sessionStorage.setItem(SESSION_KEY, 'true');
+                loginError.style.display = 'none';
+                showMain();
+            } else {
+                loginError.style.display = 'block';
+            }
+        }
+
+        async function loadClips() {
+            const listEl = document.getElementById('clip-list');
+            try {
+                const res = await fetch('/adventure.json');
+                const clips = await res.json();
+
+                if (clips.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="empty-state">
+                            <strong>No clips yet</strong>
+                            Upload WAV files to the <code>adventure/</code> folder in GitHub,
+                            then add entries to <code>adventure.json</code> to have them appear here.
+                        </div>`;
+                    return;
+                }
+
+                const origin = window.location.origin;
+                clips.forEach(clip => {
+                    const url = `${origin}/adventure/${clip.file}`;
+                    const div = document.createElement('div');
+                    div.className = 'clip-entry';
+                    div.innerHTML = `
+                        <div class="clip-top">
+                            <span class="clip-name">${clip.name}</span>
+                            ${clip.scene ? `<span class="clip-scene">${clip.scene}</span>` : ''}
+                            <button class="copy-btn" data-url="${url}">Copy URL</button>
+                        </div>
+                        <div class="clip-url">${url}</div>
+                        <audio class="clip-audio" controls src="${url}"></audio>`;
+                    listEl.appendChild(div);
+                });
+
+                listEl.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(btn.dataset.url).then(() => {
+                            btn.textContent = 'Copied!';
+                            btn.classList.add('copied');
+                            setTimeout(() => { btn.textContent = 'Copy URL'; btn.classList.remove('copied'); }, 2000);
+                        });
+                    });
+                });
+            } catch (err) {
+                listEl.innerHTML = '<div class="empty-state">Error loading adventure.json.</div>';
+            }
+        }
+    </script>
+</body>
+</html>
