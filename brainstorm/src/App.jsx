@@ -17,6 +17,7 @@ import CustomNode from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
+import { isLucidChart, convertLucidChart } from './utils/lucidchartConverter';
 
 const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
@@ -133,8 +134,23 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   }, [getNodes, getEdges]);
 
   const handleImportJSON = useCallback((data) => {
+    // Auto-detect LucidChart format
+    if (isLucidChart(data)) {
+      try {
+        const { nodes: lNodes, edges: lEdges, extraPages } = convertLucidChart(data);
+        setNodes(lNodes);
+        setEdges(lEdges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
+        if (extraPages > 0) {
+          alert(`Imported page 1 of ${extraPages + 1}. Only the first page is imported.`);
+        }
+      } catch (err) {
+        alert(`LucidChart import failed: ${err.message}`);
+      }
+      return;
+    }
+    // Native brainstorm format
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
-      alert('Invalid brainstorm JSON.'); return;
+      alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
     setNodes(data.nodes.map(n => ({ ...n, data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
     setEdges(data.edges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
