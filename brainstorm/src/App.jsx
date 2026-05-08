@@ -1,0 +1,206 @@
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import ReactFlow, {
+  Background,
+  BackgroundVariant,
+  Controls,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  useReactFlow,
+  ReactFlowProvider,
+  MarkerType,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import { toPng } from 'html-to-image';
+
+import CustomNode from './components/CustomNode';
+import Toolbar from './components/Toolbar';
+import { FlowContext } from './contexts/FlowContext';
+
+const nodeTypes = { editableNode: CustomNode };
+const STORAGE_KEY = 'brainstorm-v1';
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function stripCallbacks(nodes) {
+  return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
+}
+
+function makeEdgeOptions(darkMode) {
+  const color = darkMode ? '#475569' : '#94a3b8';
+  return {
+    markerEnd: { type: MarkerType.ArrowClosed, color },
+    style: { stroke: color, strokeWidth: 2 },
+  };
+}
+
+// Inner component — must live inside ReactFlowProvider
+function FlowCanvas({ darkMode, onToggleDark }) {
+  const wrapper = useRef(null);
+  const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
+
+  const saved = useMemo(() => loadSaved(), []);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(saved?.nodes ?? []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(saved?.edges ?? []);
+
+  useEffect(() => {
+    if (saved?.viewport) setViewport(saved.viewport);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        nodes: stripCallbacks(nodes),
+        edges,
+      }));
+    } catch {}
+  }, [nodes, edges]);
+
+  // ── Context callbacks ──────────────────────────────────────────────────────
+  const updateLabel = useCallback((id, label) =>
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n)),
+  [setNodes]);
+
+  const updateColor = useCallback((id, color) =>
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, color } } : n)),
+  [setNodes]);
+
+  const ctx = useMemo(() => ({ updateLabel, updateColor }), [updateLabel, updateColor]);
+
+  // ── Flow event handlers ────────────────────────────────────────────────────
+  const onConnect = useCallback((params) => {
+    setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
+  }, [setEdges, darkMode]);
+
+  const onPaneClick = useCallback((event) => {
+    const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const id  = `n${Date.now()}`;
+    setNodes(ns => [...ns, {
+      id,
+      type: 'editableNode',
+      position: pos,
+      data: { label: 'New Node', color: 'default' },
+    }]);
+  }, [screenToFlowPosition, setNodes]);
+
+  const onEdgeClick = useCallback((_, edge) => {
+    setEdges(eds => eds.filter(e => e.id !== edge.id));
+  }, [setEdges]);
+
+  // ── Toolbar actions ────────────────────────────────────────────────────────
+  const handleClear = useCallback(() => {
+    if (!getNodes().length && !getEdges().length) return;
+    if (confirm('Clear the entire canvas?')) { setNodes([]); setEdges([]); }
+  }, [getNodes, getEdges, setNodes, setEdges]);
+
+  const handleExportJSON = useCallback(() => {
+    const blob = new Blob(
+      [JSON.stringify({ nodes: stripCallbacks(getNodes()), edges: getEdges() }, null, 2)],
+      { type: 'application/json' }
+    );
+    const url = URL.createObjectURL(blob);
+    Object.assign(document.createElement('a'), { href: url, download: `brainstorm-${Date.now()}.json` }).click();
+    URL.revokeObjectURL(url);
+  }, [getNodes, getEdges]);
+
+  const handleImportJSON = useCallback((data) => {
+    if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
+      alert('Invalid brainstorm JSON.'); return;
+    }
+    setNodes(data.nodes.map(n => ({ ...n, data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
+    setEdges(data.edges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
+  }, [setNodes, setEdges, darkMode]);
+
+  const handleExportPNG = useCallback(() => {
+    const el = wrapper.current?.querySelector('.react-flow__viewport');
+    if (!el) return;
+    toPng(el, { backgroundColor: darkMode ? '#0f172a' : '#f1f5f9', pixelRatio: 2 })
+      .then(url => Object.assign(document.createElement('a'), { href: url, download: `brainstorm-${Date.now()}.png` }).click())
+      .catch(err => { console.error(err); alert('PNG export failed — try zooming to fit first.'); });
+  }, [darkMode]);
+
+  // ── Theme values ───────────────────────────────────────────────────────────
+  const canvasBg   = darkMode ? '#0f172a' : '#f1f5f9';
+  const dotColor   = darkMode ? '#1e293b' : '#cbd5e1';
+  const controlsBg = darkMode ? '#020617' : '#ffffff';
+  const controlsBorder = darkMode ? '#1e293b' : '#e2e8f0';
+
+  return (
+    <FlowContext.Provider value={ctx}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Inter, sans-serif' }}>
+        <Toolbar
+          onClear={handleClear}
+          onExportJSON={handleExportJSON}
+          onImportJSON={handleImportJSON}
+          onExportPNG={handleExportPNG}
+          darkMode={darkMode}
+          onToggleDark={onToggleDark}
+        />
+
+        <div ref={wrapper} style={{ flex: 1, position: 'relative' }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onPaneClick={onPaneClick}
+            onEdgeClick={onEdgeClick}
+            nodeTypes={nodeTypes}
+            deleteKeyCode={['Backspace', 'Delete']}
+            zoomOnDoubleClick={false}
+            fitView={!saved?.nodes?.length}
+            fitViewOptions={{ padding: 0.3 }}
+            proOptions={{ hideAttribution: false }}
+            style={{ background: canvasBg }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={dotColor} />
+            <Controls style={{ background: controlsBg, border: `1px solid ${controlsBorder}`, borderRadius: 8 }} />
+          </ReactFlow>
+
+          <div style={{
+            position: 'absolute',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            color: darkMode ? '#334155' : '#94a3b8',
+            fontSize: 12,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+          }}>
+            Click canvas · Double-click to edit · Click edge to delete · Delete/Backspace to remove node
+          </div>
+        </div>
+      </div>
+    </FlowContext.Provider>
+  );
+}
+
+export default function App() {
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem('brainstorm-dark') !== 'false'; } catch { return true; }
+  });
+
+  const toggleDark = useCallback(() => {
+    setDarkMode(d => {
+      const next = !d;
+      try { localStorage.setItem('brainstorm-dark', String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  return (
+    <ReactFlowProvider>
+      <FlowCanvas darkMode={darkMode} onToggleDark={toggleDark} />
+    </ReactFlowProvider>
+  );
+}

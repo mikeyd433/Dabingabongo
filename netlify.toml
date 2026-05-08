@@ -1,15 +1,30 @@
+[build]
+  command = "bash build.sh"
+  publish = "dist"
+
 [[headers]]
   for = "/*"
-    [headers.values]
-    Access-Control-Allow-Origin = "*"
+  [headers.values]
+  Access-Control-Allow-Origin = "*"
+
+# SPA fallback for brainstorm app
+[[redirects]]
+  from = "/brainstorm"
+  to   = "/brainstorm/"
+  status = 301
+
+[[redirects]]
+  from = "/brainstorm/*"
+  to   = "/brainstorm/index.html"
+  status = 200
 
 [[redirects]]
   from = "/songs"
-  to = "/songs/"
+  to   = "/songs/"
   status = 200
 
 [[redirects]]
   from = "/songs/*"
-  to = "/songs/:splat"
+  to   = "/songs/:splat"
   status = 200
   force = true
