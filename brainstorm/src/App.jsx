@@ -17,7 +17,7 @@ import CustomNode from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
-import { isLucidChart, convertLucidChart, convertLucidChartSVG } from './utils/lucidchartConverter';
+import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
 
 const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
@@ -157,14 +157,26 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   }, [setNodes, setEdges, darkMode]);
 
   const handleImportSVG = useCallback((svgText) => {
-    try {
-      const { nodes: sNodes, edges: sEdges } = convertLucidChartSVG(svgText);
-      setNodes(sNodes);
-      setEdges(sEdges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
-    } catch (err) {
-      alert(`SVG import failed: ${err.message}`);
+    const currentNodes = getNodes();
+    if (currentNodes.length > 0) {
+      // Nodes already loaded from JSON — apply SVG positions/colours on top.
+      try {
+        const updated = applyLucidChartSVGPositions(svgText, currentNodes);
+        setNodes(updated);
+      } catch (err) {
+        alert(`SVG position import failed: ${err.message}`);
+      }
+    } else {
+      // Empty canvas — fall back to standalone SVG converter.
+      try {
+        const { nodes: sNodes, edges: sEdges } = convertLucidChartSVG(svgText);
+        setNodes(sNodes);
+        setEdges(sEdges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
+      } catch (err) {
+        alert(`SVG import failed: ${err.message}`);
+      }
     }
-  }, [setNodes, setEdges, darkMode]);
+  }, [getNodes, setNodes, setEdges, darkMode]);
 
   const handleExportPNG = useCallback(() => {
     const el = wrapper.current?.querySelector('.react-flow__viewport');

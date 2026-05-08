@@ -39,22 +39,27 @@ function Btn({ children, onClick, title, danger, small }) {
 }
 
 export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, darkMode, onToggleDark, isMobile }) {
-  const importRef = useRef(null);
+  const importJsonRef = useRef(null);
+  const importSvgRef  = useRef(null);
 
-  const handleImport = e => {
+  const handleImportJson = e => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    if (file.name.toLowerCase().endsWith('.svg') || file.type === 'image/svg+xml') {
-      reader.onload = ev => { onImportSVG(ev.target.result); };
-      reader.readAsText(file);
-    } else {
-      reader.onload = ev => {
-        try { onImportJSON(JSON.parse(ev.target.result)); }
-        catch { alert('Invalid JSON file.'); }
-      };
-      reader.readAsText(file);
-    }
+    reader.onload = ev => {
+      try { onImportJSON(JSON.parse(ev.target.result)); }
+      catch { alert('Invalid JSON file.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleImportSvg = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { onImportSVG(ev.target.result); };
+    reader.readAsText(file);
     e.target.value = '';
   };
 
@@ -126,11 +131,13 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
         }}>
-          <Btn onClick={onExportPNG}                       title="Export as PNG"  small>PNG</Btn>
-          <Btn onClick={onExportJSON}                      title="Export JSON"    small>↓ JSON</Btn>
-          <Btn onClick={() => importRef.current?.click()} title="Import JSON"    small>↑ JSON</Btn>
-          <Btn onClick={onClear} danger                    title="Clear canvas"   small>Clear</Btn>
-          <input ref={importRef} type="file" accept=".json,.svg,application/json,image/svg+xml" style={{ display: 'none' }} onChange={handleImport} />
+          <Btn onClick={onExportPNG}                           title="Export as PNG"                                         small>PNG</Btn>
+          <Btn onClick={onExportJSON}                          title="Export JSON"                                            small>↓ JSON</Btn>
+          <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                  small>↑ JSON</Btn>
+          <Btn onClick={() => importSvgRef.current?.click()}   title="Import Lucidchart SVG — applies positions to loaded nodes" small>↑ SVG</Btn>
+          <Btn onClick={onClear} danger                        title="Clear canvas"                                           small>Clear</Btn>
+          <input ref={importJsonRef} type="file" accept=".json,application/json"   style={{ display: 'none' }} onChange={handleImportJson} />
+          <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"       style={{ display: 'none' }} onChange={handleImportSvg} />
         </div>
       </div>
     );
@@ -160,11 +167,13 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
       <span style={titleStyle}>Brainstorm</span>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Btn onClick={onExportPNG}                       title="Export canvas as PNG">PNG</Btn>
-        <Btn onClick={onExportJSON}                      title="Export diagram as JSON">Export JSON</Btn>
-        <Btn onClick={() => importRef.current?.click()} title="Import JSON or SVG (LucidChart)">Import</Btn>
-        <Btn onClick={onClear} danger                    title="Clear entire canvas">Clear</Btn>
-        <input ref={importRef} type="file" accept=".json,.svg,application/json,image/svg+xml" style={{ display: 'none' }} onChange={handleImport} />
+        <Btn onClick={onExportPNG}                           title="Export canvas as PNG">PNG</Btn>
+        <Btn onClick={onExportJSON}                          title="Export diagram as JSON">Export JSON</Btn>
+        <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON">↑ JSON</Btn>
+        <Btn onClick={() => importSvgRef.current?.click()}   title="Import Lucidchart SVG — applies positions to loaded nodes (import JSON first)">↑ SVG pos</Btn>
+        <Btn onClick={onClear} danger                        title="Clear entire canvas">Clear</Btn>
+        <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
+        <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
         {darkBtn}
       </div>
     </div>
