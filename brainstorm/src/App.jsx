@@ -14,10 +14,12 @@ import 'reactflow/dist/style.css';
 import { toPng } from 'html-to-image';
 
 import CustomNode from './components/CustomNode';
+import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
 
 const nodeTypes = { editableNode: CustomNode };
+const edgeTypes = { default: WaypointEdge };
 const STORAGE_KEY = 'brainstorm-v1';
 
 function loadSaved() {
@@ -180,6 +182,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             onPaneClick={onPaneClick}
             onEdgeClick={onEdgeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
             zoomOnDoubleClick={false}
             fitView={!saved?.nodes?.length}
