@@ -58,6 +58,170 @@ export function convertLucidChart(data) {
   return { nodes, edges, extraPages };
 }
 
+// ── LucidChart SVG → React Flow ───────────────────────────────────────────
+// SVG has real x/y coordinates; connections are reconstructed from path endpoints.
+
+export function convertLucidChartSVG(svgText) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(svgText, 'image/svg+xml');
+
+  const parseErr = doc.querySelector('parsererror');
+  if (parseErr) throw new Error('Could not parse SVG file.');
+
+  const svg = doc.documentElement;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function parseTranslate(transform) {
+    const m = (transform ?? '').match(
+      /translate\s*\(\s*([\d.e+-]+)(?:[,\s]+([\d.e+-]+))?\s*\)/
+    );
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2] ?? 0) } : { x: 0, y: 0 };
+  }
+
+  // Walk up the DOM accumulating translate transforms (ignores scale/rotate for now)
+  function accumulatedPos(el) {
+    let x = 0, y = 0, cur = el;
+    while (cur && cur !== svg) {
+      const { x: dx, y: dy } = parseTranslate(cur.getAttribute('transform'));
+      x += dx; y += dy;
+      cur = cur.parentElement;
+    }
+    return { x, y };
+  }
+
+  function extractLabel(g) {
+    const seen  = new Set();
+    const parts = [];
+    g.querySelectorAll('text').forEach(t => {
+      const tspans  = t.querySelectorAll('tspan');
+      const content = tspans.length
+        ? [...tspans].map(ts => ts.textContent.trim()).filter(Boolean).join(' ')
+        : t.textContent.trim();
+      if (content && !seen.has(content)) { seen.add(content); parts.push(content); }
+    });
+    if (parts.length) return parts.join('\n');
+    const fo = g.querySelector('foreignObject');
+    return fo ? fo.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+
+  // ── Parse shapes ───────────────────────────────────────────────────────────
+
+  const nodes    = [];
+  const shapeMap = new Map(); // id → { cx, cy, w, h }
+  const SHAPE_TAGS = new Set(['rect', 'ellipse', 'circle', 'polygon', 'foreignobject']);
+
+  svg.querySelectorAll('g').forEach(g => {
+    const shapeEl = [...g.children].find(c => SHAPE_TAGS.has(c.tagName.toLowerCase()));
+    if (!shapeEl) return;
+
+    const id = g.getAttribute('id') || g.getAttribute('data-id') || `svg-node-${nodes.length}`;
+    if (shapeMap.has(id)) return; // dedup nested groups
+
+    const { x, y } = accumulatedPos(g);
+    const w = parseFloat(
+      shapeEl.getAttribute('width')  ?? String((parseFloat(shapeEl.getAttribute('rx') ?? 75)) * 2)
+    ) || 150;
+    const h = parseFloat(
+      shapeEl.getAttribute('height') ?? String((parseFloat(shapeEl.getAttribute('ry') ?? 30)) * 2)
+    ) || 60;
+
+    const label = extractLabel(g);
+
+    nodes.push({
+      id,
+      type: 'editableNode',
+      position: { x: Math.round(x), y: Math.round(y) },
+      data: { label: label || 'Node', color: 'default' },
+    });
+    shapeMap.set(id, { cx: x + w / 2, cy: y + h / 2, w, h });
+  });
+
+  if (nodes.length === 0) {
+    throw new Error(
+      'No shapes detected in this SVG.\n\n' +
+      'Try: File → Export → SVG from the LucidChart desktop/web app.\n' +
+      'The mobile app SVG export may not include editable shape data.'
+    );
+  }
+
+  // ── Reconstruct edges from path endpoints ──────────────────────────────────
+
+  const edgeColor = '#475569';
+  const edges     = [];
+  const shapeArr  = [...shapeMap.entries()];
+
+  // Snap radius: generously sized so endpoints don't have to hit the centre exactly
+  const maxSnap = Math.max(400, ...[...shapeMap.values()].map(b => Math.max(b.w, b.h) * 2));
+
+  function closestShape(px, py) {
+    let bestId = null, bestDist = Infinity;
+    for (const [id, box] of shapeArr) {
+      const d = Math.hypot(px - box.cx, py - box.cy);
+      if (d < bestDist) { bestDist = d; bestId = id; }
+    }
+    return bestDist <= maxSnap ? bestId : null;
+  }
+
+  // Extract the first M-command point and the last explicit coordinate from a path
+  function pathEndpoints(d) {
+    const mMatch = d.match(/[Mm]\s*([\d.e+-]+)[,\s]+([\d.e+-]+)/);
+    if (!mMatch) return null;
+
+    // Cubic bezier: last endpoint is the 6th number of each C segment
+    const cubics = [...d.matchAll(
+      /[Cc]\s*[\d.e+-, ]+?[\d.e+-, ]+?\s*([\d.e+-]+)[,\s]+([\d.e+-]+)\s*(?=[MCLHVQSATZmclhvqsatz]|$)/g
+    )];
+    // Fallback: any L/Q/T command
+    const lines = [...d.matchAll(/[LlQqTt]\s*([\d.e+-]+)[,\s]+([\d.e+-]+)/g)];
+
+    const last = cubics.length ? cubics[cubics.length - 1] : lines.length ? lines[lines.length - 1] : null;
+    if (!last) return null;
+
+    return {
+      start: { x: parseFloat(mMatch[1]), y: parseFloat(mMatch[2]) },
+      end:   { x: parseFloat(last[1]),   y: parseFloat(last[2])   },
+    };
+  }
+
+  const seenPairs = new Set();
+  svg.querySelectorAll('path').forEach(path => {
+    const d     = path.getAttribute('d') ?? '';
+    if (!d) return;
+
+    // Skip filled shapes (arrows / decorative fills are usually connectors or markers)
+    const styleFill = (path.getAttribute('style') ?? '').match(/fill\s*:\s*([^;]+)/)?.[1]?.trim() ?? '';
+    const attrFill  = path.getAttribute('fill') ?? '';
+    const fill      = styleFill || attrFill;
+    if (fill && fill !== 'none' && !fill.includes('none') && fill !== 'transparent') return;
+
+    const pts = pathEndpoints(d);
+    if (!pts) return;
+
+    // Add parent offset so coordinates are in the same space as shape positions
+    const { x: ox, y: oy } = accumulatedPos(path);
+    const srcId = closestShape(pts.start.x + ox, pts.start.y + oy);
+    const tgtId = closestShape(pts.end.x   + ox, pts.end.y   + oy);
+    if (!srcId || !tgtId || srcId === tgtId) return;
+
+    const key = `${srcId}→${tgtId}`;
+    if (seenPairs.has(key)) return;
+    seenPairs.add(key);
+
+    edges.push({
+      id:        `e-${srcId}-${tgtId}`,
+      source:    srcId,
+      target:    tgtId,
+      type:      'default',
+      markerEnd: { type: 'arrowclosed', color: edgeColor },
+      style:     { stroke: edgeColor, strokeWidth: 2 },
+      data:      {},
+    });
+  });
+
+  return { nodes, edges };
+}
+
 // ── Hierarchical top-down layout ───────────────────────────────────────────
 
 function hierarchicalLayout(nodes, edges) {
