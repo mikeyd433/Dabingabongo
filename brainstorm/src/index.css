@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Hide React Flow handles until node is hovered or selected */
+.react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}
+
+/* Edge hover highlight */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #00ff00 !important;
+  cursor: pointer;
+}
+
+/* Controls button theming */
+.react-flow__controls-button {
+  background: inherit;
+  border-bottom: 1px solid #1e293b;
+  color: #94a3b8;
+  fill: #94a3b8;
+}
+.react-flow__controls-button:hover {
+  background: #0f4c0f !important;
+  fill: #00ff00;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(0, 255, 0, 0.04);
+  border: 1px solid rgba(0, 255, 0, 0.5);
+}
+
+/* Minimap */
+.react-flow__minimap {
+  border-radius: 6px;
+  overflow: hidden;
+}
