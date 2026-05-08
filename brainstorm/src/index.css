@@ -8,31 +8,60 @@ html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
+  /* Prevent mobile pull-to-refresh and overscroll */
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
-/* Hide React Flow handles until node is hovered or selected */
+/* Hide scrollbar on mobile toolbar button row */
+::-webkit-scrollbar { display: none; }
+
+/* ── React Flow canvas ────────────────────────────────────────────── */
+
+/* Prevent iOS Safari from treating the canvas as a scroll target */
+.react-flow__renderer {
+  touch-action: none;
+}
+
+/* Hide handles until node is hovered or selected (desktop) */
 .react-flow__handle {
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.15s;
 }
 .react-flow__node:hover .react-flow__handle,
 .react-flow__node.selected .react-flow__handle {
   opacity: 1;
 }
 
-/* Edge hover highlight */
+/* Always show handles on touch devices (no hover available) */
+@media (hover: none) {
+  .react-flow__handle {
+    opacity: 0.6;
+  }
+  .react-flow__node.selected .react-flow__handle {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Edge hover */
 .react-flow__edge:hover .react-flow__edge-path {
   stroke: #00ff00 !important;
   cursor: pointer;
 }
 
-/* Controls button theming */
+/* Controls theming */
+.react-flow__controls {
+  bottom: 48px !important; /* lift above the hint text */
+}
 .react-flow__controls-button {
   background: inherit;
   border-bottom: 1px solid #1e293b;
   color: #94a3b8;
   fill: #94a3b8;
+  /* Bigger tap targets on mobile */
+  min-width: 28px;
+  min-height: 28px;
 }
 .react-flow__controls-button:hover {
   background: #0f4c0f !important;
@@ -45,8 +74,11 @@ html, body, #root {
   border: 1px solid rgba(0, 255, 0, 0.5);
 }
 
-/* Minimap */
-.react-flow__minimap {
-  border-radius: 6px;
-  overflow: hidden;
+/* Mobile: nudge controls away from FAB */
+@media (max-width: 639px) {
+  .react-flow__controls {
+    bottom: 136px !important;
+    right: 12px !important;
+    left: auto !important;
+  }
 }

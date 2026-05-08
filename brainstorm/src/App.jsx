@@ -41,7 +41,7 @@ function makeEdgeOptions(darkMode) {
 }
 
 // Inner component — must live inside ReactFlowProvider
-function FlowCanvas({ darkMode, onToggleDark }) {
+function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const wrapper = useRef(null);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
 
@@ -80,13 +80,32 @@ function FlowCanvas({ darkMode, onToggleDark }) {
     setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
   }, [setEdges, darkMode]);
 
+  // Desktop: click canvas to create node
   const onPaneClick = useCallback((event) => {
+    if (isMobile) return;
     const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const id  = `n${Date.now()}`;
     setNodes(ns => [...ns, {
       id,
       type: 'editableNode',
       position: pos,
+      data: { label: 'New Node', color: 'default' },
+    }]);
+  }, [screenToFlowPosition, setNodes, isMobile]);
+
+  // Mobile: FAB adds node at viewport centre
+  const addNodeAtCenter = useCallback(() => {
+    const bounds = wrapper.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const pos = screenToFlowPosition({
+      x: bounds.left + bounds.width  / 2,
+      y: bounds.top  + bounds.height / 2,
+    });
+    const id = `n${Date.now()}`;
+    setNodes(ns => [...ns, {
+      id,
+      type: 'editableNode',
+      position: { x: pos.x - 60, y: pos.y - 20 },
       data: { label: 'New Node', color: 'default' },
     }]);
   }, [screenToFlowPosition, setNodes]);
@@ -128,14 +147,19 @@ function FlowCanvas({ darkMode, onToggleDark }) {
   }, [darkMode]);
 
   // ── Theme values ───────────────────────────────────────────────────────────
-  const canvasBg   = darkMode ? '#0f172a' : '#f1f5f9';
-  const dotColor   = darkMode ? '#1e293b' : '#cbd5e1';
-  const controlsBg = darkMode ? '#020617' : '#ffffff';
+  const canvasBg      = darkMode ? '#0f172a' : '#f1f5f9';
+  const dotColor      = darkMode ? '#1e293b' : '#cbd5e1';
+  const controlsBg    = darkMode ? '#020617' : '#ffffff';
   const controlsBorder = darkMode ? '#1e293b' : '#e2e8f0';
+  const hintColor     = darkMode ? '#334155' : '#94a3b8';
+
+  const hint = isMobile
+    ? 'Tap + to add · Double-tap to edit · Tap edge to delete'
+    : 'Click canvas to add · Double-click to edit · Click edge to delete · Del to remove';
 
   return (
     <FlowContext.Provider value={ctx}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Inter, sans-serif' }}>
         <Toolbar
           onClear={handleClear}
           onExportJSON={handleExportJSON}
@@ -143,9 +167,10 @@ function FlowCanvas({ darkMode, onToggleDark }) {
           onExportPNG={handleExportPNG}
           darkMode={darkMode}
           onToggleDark={onToggleDark}
+          isMobile={isMobile}
         />
 
-        <div ref={wrapper} style={{ flex: 1, position: 'relative' }}>
+        <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -166,18 +191,52 @@ function FlowCanvas({ darkMode, onToggleDark }) {
             <Controls style={{ background: controlsBg, border: `1px solid ${controlsBorder}`, borderRadius: 8 }} />
           </ReactFlow>
 
+          {/* Mobile FAB — add node at centre */}
+          {isMobile && (
+            <button
+              onClick={addNodeAtCenter}
+              aria-label="Add node"
+              style={{
+                position: 'absolute',
+                bottom: 76,
+                right: 12,
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: '#006600',
+                border: '2px solid #00ff00',
+                color: '#00ff00',
+                fontSize: 28,
+                lineHeight: 1,
+                cursor: 'pointer',
+                zIndex: 5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 12px rgba(0,255,0,0.2)',
+                touchAction: 'manipulation',
+              }}
+            >
+              +
+            </button>
+          )}
+
           <div style={{
             position: 'absolute',
-            bottom: 16,
+            bottom: 12,
             left: '50%',
             transform: 'translateX(-50%)',
-            color: darkMode ? '#334155' : '#94a3b8',
-            fontSize: 12,
+            color: hintColor,
+            fontSize: 11,
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
             userSelect: 'none',
+            maxWidth: '90vw',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            textAlign: 'center',
           }}>
-            Click canvas · Double-click to edit · Click edge to delete · Delete/Backspace to remove node
+            {hint}
           </div>
         </div>
       </div>
@@ -190,6 +249,14 @@ export default function App() {
     try { return localStorage.getItem('brainstorm-dark') !== 'false'; } catch { return true; }
   });
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const toggleDark = useCallback(() => {
     setDarkMode(d => {
       const next = !d;
@@ -200,7 +267,7 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      <FlowCanvas darkMode={darkMode} onToggleDark={toggleDark} />
+      <FlowCanvas darkMode={darkMode} onToggleDark={toggleDark} isMobile={isMobile} />
     </ReactFlowProvider>
   );
 }
