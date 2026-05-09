@@ -72,47 +72,50 @@ export function applyLucidChartSVGPositions(svgText, existingNodes) {
   if (doc.querySelector('parsererror')) throw new Error('Could not parse SVG file.');
   const svg = doc.documentElement;
 
-  function parseTranslate(transform) {
-    const m = (transform ?? '').match(
-      /translate\s*\(\s*([\d.e+-]+)(?:[,\s]+([\d.e+-]+))?\s*\)/
-    );
-    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2] ?? 0) } : { x: 0, y: 0 };
-  }
+  // Global SVG translate (e.g. translate(9021 401))
+  const rootGroup = svg.querySelector('g[transform]');
+  const gtMatch = (rootGroup?.getAttribute('transform') ?? '')
+    .match(/translate\s*\(\s*([\d.e+-]+)[,\s]+([\d.e+-]+)\s*\)/);
+  const GLOBAL_TX = gtMatch ? parseFloat(gtMatch[1]) : 0;
+  const GLOBAL_TY = gtMatch ? parseFloat(gtMatch[2]) : 0;
 
-  function accumulatedOffset(el) {
-    let x = 0, y = 0, cur = el;
-    while (cur && cur !== svg) {
-      const { x: dx, y: dy } = parseTranslate(cur.getAttribute('transform'));
-      x += dx; y += dy;
-      cur = cur.parentElement;
-    }
-    return { x, y };
-  }
+  // Only match Lucidchart's rounded-rect node paths — excludes arrowheads/lines
+  const nodeRectPattern = /^M([\d.e+-]+) ([\d.e+-]+)a6 6 0 0 [01] 6-6h([\d.e+-]+)a6 6 0 0 [01] 6 6v/;
 
-  function pathStartPoint(d) {
-    const m = d.match(/[Mm]\s*([-\d.e+]+)[,\s]+([-\d.e+]+)/);
-    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : null;
-  }
+  const svgShapes = [];
+  svg.querySelectorAll('path').forEach(path => {
+    const d = path.getAttribute('d') ?? '';
+    const m = nodeRectPattern.exec(d);
+    if (!m) return;
+    const fill = (path.getAttribute('fill') ?? '').trim().toLowerCase();
+    if (!fill || fill === 'none' || fill === '#fff' || fill === '#ffffff' || fill === 'white') return;
+    svgShapes.push({
+      x:    parseFloat(m[1]) + GLOBAL_TX,
+      y:    parseFloat(m[2]) + GLOBAL_TY,
+      fill: path.getAttribute('fill') ?? '',
+    });
+  });
 
-  // Map a hex SVG fill to the closest NODE_COLORS name (null = keep existing).
+  if (svgShapes.length === 0)
+    throw new Error('No shapes found in SVG. Make sure you exported from the LucidChart desktop/web app.');
+
+  // Normalise: shift to origin, scale to React Flow canvas space
+  const minX  = Math.min(...svgShapes.map(s => s.x));
+  const minY  = Math.min(...svgShapes.map(s => s.y));
+  const SCALE = 0.3;
+
   function svgFillToNodeColor(fill) {
     if (!fill || fill === 'none') return null;
+    const f = fill.trim();
     let r, g, b;
-    if (/^#[0-9a-f]{6}$/i.test(fill)) {
-      r = parseInt(fill.slice(1, 3), 16);
-      g = parseInt(fill.slice(3, 5), 16);
-      b = parseInt(fill.slice(5, 7), 16);
-    } else if (/^#[0-9a-f]{3}$/i.test(fill)) {
-      r = parseInt(fill[1] + fill[1], 16);
-      g = parseInt(fill[2] + fill[2], 16);
-      b = parseInt(fill[3] + fill[3], 16);
-    } else {
-      return null;
-    }
-    const fLow = fill.toLowerCase();
-    if (fLow === '#fff' || fLow === '#ffffff') return null;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    if (max - min < 30) return null; // near-grey — keep existing
+    if (/^#[0-9a-f]{6}$/i.test(f)) {
+      r = parseInt(f.slice(1,3),16); g = parseInt(f.slice(3,5),16); b = parseInt(f.slice(5,7),16);
+    } else if (/^#[0-9a-f]{3}$/i.test(f)) {
+      r = parseInt(f[1]+f[1],16); g = parseInt(f[2]+f[2],16); b = parseInt(f[3]+f[3],16);
+    } else return null;
+    if (f.toLowerCase() === '#ffffff' || f.toLowerCase() === '#fff') return null;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    if (max - min < 30) return null;
     if (g >= r && g >= b) return 'green';
     if (b >= r && b > g * 0.8) return 'blue';
     if (r >= g && r >= b) {
@@ -123,40 +126,18 @@ export function applyLucidChartSVGPositions(svgText, existingNodes) {
     return null;
   }
 
-  // Collect shape paths: filled with a non-white colour; stroke differs from fill
-  // (arrowheads use the same colour for both stroke and fill).
-  const shapes = [];
-  svg.querySelectorAll('path').forEach(path => {
-    const fill   = (path.getAttribute('fill')   ?? '').trim();
-    const stroke = (path.getAttribute('stroke') ?? '').trim();
-    if (!fill || fill === 'none' || fill === 'transparent') return;
-    const fLow = fill.toLowerCase();
-    if (fLow === '#fff' || fLow === '#ffffff' || fLow === 'white') return;
-    if (fLow === stroke.toLowerCase()) return; // arrowhead — same colour
-
-    const d = path.getAttribute('d') ?? '';
-    const start = pathStartPoint(d);
-    if (!start) return;
-
-    const { x: ox, y: oy } = accumulatedOffset(path);
-    shapes.push({
-      x:     Math.round(start.x + ox),
-      y:     Math.round(start.y + oy),
-      color: svgFillToNodeColor(fill),
-    });
-  });
-
-  if (shapes.length === 0)
-    throw new Error(
-      'No shapes found in SVG.\n\nMake sure you exported from the LucidChart desktop or web app (not mobile).'
-    );
-
-  // Match nth JSON node to nth SVG shape.
   return existingNodes.map((node, i) => {
-    const shape = shapes[i];
+    const shape = svgShapes[i];
     if (!shape) return node;
-    const updated = { ...node, position: { x: shape.x, y: shape.y } };
-    if (shape.color) updated.data = { ...node.data, color: shape.color };
+    const updated = {
+      ...node,
+      position: {
+        x: Math.round((shape.x - minX) * SCALE),
+        y: Math.round((shape.y - minY) * SCALE),
+      },
+    };
+    const color = svgFillToNodeColor(shape.fill);
+    if (color) updated.data = { ...node.data, color };
     return updated;
   });
 }
