@@ -58,6 +58,109 @@ export function convertLucidChart(data) {
   return { nodes, edges, extraPages };
 }
 
+// ── LucidChart SVG: apply positions to existing nodes ────────────────────
+// Used after importing Lucidchart JSON: takes the SVG export (which has real
+// coordinates) and applies positions + colours to the already-imported nodes.
+// Matching is order-based — Lucidchart emits shapes in the same sequence in
+// both exports.
+
+export function applyLucidChartSVGPositions(svgText, existingNodes) {
+  if (!existingNodes.length) return existingNodes;
+
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(svgText, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('Could not parse SVG file.');
+  const svg = doc.documentElement;
+
+  function parseTranslate(transform) {
+    const m = (transform ?? '').match(
+      /translate\s*\(\s*([\d.e+-]+)(?:[,\s]+([\d.e+-]+))?\s*\)/
+    );
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2] ?? 0) } : { x: 0, y: 0 };
+  }
+
+  function accumulatedOffset(el) {
+    let x = 0, y = 0, cur = el;
+    while (cur && cur !== svg) {
+      const { x: dx, y: dy } = parseTranslate(cur.getAttribute('transform'));
+      x += dx; y += dy;
+      cur = cur.parentElement;
+    }
+    return { x, y };
+  }
+
+  function pathStartPoint(d) {
+    const m = d.match(/[Mm]\s*([-\d.e+]+)[,\s]+([-\d.e+]+)/);
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : null;
+  }
+
+  // Map a hex SVG fill to the closest NODE_COLORS name (null = keep existing).
+  function svgFillToNodeColor(fill) {
+    if (!fill || fill === 'none') return null;
+    let r, g, b;
+    if (/^#[0-9a-f]{6}$/i.test(fill)) {
+      r = parseInt(fill.slice(1, 3), 16);
+      g = parseInt(fill.slice(3, 5), 16);
+      b = parseInt(fill.slice(5, 7), 16);
+    } else if (/^#[0-9a-f]{3}$/i.test(fill)) {
+      r = parseInt(fill[1] + fill[1], 16);
+      g = parseInt(fill[2] + fill[2], 16);
+      b = parseInt(fill[3] + fill[3], 16);
+    } else {
+      return null;
+    }
+    const fLow = fill.toLowerCase();
+    if (fLow === '#fff' || fLow === '#ffffff') return null;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max - min < 30) return null; // near-grey — keep existing
+    if (g >= r && g >= b) return 'green';
+    if (b >= r && b > g * 0.8) return 'blue';
+    if (r >= g && r >= b) {
+      if (b > g * 1.2) return 'purple';
+      if (g > 150)     return 'amber';
+      return 'rose';
+    }
+    return null;
+  }
+
+  // Collect shape paths: filled with a non-white colour; stroke differs from fill
+  // (arrowheads use the same colour for both stroke and fill).
+  const shapes = [];
+  svg.querySelectorAll('path').forEach(path => {
+    const fill   = (path.getAttribute('fill')   ?? '').trim();
+    const stroke = (path.getAttribute('stroke') ?? '').trim();
+    if (!fill || fill === 'none' || fill === 'transparent') return;
+    const fLow = fill.toLowerCase();
+    if (fLow === '#fff' || fLow === '#ffffff' || fLow === 'white') return;
+    if (fLow === stroke.toLowerCase()) return; // arrowhead — same colour
+
+    const d = path.getAttribute('d') ?? '';
+    const start = pathStartPoint(d);
+    if (!start) return;
+
+    const { x: ox, y: oy } = accumulatedOffset(path);
+    shapes.push({
+      x:     Math.round(start.x + ox),
+      y:     Math.round(start.y + oy),
+      color: svgFillToNodeColor(fill),
+    });
+  });
+
+  if (shapes.length === 0)
+    throw new Error(
+      'No shapes found in SVG.\n\nMake sure you exported from the LucidChart desktop or web app (not mobile).'
+    );
+
+  // Match nth JSON node to nth SVG shape.
+  return existingNodes.map((node, i) => {
+    const shape = shapes[i];
+    if (!shape) return node;
+    const updated = { ...node, position: { x: shape.x, y: shape.y } };
+    if (shape.color) updated.data = { ...node.data, color: shape.color };
+    return updated;
+  });
+}
+
 // ── LucidChart SVG → React Flow ───────────────────────────────────────────
 // SVG has real x/y coordinates; connections are reconstructed from path endpoints.
 
