@@ -28,8 +28,33 @@ export const NODE_COLORS = [
   { name: 'default', bg: '#1e293b', border: '#475569', text: '#f1f5f9' },
 ];
 
+// Light-mode palette: bg ↔ text swapped so nodes read naturally on a light canvas.
+// Borders stay identical so MiniMap colours and colour identity remain consistent.
+export const NODE_COLORS_LIGHT = [
+  { name: 'red',     bg: '#fee2e2', border: '#ef4444', text: '#450a0a' },
+  { name: 'rose',    bg: '#ffe4e6', border: '#f43f5e', text: '#4c0519' },
+  { name: 'orange',  bg: '#ffedd5', border: '#f97316', text: '#431407' },
+  { name: 'amber',   bg: '#fef3c7', border: '#f59e0b', text: '#451a03' },
+  { name: 'yellow',  bg: '#fef9c3', border: '#eab308', text: '#422006' },
+  { name: 'lime',    bg: '#ecfccb', border: '#84cc16', text: '#1a2e05' },
+  { name: 'green',   bg: '#dcfce7', border: '#22c55e', text: '#14532d' },
+  { name: 'emerald', bg: '#d1fae5', border: '#10b981', text: '#022c22' },
+  { name: 'teal',    bg: '#ccfbf1', border: '#14b8a6', text: '#042f2e' },
+  { name: 'cyan',    bg: '#cffafe', border: '#06b6d4', text: '#083344' },
+  { name: 'sky',     bg: '#e0f2fe', border: '#0ea5e9', text: '#082f49' },
+  { name: 'blue',    bg: '#eff6ff', border: '#3b82f6', text: '#1e3a8a' },
+  { name: 'indigo',  bg: '#e0e7ff', border: '#6366f1', text: '#1e1b4b' },
+  { name: 'violet',  bg: '#ede9fe', border: '#8b5cf6', text: '#2e1065' },
+  { name: 'purple',  bg: '#fdf4ff', border: '#c026d3', text: '#4a044e' },
+  { name: 'fuchsia', bg: '#fae8ff', border: '#d946ef', text: '#3b0764' },
+  { name: 'pink',    bg: '#fce7f3', border: '#ec4899', text: '#500724' },
+  { name: 'slate',   bg: '#e2e8f0', border: '#64748b', text: '#0f172a' },
+  { name: 'stone',   bg: '#f5f5f4', border: '#78716c', text: '#1c1917' },
+  { name: 'default', bg: '#ffffff', border: '#94a3b8', text: '#1e293b' },
+];
+
 function CustomNode({ id, data, selected }) {
-  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch } = useFlowContext();
+  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch, darkMode } = useFlowContext();
   const { getNodes } = useReactFlow();
   const [editing, setEditing]           = useState(false);
   const [draft, setDraft]               = useState(data.label);
@@ -64,7 +89,8 @@ function CustomNode({ id, data, selected }) {
     }
   }, [id, getNodes, updateColor, updateColorForAll]);
 
-  const color = NODE_COLORS.find(c => c.name === data.color) ?? NODE_COLORS[NODE_COLORS.length - 1];
+  const palette = darkMode ? NODE_COLORS : NODE_COLORS_LIGHT;
+  const color = palette.find(c => c.name === data.color) ?? palette[palette.length - 1];
 
   const isSearchMatch  = searchMatchIds?.has(id)  ?? false;
   const isCurrentMatch = searchCurrentId === id;
