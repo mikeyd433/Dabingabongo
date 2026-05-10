@@ -13,10 +13,11 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
-/* Dynamic viewport height: tracks the visible area as Android/iOS browser
-   chrome (address bar, bottom nav) appears/disappears. Falls back to 100%
-   on browsers that don't support dvh. */
-#root { height: 100dvh; }
+/* Small viewport height: a fixed value that equals the viewport when browser
+   chrome is fully shown. Crucially, it does NOT change when the soft keyboard
+   opens, so React Flow's canvas never resizes mid-gesture and its internal
+   touch state stays intact. Falls back to 100% on old browsers. */
+#root { height: 100svh; }
 
 /* Hide scrollbar on mobile toolbar button row */
 ::-webkit-scrollbar { display: none; }
