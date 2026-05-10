@@ -122,12 +122,10 @@ function CustomNode({ id, data, selected }) {
           WebkitUserSelect: 'none',
         }}
       >
-        {!presentationMode && <>
-          <Handle type="target" position={Position.Top}    style={{ ...handleStyle, top:    -6 }} />
-          <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6 }} />
-          <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6 }} />
-          <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6 }} />
-        </>}
+        <Handle type="target" position={Position.Top}    style={{ ...handleStyle, top:    -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
+        <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
+        <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
+        <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
 
         {editing ? (
           <input

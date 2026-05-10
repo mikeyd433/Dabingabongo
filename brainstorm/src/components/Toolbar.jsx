@@ -75,7 +75,7 @@ export default function Toolbar({
   mobileSelectMode, onToggleMobileSelect,
   onDeleteSelected, onShare,
   onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
-  onPresent,
+  onPresent, onOpenSearch,
 }) {
   const isCompact = isMobile || isTablet; // 2-row scrollable layout
   const importJsonRef = useRef(null);
@@ -143,6 +143,7 @@ export default function Toolbar({
         </div>
         {/* Row 2: action buttons, scrollable */}
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+          <Btn onClick={onOpenSearch} title="Search nodes" small={sm}>Find</Btn>
           <Btn onClick={onUndo} title="Undo (Ctrl+Z)" small={sm} disabled={!canUndo}>↩</Btn>
           <Btn onClick={onRedo} title="Redo (Ctrl+Y)" small={sm} disabled={!canRedo}>↪</Btn>
           <button
