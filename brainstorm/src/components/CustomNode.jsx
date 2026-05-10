@@ -54,7 +54,7 @@ export const NODE_COLORS_LIGHT = [
 ];
 
 function CustomNode({ id, data, selected }) {
-  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch, darkMode } = useFlowContext();
+  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, openDetailsPanel, isTouch, darkMode } = useFlowContext();
   const { getNodes } = useReactFlow();
   const [editing, setEditing]           = useState(false);
   const [draft, setDraft]               = useState(data.label);
@@ -152,6 +152,40 @@ function CustomNode({ id, data, selected }) {
         <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
         <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
         <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
+
+        {/* Notes indicator — visible when the node has details */}
+        {data.details && !editing && (
+          <button
+            className="nodrag nopan"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); openDetailsPanel(id); }}
+            title="This node has notes — click to view"
+            style={{
+              position: 'absolute',
+              top: 3,
+              left: 4,
+              width: 18,
+              height: 18,
+              borderRadius: 3,
+              background: 'transparent',
+              border: 'none',
+              color: color.text,
+              opacity: 0.45,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              lineHeight: 1,
+              padding: 0,
+              zIndex: 1,
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            ≡
+          </button>
+        )}
 
         {/* 3-dot menu button — touch devices only */}
         {isTouch && !presentationMode && !editing && (

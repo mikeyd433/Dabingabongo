@@ -33,7 +33,7 @@ function MenuItem({ children, onClick, danger }) {
 
 const Divider = () => <div style={{ height: 1, background: '#1e293b', margin: '3px 0' }} />;
 
-export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate, onColorNodes, onDeleteEdge, onResetEdge }) {
+export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate, onColorNodes, onDeleteEdge, onResetEdge, onOpenDetails }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate,
 
   // Keep menu within viewport
   const menuW = 176;
-  const menuH = menu.type === 'edge' ? 88 : 248;
+  const menuH = menu.type === 'edge' ? 88 : 284;
   const x = Math.min(menu.x, window.innerWidth  - menuW - 8);
   const y = Math.min(menu.y, window.innerHeight - menuH - 8);
 
@@ -85,6 +85,11 @@ export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate,
       <MenuItem onClick={() => { onDuplicate(menu.ids); onClose(); }}>
         Duplicate{count > 1 ? ` (${count})` : ''}
       </MenuItem>
+      {menu.ids.length === 1 && (
+        <MenuItem onClick={() => { onOpenDetails(menu.ids[0]); onClose(); }}>
+          Details
+        </MenuItem>
+      )}
       <Divider />
       <div style={{ padding: '6px 14px 8px' }}>
         <div style={{ fontSize: 11, color: '#475569', marginBottom: 6, fontFamily: 'Inter, sans-serif' }}>Color</div>
