@@ -13,6 +13,11 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* Dynamic viewport height: tracks the visible area as Android/iOS browser
+   chrome (address bar, bottom nav) appears/disappears. Falls back to 100%
+   on browsers that don't support dvh. */
+#root { height: 100dvh; }
+
 /* Hide scrollbar on mobile toolbar button row */
 ::-webkit-scrollbar { display: none; }
 
@@ -74,11 +79,20 @@ html, body, #root {
   border: 1px solid rgba(0, 255, 0, 0.5);
 }
 
-/* Mobile: nudge controls away from FAB */
+/* Phone: nudge controls away from FAB (both are on the right side on phones) */
 @media (max-width: 639px) {
   .react-flow__controls {
     bottom: 136px !important;
     right: 12px !important;
     left: auto !important;
+  }
+}
+
+/* Tablet (touch, ≥640px): controls stay left; raise them above hint text */
+@media (pointer: coarse) and (min-width: 640px) {
+  .react-flow__controls {
+    bottom: 48px !important;
+    left: 12px !important;
+    right: auto !important;
   }
 }

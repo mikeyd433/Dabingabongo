@@ -146,7 +146,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         }
       } catch {}
     };
-    const id = setInterval(check, 30_000);
+    const id = setInterval(check, 15_000);
     return () => clearInterval(id);
   }, [gistId]);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
@@ -617,7 +617,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
               aria-label="Add node"
               style={{
                 position: 'absolute',
-                bottom: 76,
+                // On tablet the minimap is bottom-right (~78px tall); raise FAB above it
+                bottom: isTablet ? 92 : 76,
                 right: 12,
                 width: 52,
                 height: 52,
@@ -732,17 +733,25 @@ export default function App() {
     try { return localStorage.getItem('brainstorm-dark') !== 'false'; } catch { return true; }
   });
 
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
-  const [isTablet, setIsTablet] = useState(() => window.innerWidth >= 640 && window.innerWidth < 1024);
+  // Use (pointer: coarse) to detect touch-primary devices (phones, tablets)
+  // regardless of CSS pixel width. Galaxy Tab S7/S8 in landscape is ~1280px wide
+  // so a width-only breakpoint would miss it.
+  const getLayout = () => {
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    const w = window.innerWidth;
+    return { isMobile: coarse && w < 640, isTablet: coarse && w >= 640 };
+  };
+  const [{ isMobile, isTablet }, setLayout] = useState(getLayout);
 
   useEffect(() => {
-    const check = () => {
-      const w = window.innerWidth;
-      setIsMobile(w < 640);
-      setIsTablet(w >= 640 && w < 1024);
-    };
+    const check = () => setLayout(getLayout());
+    const mql = window.matchMedia('(pointer: coarse)');
     window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    mql.addEventListener('change', check); // handle mouse connect/disconnect
+    return () => {
+      window.removeEventListener('resize', check);
+      mql.removeEventListener('change', check);
+    };
   }, []);
 
   const toggleDark = useCallback(() => {
