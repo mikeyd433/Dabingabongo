@@ -159,6 +159,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     setEdges(es => es.filter(e => e.id !== id)),
   [setEdges]);
 
+  const handleContextResetEdge = useCallback((id) =>
+    setEdges(es => es.map(e => e.id !== id ? e : { ...e, data: { ...(e.data ?? {}), waypoints: [] } })),
+  [setEdges]);
+
   // ── Search ─────────────────────────────────────────────────────────────────
   const searchMatches = useMemo(() => {
     if (!searchOpen || !searchQuery.trim()) return [];
@@ -596,6 +600,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
           onDuplicate={handleContextDuplicate}
           onColorNodes={handleContextColor}
           onDeleteEdge={handleContextDeleteEdge}
+          onResetEdge={handleContextResetEdge}
         />
       )}
 
