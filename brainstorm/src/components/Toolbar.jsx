@@ -51,7 +51,7 @@ export default function Toolbar({
   mobileSelectMode, onToggleMobileSelect,
   onDeleteSelected, onShare,
   onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
-  onPresent, onOpenSearch,
+  onPresent, onOpenSearch, onAddFloatingArrow,
 }) {
   const isCompact = isMobile || isTablet;
   const importJsonRef = useRef(null);
@@ -207,6 +207,7 @@ export default function Toolbar({
           </Btn>
           <Btn onClick={onLoadGist} title="Load from GitHub Gist ID or URL" small={sm}>☁ Load</Btn>
           {hasGist && <Btn onClick={onShowHistory} title="Browse version history" small={sm}>History</Btn>}
+          <Btn onClick={onAddFloatingArrow} title="Add a floating arrow not attached to any node" small={sm}>Float</Btn>
           <Btn onClick={onShare}   title="Copy shareable link to clipboard" small={sm}>Share</Btn>
           <Btn onClick={onPresent} title="Fullscreen presentation mode" small={sm}>Present</Btn>
           <Btn onClick={() => setShowMore(m => !m)} active={showMore} small={sm}>⋯ More</Btn>
@@ -283,6 +284,7 @@ export default function Toolbar({
         <Sep />
 
         {/* Actions group */}
+        <Btn onClick={onAddFloatingArrow} title="Add a floating arrow not attached to any node">Float</Btn>
         <Btn onClick={onShare}   title="Copy shareable link to clipboard">Share</Btn>
         <Btn onClick={onPresent} title="Fullscreen presentation mode (Esc to exit)">Present</Btn>
 
