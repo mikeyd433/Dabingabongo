@@ -35,6 +35,34 @@ function stripCallbacks(nodes) {
   return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
 }
 
+// Spread nodes that share the same position (common in Lucidchart exports).
+// Groups nodes within SNAP px of each other and fans them out in a grid.
+function deoverlapNodes(nodes) {
+  const SNAP   = 15;   // px threshold to consider two positions "the same"
+  const STEP_X = 250;  // horizontal gap between stacked nodes
+  const STEP_Y = 100;  // vertical gap when wrapping to next row
+  const COLS   = 3;    // nodes per row before wrapping
+
+  const groups = new Map();
+  nodes.forEach(node => {
+    const key = `${Math.round(node.position.x / SNAP)},${Math.round(node.position.y / SNAP)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(node.id);
+  });
+
+  const offsets = new Map();
+  groups.forEach(ids => {
+    ids.forEach((id, i) => {
+      offsets.set(id, { dx: (i % COLS) * STEP_X, dy: Math.floor(i / COLS) * STEP_Y });
+    });
+  });
+
+  return nodes.map(node => {
+    const { dx, dy } = offsets.get(node.id) ?? { dx: 0, dy: 0 };
+    return { ...node, position: { x: node.position.x + dx, y: node.position.y + dy } };
+  });
+}
+
 function makeEdgeOptions(darkMode) {
   const color = darkMode ? '#475569' : '#94a3b8';
   return {
@@ -152,12 +180,12 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
       alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
-    setNodes(data.nodes.map(n => ({
+    setNodes(deoverlapNodes(data.nodes.map(n => ({
       ...n,
       type: 'editableNode',
       style: undefined,
       data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
-    })));
+    }))));
     setEdges(data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
   }, [setNodes, setEdges, darkMode]);
 
