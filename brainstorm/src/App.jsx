@@ -245,8 +245,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const ctx = useMemo(() => ({
     updateLabel, updateColor, updateColorForAll,
     presentationMode, searchMatchIds, searchCurrentId,
-    openNodeMenu, isTouch,
-  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch]);
+    openNodeMenu, isTouch, darkMode,
+  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch, darkMode]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
