@@ -29,7 +29,7 @@ export const NODE_COLORS = [
 ];
 
 function CustomNode({ id, data, selected }) {
-  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId } = useFlowContext();
+  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch } = useFlowContext();
   const { getNodes } = useReactFlow();
   const [editing, setEditing]           = useState(false);
   const [draft, setDraft]               = useState(data.label);
@@ -126,6 +126,42 @@ function CustomNode({ id, data, selected }) {
         <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
         <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
         <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6, ...(presentationMode && { opacity: 0, pointerEvents: 'none' }) }} />
+
+        {/* 3-dot menu button — touch devices only */}
+        {isTouch && !presentationMode && !editing && (
+          <button
+            className="nodrag nopan"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              openNodeMenu(id, rect.left, rect.bottom + 4);
+            }}
+            style={{
+              position: 'absolute',
+              top: 3,
+              right: 4,
+              width: 22,
+              height: 22,
+              borderRadius: 4,
+              background: 'transparent',
+              border: 'none',
+              color: '#475569',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 15,
+              lineHeight: 1,
+              padding: 0,
+              zIndex: 1,
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            ⋮
+          </button>
+        )}
 
         {editing ? (
           <input

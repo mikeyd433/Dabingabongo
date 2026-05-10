@@ -17,6 +17,7 @@ import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import SearchBar from './components/SearchBar';
+import ContextMenu from './components/ContextMenu';
 import GistPanel from './components/GistPanel';
 import CommitPanel from './components/CommitPanel';
 import GistHistoryPanel from './components/GistHistoryPanel';
@@ -43,6 +44,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const isTouch = isMobile || isTablet;
   const [mobileSelectMode, setMobileSelectMode] = useState(false);
   const wrapper = useRef(null);
+
+  // ── Context menu ──────────────────────────────────────────────────────────
+  const [contextMenu, setContextMenu] = useState(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
   // ── Presentation mode ──────────────────────────────────────────────────────
   const [presentationMode, setPresentationMode] = useState(false);
@@ -109,6 +114,50 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const updateColorForAll = useCallback((ids, color) =>
     setNodes(ns => ns.map(n => ids.includes(n.id) ? { ...n, data: { ...n.data, color } } : n)),
   [setNodes]);
+
+  // ── Context menu actions ───────────────────────────────────────────────────
+  const openNodeMenu = useCallback((nodeId, x, y) => {
+    const selectedIds = getNodes().filter(n => n.selected).map(n => n.id);
+    const ids = selectedIds.includes(nodeId) && selectedIds.length > 1
+      ? selectedIds
+      : [nodeId];
+    setContextMenu({ type: 'node', ids, x, y });
+  }, [getNodes]);
+
+  const onNodeContextMenu = useCallback((event, node) => {
+    event.preventDefault();
+    openNodeMenu(node.id, event.clientX, event.clientY);
+  }, [openNodeMenu]);
+
+  const onEdgeContextMenu = useCallback((event, edge) => {
+    event.preventDefault();
+    setContextMenu({ type: 'edge', id: edge.id, x: event.clientX, y: event.clientY });
+  }, []);
+
+  const handleContextDeleteNodes = useCallback((ids) => {
+    const idSet = new Set(ids);
+    setNodes(ns => ns.filter(n => !idSet.has(n.id)));
+    setEdges(es => es.filter(e => !idSet.has(e.source) && !idSet.has(e.target)));
+  }, [setNodes, setEdges]);
+
+  const handleContextDuplicate = useCallback((ids) => {
+    const toBeCopied = getNodes().filter(n => ids.includes(n.id));
+    const newNodes = toBeCopied.map((n, i) => ({
+      ...n,
+      id: `n${Date.now()}-${i}`,
+      position: { x: n.position.x + 24, y: n.position.y + 24 },
+      selected: false,
+    }));
+    setNodes(ns => [...ns.map(n => ({ ...n, selected: false })), ...newNodes]);
+  }, [getNodes, setNodes]);
+
+  const handleContextColor = useCallback((ids, color) =>
+    setNodes(ns => ns.map(n => ids.includes(n.id) ? { ...n, data: { ...n.data, color } } : n)),
+  [setNodes]);
+
+  const handleContextDeleteEdge = useCallback((id) =>
+    setEdges(es => es.filter(e => e.id !== id)),
+  [setEdges]);
 
   // ── Search ─────────────────────────────────────────────────────────────────
   const searchMatches = useMemo(() => {
@@ -180,13 +229,14 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         return;
       }
       if (e.key === 'Escape') {
-        if (presentationMode) { exitPresentation(); return; }
-        if (searchOpen)       { closeSearch();       return; }
+        if (contextMenu)      { closeContextMenu();  return; }
+        if (presentationMode) { exitPresentation();  return; }
+        if (searchOpen)       { closeSearch();        return; }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [presentationMode, searchOpen, exitPresentation, closeSearch]);
+  }, [contextMenu, presentationMode, searchOpen, closeContextMenu, exitPresentation, closeSearch]);
 
   // ── Context value ──────────────────────────────────────────────────────────
   const searchMatchIds  = useMemo(() => new Set(searchMatches.map(n => n.id)), [searchMatches]);
@@ -195,7 +245,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const ctx = useMemo(() => ({
     updateLabel, updateColor, updateColorForAll,
     presentationMode, searchMatchIds, searchCurrentId,
-  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId]);
+    openNodeMenu, isTouch,
+  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
@@ -205,6 +256,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   // Desktop: double-click canvas to create node
   const lastPaneClickRef = useRef(0);
   const onPaneClick = useCallback((event) => {
+    closeContextMenu();
     if (isTouch) return;
     if (event.shiftKey) return;
     const now = Date.now();
@@ -220,7 +272,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         data: { label: 'New Node', color: 'default' },
       }]);
     }
-  }, [screenToFlowPosition, setNodes, isTouch]);
+  }, [closeContextMenu, screenToFlowPosition, setNodes, isTouch]);
 
   // Touch: FAB adds node at viewport centre
   const addNodeAtCenter = useCallback(() => {
@@ -380,6 +432,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onPaneClick={onPaneClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onEdgeContextMenu={onEdgeContextMenu}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
@@ -533,6 +587,17 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
           )}
         </div>
       </div>
+
+      {contextMenu && (
+        <ContextMenu
+          menu={contextMenu}
+          onClose={closeContextMenu}
+          onDeleteNodes={handleContextDeleteNodes}
+          onDuplicate={handleContextDuplicate}
+          onColorNodes={handleContextColor}
+          onDeleteEdge={handleContextDeleteEdge}
+        />
+      )}
 
       {gistPanel && (
         <GistPanel
