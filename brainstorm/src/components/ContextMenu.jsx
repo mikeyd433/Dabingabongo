@@ -33,7 +33,7 @@ function MenuItem({ children, onClick, danger }) {
 
 const Divider = () => <div style={{ height: 1, background: '#1e293b', margin: '3px 0' }} />;
 
-export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate, onColorNodes, onDeleteEdge, onResetEdge, onOpenDetails }) {
+export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate, onColorNodes, onDeleteEdge, onResetEdge, onOpenDetails, onReconnectEdge }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate,
 
   // Keep menu within viewport
   const menuW = 176;
-  const menuH = menu.type === 'edge' ? 88 : 284;
+  const menuH = menu.type === 'edge' ? 160 : 284;
   const x = Math.min(menu.x, window.innerWidth  - menuW - 8);
   const y = Math.min(menu.y, window.innerHeight - menuH - 8);
 
@@ -67,6 +67,13 @@ export default function ContextMenu({ menu, onClose, onDeleteNodes, onDuplicate,
   if (menu.type === 'edge') {
     return (
       <div ref={ref} style={wrapStyle}>
+        <MenuItem onClick={() => { onReconnectEdge(menu.id, 'source'); onClose(); }}>
+          Move start →
+        </MenuItem>
+        <MenuItem onClick={() => { onReconnectEdge(menu.id, 'target'); onClose(); }}>
+          Move end →
+        </MenuItem>
+        <Divider />
         <MenuItem onClick={() => { onResetEdge(menu.id); onClose(); }}>
           Reset routing
         </MenuItem>

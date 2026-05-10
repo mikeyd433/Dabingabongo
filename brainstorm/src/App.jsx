@@ -41,6 +41,7 @@ import {
 
 const nodeTypes = { editableNode: CustomNode, stub: StubNode };
 const edgeTypes = { default: WaypointEdge };
+const STUB_SIZE = 44; // touch-friendly size
 
 // Inner component — must live inside ReactFlowProvider
 function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
@@ -51,6 +52,11 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   // ── Context menu ──────────────────────────────────────────────────────────
   const [contextMenu, setContextMenu] = useState(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  // ── Tap-to-reconnect mode (touch-friendly edge reconnection) ───────────────
+  // { edgeId, handle: 'source'|'target' } while waiting for user to tap a node
+  const [reconnectMode, setReconnectMode] = useState(null);
+  const cancelReconnect = useCallback(() => setReconnectMode(null), []);
 
   // ── Node details panel ─────────────────────────────────────────────────────
   const [detailsNodeId, setDetailsNodeId] = useState(null);
@@ -289,10 +295,11 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     if (!edgeUpdateOk.current) {
       const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const stubId = `stub-${Date.now()}`;
+      const half = STUB_SIZE / 2;
       setNodes(ns => [...ns, {
         id: stubId, type: 'stub',
-        position: { x: pos.x - 7, y: pos.y - 7 },
-        data: {}, style: { width: 14, height: 14 },
+        position: { x: pos.x - half, y: pos.y - half },
+        data: {}, style: { width: STUB_SIZE, height: STUB_SIZE },
       }]);
       setEdges(es => es.map(e => {
         if (e.id !== edge.id) return e;
@@ -305,6 +312,23 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     draggedHandle.current = null;
   }, [screenToFlowPosition, setNodes, setEdges]);
 
+  // Tap-to-reconnect: user picks source/target from context menu, then taps a node
+  const handleReconnectEdge = useCallback((edgeId, handle) => {
+    setReconnectMode({ edgeId, handle });
+  }, []);
+
+  const onNodeClick = useCallback((_, node) => {
+    if (!reconnectMode) return;
+    const { edgeId, handle } = reconnectMode;
+    setEdges(es => es.map(e => {
+      if (e.id !== edgeId) return e;
+      return handle === 'source'
+        ? { ...e, source: node.id, sourceHandle: null }
+        : { ...e, target: node.id, targetHandle: null };
+    }));
+    setReconnectMode(null);
+  }, [reconnectMode, setEdges]);
+
   // Create a free-floating arrow: two stub nodes + an edge between them
   const handleAddFloatingArrow = useCallback(() => {
     const bounds = wrapper.current?.getBoundingClientRect();
@@ -312,9 +336,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     const center = screenToFlowPosition({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 });
     const idA = `stub-${Date.now()}-a`;
     const idB = `stub-${Date.now()}-b`;
+    const half = STUB_SIZE / 2;
     setNodes(ns => [...ns,
-      { id: idA, type: 'stub', position: { x: center.x - 70, y: center.y }, data: {}, style: { width: 14, height: 14 } },
-      { id: idB, type: 'stub', position: { x: center.x + 70, y: center.y }, data: {}, style: { width: 14, height: 14 } },
+      { id: idA, type: 'stub', position: { x: center.x - 80 - half, y: center.y - half }, data: {}, style: { width: STUB_SIZE, height: STUB_SIZE } },
+      { id: idB, type: 'stub', position: { x: center.x + 80 - half, y: center.y - half }, data: {}, style: { width: STUB_SIZE, height: STUB_SIZE } },
     ]);
     setEdges(es => [...es, { id: `e-${Date.now()}`, source: idA, target: idB, type: 'default', ...makeEdgeOptions(darkMode) }]);
   }, [screenToFlowPosition, setNodes, setEdges, darkMode]);
@@ -323,6 +348,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const lastPaneClickRef = useRef(0);
   const onPaneClick = useCallback((event) => {
     closeContextMenu();
+    if (reconnectMode) { cancelReconnect(); return; }
     if (isTouch) return;
     if (event.shiftKey) return;
     const now = Date.now();
@@ -338,7 +364,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         data: { label: 'New Node', color: 'default' },
       }]);
     }
-  }, [closeContextMenu, screenToFlowPosition, setNodes, isTouch]);
+  }, [closeContextMenu, reconnectMode, cancelReconnect, screenToFlowPosition, setNodes, isTouch]);
 
   // Touch: FAB adds node at viewport centre
   const addNodeAtCenter = useCallback(() => {
@@ -500,8 +526,9 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             onEdgeUpdate={onEdgeUpdate}
             onEdgeUpdateStart={onEdgeUpdateStart}
             onEdgeUpdateEnd={onEdgeUpdateEnd}
-            edgeUpdaterRadius={12}
+            edgeUpdaterRadius={isTouch ? 28 : 14}
             onPaneClick={onPaneClick}
+            onNodeClick={onNodeClick}
             onNodeContextMenu={onNodeContextMenu}
             onEdgeContextMenu={onEdgeContextMenu}
             nodeTypes={nodeTypes}
@@ -671,6 +698,22 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         );
       })()}
 
+      {/* Tap-to-reconnect banner */}
+      {reconnectMode && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0,
+          background: '#0f2d1a', borderBottom: '1px solid #166534',
+          padding: '10px 16px', zIndex: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontFamily: 'Inter, sans-serif',
+        }}>
+          <span style={{ color: '#22c55e', fontSize: 13 }}>
+            Tap a node to reconnect the {reconnectMode.handle === 'source' ? 'start' : 'end'} of the arrow
+          </span>
+          <button onClick={cancelReconnect} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>✕</button>
+        </div>
+      )}
+
       {contextMenu && (
         <ContextMenu
           menu={contextMenu}
@@ -681,6 +724,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
           onDeleteEdge={handleContextDeleteEdge}
           onResetEdge={handleContextResetEdge}
           onOpenDetails={openDetailsPanel}
+          onReconnectEdge={handleReconnectEdge}
         />
       )}
 
