@@ -71,11 +71,12 @@ function TokenBtn({ hasToken, onManageToken, small }) {
 export default function Toolbar({
   onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG,
   onUndo, onRedo, canUndo, canRedo,
-  darkMode, onToggleDark, isMobile,
+  darkMode, onToggleDark, isMobile, isTablet,
   mobileSelectMode, onToggleMobileSelect,
   onDeleteSelected, onShare,
   onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
 }) {
+  const isCompact = isMobile || isTablet; // 2-row scrollable layout
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
 
@@ -117,7 +118,7 @@ export default function Toolbar({
       onClick={onToggleDark}
       title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
       style={{
-        padding: isMobile ? '5px 8px' : '4px 10px', borderRadius: 6, fontSize: 15,
+        padding: isCompact ? '5px 8px' : '4px 10px', borderRadius: 6, fontSize: 15,
         cursor: 'pointer', border: '1px solid #334155', background: '#1e293b',
         transition: 'background 0.15s, border-color 0.15s',
         touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', flexShrink: 0,
@@ -129,7 +130,8 @@ export default function Toolbar({
     </button>
   );
 
-  if (isMobile) {
+  if (isCompact) {
+    const sm = isMobile; // small buttons only on phone; tablet gets full-size
     return (
       <div style={{ background: '#020617', borderBottom: '1px solid #1e293b', flexShrink: 0, zIndex: 10 }}>
         {/* Row 1: back + title + dark toggle */}
@@ -140,13 +142,14 @@ export default function Toolbar({
         </div>
         {/* Row 2: action buttons, scrollable */}
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-          <Btn onClick={onUndo} title="Undo (Ctrl+Z)" small disabled={!canUndo}>↩</Btn>
-          <Btn onClick={onRedo} title="Redo (Ctrl+Y)" small disabled={!canRedo}>↪</Btn>
+          <Btn onClick={onUndo} title="Undo (Ctrl+Z)" small={sm} disabled={!canUndo}>↩</Btn>
+          <Btn onClick={onRedo} title="Redo (Ctrl+Y)" small={sm} disabled={!canRedo}>↪</Btn>
           <button
             onClick={onToggleMobileSelect}
             title={mobileSelectMode ? 'Exit select mode' : 'Enter select mode to drag-select nodes'}
             style={{
-              padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              padding: sm ? '5px 10px' : '6px 14px', borderRadius: 6,
+              fontSize: sm ? 12 : 13, fontWeight: 500, cursor: 'pointer',
               border: `1px solid ${mobileSelectMode ? '#00ff00' : '#334155'}`,
               background: mobileSelectMode ? '#0f4c0f' : '#1e293b',
               color: mobileSelectMode ? '#00ff00' : '#94a3b8',
@@ -156,19 +159,19 @@ export default function Toolbar({
           >
             {mobileSelectMode ? '✓ Select' : 'Select'}
           </button>
-          <Btn onClick={onSaveGist} title={gistUrl ? 'Update saved Gist' : 'Save to GitHub Gist'} small disabled={isSavingGist}>
+          <Btn onClick={onSaveGist} title={gistUrl ? 'Update saved Gist' : 'Save to GitHub Gist'} small={sm} disabled={isSavingGist}>
             {isSavingGist ? '…' : gistUrl ? '☁ Update' : '☁ Save'}
           </Btn>
-          <Btn onClick={onLoadGist} title="Load from GitHub Gist ID or URL" small>☁ Load</Btn>
-          {hasGist && <Btn onClick={onShowHistory} title="Browse version history" small>History</Btn>}
-          <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} small />
-          <Btn onClick={onShare}          title="Copy shareable link to clipboard" small>Share</Btn>
-          <Btn onClick={onDeleteSelected} title="Delete selected nodes / edges"    small danger>Delete</Btn>
-          <Btn onClick={onExportPNG}      title="Export as PNG"                    small>PNG</Btn>
-          <Btn onClick={onExportJSON}     title="Export JSON"                      small>↓ JSON</Btn>
-          <Btn onClick={() => importJsonRef.current?.click()} title="Import JSON" small>↑ JSON</Btn>
-          <Btn onClick={() => importSvgRef.current?.click()}  title="Import SVG positions" small>↑ SVG</Btn>
-          <Btn onClick={onClear} danger   title="Clear canvas"                    small>Clear</Btn>
+          <Btn onClick={onLoadGist} title="Load from GitHub Gist ID or URL" small={sm}>☁ Load</Btn>
+          {hasGist && <Btn onClick={onShowHistory} title="Browse version history" small={sm}>History</Btn>}
+          <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} small={sm} />
+          <Btn onClick={onShare}          title="Copy shareable link to clipboard" small={sm}>Share</Btn>
+          <Btn onClick={onDeleteSelected} title="Delete selected nodes / edges"    small={sm} danger>Delete</Btn>
+          <Btn onClick={onExportPNG}      title="Export as PNG"                    small={sm}>PNG</Btn>
+          <Btn onClick={onExportJSON}     title="Export JSON"                      small={sm}>↓ JSON</Btn>
+          <Btn onClick={() => importJsonRef.current?.click()} title="Import JSON"  small={sm}>↑ JSON</Btn>
+          <Btn onClick={() => importSvgRef.current?.click()}  title="Import SVG positions" small={sm}>↑ SVG</Btn>
+          <Btn onClick={onClear} danger   title="Clear canvas"                     small={sm}>Clear</Btn>
           <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
           <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
         </div>
