@@ -19,18 +19,18 @@ import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
 import dagre from 'dagre';
+import LZString from 'lz-string';
 
 const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
 const STORAGE_KEY = 'brainstorm-v1';
 
 function encodeShareState(nodes, edges) {
-  const json = JSON.stringify({ nodes, edges });
-  return btoa(unescape(encodeURIComponent(json)));
+  return LZString.compressToEncodedURIComponent(JSON.stringify({ nodes, edges }));
 }
 
 function decodeShareState(encoded) {
-  return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  return JSON.parse(LZString.decompressFromEncodedURIComponent(encoded));
 }
 
 function loadSaved() {
@@ -318,6 +318,14 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     }
   }, [getNodes, setNodes, setEdges, darkMode]);
 
+  const handleDeleteSelected = useCallback(() => {
+    const selNodeIds = new Set(getNodes().filter(n => n.selected).map(n => n.id));
+    const selEdgeIds = new Set(getEdges().filter(e => e.selected).map(e => e.id));
+    if (!selNodeIds.size && !selEdgeIds.size) return;
+    setNodes(ns => ns.filter(n => !selNodeIds.has(n.id)));
+    setEdges(es => es.filter(e => !selEdgeIds.has(e.id) && !selNodeIds.has(e.source) && !selNodeIds.has(e.target)));
+  }, [getNodes, getEdges, setNodes, setEdges]);
+
   const handleShare = useCallback(() => {
     const encoded = encodeShareState(stripCallbacks(getNodes()), getEdges());
     const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
@@ -363,6 +371,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           isMobile={isMobile}
           mobileSelectMode={mobileSelectMode}
           onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
+          onDeleteSelected={handleDeleteSelected}
           onShare={handleShare}
         />
 

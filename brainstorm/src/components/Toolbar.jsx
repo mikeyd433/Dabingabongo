@@ -40,7 +40,7 @@ function Btn({ children, onClick, title, danger, small, disabled }) {
   );
 }
 
-export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile, mobileSelectMode, onToggleMobileSelect, onShare }) {
+export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile, mobileSelectMode, onToggleMobileSelect, onDeleteSelected, onShare }) {
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
 
@@ -155,12 +155,13 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
           >
             {mobileSelectMode ? '✓ Select' : 'Select'}
           </button>
-          <Btn onClick={onShare}                                   title="Copy shareable link to clipboard"                       small>Share</Btn>
-          <Btn onClick={onExportPNG}                           title="Export as PNG"                                           small>PNG</Btn>
-          <Btn onClick={onExportJSON}                          title="Export JSON"                                              small>↓ JSON</Btn>
-          <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                    small>↑ JSON</Btn>
-          <Btn onClick={() => importSvgRef.current?.click()}   title="Import Lucidchart SVG — applies positions to loaded nodes" small>↑ SVG</Btn>
-          <Btn onClick={onClear} danger                        title="Clear canvas"                                             small>Clear</Btn>
+          <Btn onClick={onShare}          title="Copy shareable link to clipboard"                       small>Share</Btn>
+          <Btn onClick={onDeleteSelected} title="Delete selected nodes / edges"                          small danger>Delete</Btn>
+          <Btn onClick={onExportPNG}      title="Export as PNG"                                           small>PNG</Btn>
+          <Btn onClick={onExportJSON}     title="Export JSON"                                              small>↓ JSON</Btn>
+          <Btn onClick={() => importJsonRef.current?.click()} title="Import Lucidchart JSON or native JSON" small>↑ JSON</Btn>
+          <Btn onClick={() => importSvgRef.current?.click()}  title="Import Lucidchart SVG — applies positions to loaded nodes" small>↑ SVG</Btn>
+          <Btn onClick={onClear} danger   title="Clear canvas"                                             small>Clear</Btn>
           <input ref={importJsonRef} type="file" accept=".json,application/json"   style={{ display: 'none' }} onChange={handleImportJson} />
           <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"       style={{ display: 'none' }} onChange={handleImportSvg} />
         </div>
