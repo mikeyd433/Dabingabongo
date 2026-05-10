@@ -5,7 +5,7 @@ import '@reactflow/node-resizer/dist/style.css';
 import { useFlowContext } from '../contexts/FlowContext';
 
 export const NODE_COLORS = [
-  // Row 1
+  // Row 1 — base palette
   { name: 'default', bg: '#1e293b', border: '#475569', text: '#f1f5f9' },
   { name: 'blue',    bg: '#1e3a8a', border: '#3b82f6', text: '#eff6ff' },
   { name: 'green',   bg: '#14532d', border: '#22c55e', text: '#dcfce7' },
@@ -17,12 +17,25 @@ export const NODE_COLORS = [
   { name: 'pink',    bg: '#500724', border: '#ec4899', text: '#fce7f3' },
   { name: 'indigo',  bg: '#1e1b4b', border: '#6366f1', text: '#e0e7ff' },
   { name: 'orange',  bg: '#431407', border: '#f97316', text: '#ffedd5' },
+  // Row 3 — extended palette
+  { name: 'sky',     bg: '#082f49', border: '#0ea5e9', text: '#e0f2fe' },
+  { name: 'emerald', bg: '#022c22', border: '#10b981', text: '#d1fae5' },
+  { name: 'violet',  bg: '#2e1065', border: '#8b5cf6', text: '#ede9fe' },
+  { name: 'lime',    bg: '#1a2e05', border: '#84cc16', text: '#ecfccb' },
+  { name: 'red',     bg: '#450a0a', border: '#ef4444', text: '#fee2e2' },
+  // Row 4
+  { name: 'fuchsia', bg: '#3b0764', border: '#d946ef', text: '#fae8ff' },
+  { name: 'cyan',    bg: '#083344', border: '#06b6d4', text: '#cffafe' },
+  { name: 'yellow',  bg: '#422006', border: '#eab308', text: '#fef9c3' },
+  { name: 'slate',   bg: '#0f172a', border: '#64748b', text: '#e2e8f0' },
+  { name: 'stone',   bg: '#1c1917', border: '#78716c', text: '#f5f5f4' },
 ];
 
 export default function CustomNode({ id, data, selected }) {
   const { updateLabel, updateColor } = useFlowContext();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(data.label);
+  const [editing, setEditing]   = useState(false);
+  const [draft, setDraft]       = useState(data.label);
+  const [paletteExpanded, setPaletteExpanded] = useState(false);
   const inputRef  = useRef(null);
   const pressTimer = useRef(null);
 
@@ -126,7 +139,7 @@ export default function CustomNode({ id, data, selected }) {
           </span>
         )}
 
-        {/* Color picker — 2 rows of 5 */}
+        {/* Color picker — expandable palette */}
         {selected && !editing && (
           <div
             onMouseDown={e => e.stopPropagation()}
@@ -136,9 +149,6 @@ export default function CustomNode({ id, data, selected }) {
               top: 'calc(100% + 10px)',
               left: '50%',
               transform: 'translateX(-50%)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(5, 22px)',
-              gap: 5,
               background: '#020617',
               padding: '7px 8px',
               borderRadius: 10,
@@ -146,26 +156,44 @@ export default function CustomNode({ id, data, selected }) {
               zIndex: 100,
             }}
           >
-            {NODE_COLORS.map(c => (
-              <div
-                key={c.name}
-                title={c.name}
-                onClick={e => { e.stopPropagation(); updateColor(id, c.name); }}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  background: c.bg,
-                  border: `2px solid ${c.border}`,
-                  cursor: 'pointer',
-                  outline: (data.color === c.name || (!data.color && c.name === 'default'))
-                    ? '2px solid #fff' : 'none',
-                  outlineOffset: 2,
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              />
-            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 22px)', gap: 5 }}>
+              {(paletteExpanded ? NODE_COLORS : NODE_COLORS.slice(0, 10)).map(c => (
+                <div
+                  key={c.name}
+                  title={c.name}
+                  onClick={e => { e.stopPropagation(); updateColor(id, c.name); }}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: c.bg,
+                    border: `2px solid ${c.border}`,
+                    cursor: 'pointer',
+                    outline: (data.color === c.name || (!data.color && c.name === 'default'))
+                      ? '2px solid #fff' : 'none',
+                    outlineOffset: 2,
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                />
+              ))}
+            </div>
+            {/* Expand / collapse toggle */}
+            <div
+              onClick={e => { e.stopPropagation(); setPaletteExpanded(x => !x); }}
+              title={paletteExpanded ? 'Show fewer colors' : 'Show more colors'}
+              style={{
+                marginTop: 5,
+                textAlign: 'center',
+                color: '#475569',
+                fontSize: 11,
+                cursor: 'pointer',
+                userSelect: 'none',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {paletteExpanded ? '▲ less' : '▼ more'}
+            </div>
           </div>
         )}
       </div>
