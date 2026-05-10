@@ -2,6 +2,10 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { saveGist, loadGist, extractGistId, fetchGistHistory, loadGistRevision } from '../utils/gistApi';
 import { makeEdgeOptions, stripCallbacks, deoverlapNodes, dagreLayout } from '../utils/flowUtils';
 
+const mapNode = n => n.type === 'stub'
+  ? { ...n, type: 'stub', data: {} }
+  : { ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details } };
+
 export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
   const [gistPanel,           setGistPanel]           = useState(null);
   const [gistId,              setGistId]              = useState(() => { try { return localStorage.getItem('brainstorm-gist-id') || null; } catch { return null; } });
@@ -95,10 +99,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
       if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
         alert('Invalid gist content — expected a brainstorm JSON.'); return;
       }
-      const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
-      }));
+      const mappedNodes = data.nodes.map(mapNode);
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       const isLC = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
       setNodes(isLC ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
@@ -122,10 +123,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
       if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
         alert('Invalid revision content.'); return;
       }
-      const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
-      }));
+      const mappedNodes = data.nodes.map(mapNode);
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       setNodes(deoverlapNodes(mappedNodes));
       setEdges(mappedEdges);
@@ -141,7 +139,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
     try {
       const { data, sha } = await loadGist(gistId, token);
       if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) return;
-      const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details } }));
+      const mappedNodes = data.nodes.map(mapNode);
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       setNodes(deoverlapNodes(mappedNodes));
       setEdges(mappedEdges);

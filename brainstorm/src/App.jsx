@@ -7,6 +7,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   addEdge,
+  updateEdge,
   useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
@@ -15,6 +16,7 @@ import { toPng } from 'html-to-image';
 
 import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
+import StubNode from './components/StubNode';
 import Toolbar from './components/Toolbar';
 import SearchBar from './components/SearchBar';
 import ContextMenu from './components/ContextMenu';
@@ -37,7 +39,7 @@ import {
   encodeShareState,
 } from './utils/flowUtils';
 
-const nodeTypes = { editableNode: CustomNode };
+const nodeTypes = { editableNode: CustomNode, stub: StubNode };
 const edgeTypes = { default: WaypointEdge };
 
 // Inner component — must live inside ReactFlowProvider
@@ -268,6 +270,55 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
   }, [setEdges, darkMode]);
 
+  // ── Reconnectable edge endpoints ───────────────────────────────────────────
+  const edgeUpdateOk  = useRef(true);
+  const draggedHandle = useRef(null); // 'source' | 'target'
+
+  const onEdgeUpdateStart = useCallback((_, __, handleType) => {
+    edgeUpdateOk.current  = false;
+    draggedHandle.current = handleType;
+  }, []);
+
+  const onEdgeUpdate = useCallback((oldEdge, newConnection) => {
+    edgeUpdateOk.current = true;
+    setEdges(eds => updateEdge(oldEdge, newConnection, eds));
+  }, [setEdges]);
+
+  // If the user drops the endpoint on empty space, create a stub node there
+  const onEdgeUpdateEnd = useCallback((event, edge) => {
+    if (!edgeUpdateOk.current) {
+      const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      const stubId = `stub-${Date.now()}`;
+      setNodes(ns => [...ns, {
+        id: stubId, type: 'stub',
+        position: { x: pos.x - 7, y: pos.y - 7 },
+        data: {}, style: { width: 14, height: 14 },
+      }]);
+      setEdges(es => es.map(e => {
+        if (e.id !== edge.id) return e;
+        return draggedHandle.current === 'source'
+          ? { ...e, source: stubId, sourceHandle: null }
+          : { ...e, target: stubId, targetHandle: null };
+      }));
+    }
+    edgeUpdateOk.current  = true;
+    draggedHandle.current = null;
+  }, [screenToFlowPosition, setNodes, setEdges]);
+
+  // Create a free-floating arrow: two stub nodes + an edge between them
+  const handleAddFloatingArrow = useCallback(() => {
+    const bounds = wrapper.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const center = screenToFlowPosition({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 });
+    const idA = `stub-${Date.now()}-a`;
+    const idB = `stub-${Date.now()}-b`;
+    setNodes(ns => [...ns,
+      { id: idA, type: 'stub', position: { x: center.x - 70, y: center.y }, data: {}, style: { width: 14, height: 14 } },
+      { id: idB, type: 'stub', position: { x: center.x + 70, y: center.y }, data: {}, style: { width: 14, height: 14 } },
+    ]);
+    setEdges(es => [...es, { id: `e-${Date.now()}`, source: idA, target: idB, type: 'default', ...makeEdgeOptions(darkMode) }]);
+  }, [screenToFlowPosition, setNodes, setEdges, darkMode]);
+
   // Desktop: double-click canvas to create node
   const lastPaneClickRef = useRef(0);
   const onPaneClick = useCallback((event) => {
@@ -338,11 +389,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
       alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
-    const mappedNodes = data.nodes.map(n => ({
-      ...n,
-      type: 'editableNode',
-      data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
-    }));
+    const mappedNodes = data.nodes.map(n => n.type === 'stub'
+      ? { ...n, type: 'stub', data: {} }
+      : { ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details } }
+    );
     const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
     const isLucidchartOrigin = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
     setNodes(isLucidchartOrigin ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
@@ -436,6 +486,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             hasGist={Boolean(gistId)}
             onPresent={enterPresentation}
             onOpenSearch={() => setSearchOpen(true)}
+            onAddFloatingArrow={handleAddFloatingArrow}
           />
         )}
 
@@ -446,6 +497,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgeUpdate={onEdgeUpdate}
+            onEdgeUpdateStart={onEdgeUpdateStart}
+            onEdgeUpdateEnd={onEdgeUpdateEnd}
+            edgeUpdaterRadius={12}
             onPaneClick={onPaneClick}
             onNodeContextMenu={onNodeContextMenu}
             onEdgeContextMenu={onEdgeContextMenu}
