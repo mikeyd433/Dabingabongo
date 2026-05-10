@@ -29,7 +29,7 @@ export const NODE_COLORS = [
 ];
 
 function CustomNode({ id, data, selected }) {
-  const { updateLabel, updateColor, updateColorForAll } = useFlowContext();
+  const { updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId } = useFlowContext();
   const { getNodes } = useReactFlow();
   const [editing, setEditing]           = useState(false);
   const [draft, setDraft]               = useState(data.label);
@@ -66,6 +66,22 @@ function CustomNode({ id, data, selected }) {
 
   const color = NODE_COLORS.find(c => c.name === data.color) ?? NODE_COLORS[NODE_COLORS.length - 1];
 
+  const isSearchMatch  = searchMatchIds?.has(id)  ?? false;
+  const isCurrentMatch = searchCurrentId === id;
+
+  const borderColor = isCurrentMatch ? '#facc15'
+    : isSearchMatch  ? '#f59e0b'
+    : selected       ? '#00ff00'
+    : color.border;
+  const borderWidth = (isCurrentMatch || selected) ? 2 : 1;
+  const boxShadow = isCurrentMatch
+    ? '0 0 0 3px rgba(250,204,21,0.4), 0 4px 16px rgba(0,0,0,0.5)'
+    : isSearchMatch
+    ? '0 0 0 2px rgba(245,158,11,0.25), 0 4px 16px rgba(0,0,0,0.5)'
+    : selected
+    ? '0 0 0 3px rgba(0,255,0,0.2), 0 4px 16px rgba(0,0,0,0.5)'
+    : '0 2px 8px rgba(0,0,0,0.4)';
+
   const handleStyle = {
     width: 12,
     height: 12,
@@ -77,7 +93,7 @@ function CustomNode({ id, data, selected }) {
   return (
     <>
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected && !presentationMode}
         minWidth={100}
         minHeight={40}
         lineStyle={{ stroke: '#00ff00', strokeWidth: 1, opacity: 0.6 }}
@@ -96,22 +112,22 @@ function CustomNode({ id, data, selected }) {
           alignItems: 'center',
           padding: '8px 16px',
           background: color.bg,
-          border: `${selected ? 2 : 1}px solid ${selected ? '#00ff00' : color.border}`,
+          border: `${borderWidth}px solid ${borderColor}`,
           borderRadius: 8,
           cursor: 'default',
-          boxShadow: selected
-            ? '0 0 0 3px rgba(0,255,0,0.2), 0 4px 16px rgba(0,0,0,0.5)'
-            : '0 2px 8px rgba(0,0,0,0.4)',
+          boxShadow,
           transition: 'border-color 0.15s, box-shadow 0.15s',
           position: 'relative',
           userSelect: 'none',
           WebkitUserSelect: 'none',
         }}
       >
-        <Handle type="target" position={Position.Top}    style={{ ...handleStyle, top:    -6 }} />
-        <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6 }} />
-        <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6 }} />
-        <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6 }} />
+        {!presentationMode && <>
+          <Handle type="target" position={Position.Top}    style={{ ...handleStyle, top:    -6 }} />
+          <Handle type="source" position={Position.Bottom} style={{ ...handleStyle, bottom: -6 }} />
+          <Handle type="target" position={Position.Left}   style={{ ...handleStyle, left:   -6 }} />
+          <Handle type="source" position={Position.Right}  style={{ ...handleStyle, right:  -6 }} />
+        </>}
 
         {editing ? (
           <input
@@ -138,7 +154,7 @@ function CustomNode({ id, data, selected }) {
         )}
 
         {/* Color picker — expandable rainbow palette */}
-        {selected && !editing && (
+        {selected && !editing && !presentationMode && (
           <div
             onMouseDown={e => e.stopPropagation()}
             onTouchStart={e => e.stopPropagation()}
