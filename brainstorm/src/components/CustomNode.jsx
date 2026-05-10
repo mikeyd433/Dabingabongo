@@ -1,42 +1,40 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, useReactFlow } from 'reactflow';
 import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
 import { useFlowContext } from '../contexts/FlowContext';
 
+// Rainbow order: red → orange → yellow → green → cyan → blue → purple → pink → neutrals
 export const NODE_COLORS = [
-  // Row 1 — base palette
-  { name: 'default', bg: '#1e293b', border: '#475569', text: '#f1f5f9' },
-  { name: 'blue',    bg: '#1e3a8a', border: '#3b82f6', text: '#eff6ff' },
-  { name: 'green',   bg: '#14532d', border: '#22c55e', text: '#dcfce7' },
-  { name: 'purple',  bg: '#4a044e', border: '#c026d3', text: '#fdf4ff' },
-  { name: 'amber',   bg: '#451a03', border: '#f59e0b', text: '#fef3c7' },
-  // Row 2
-  { name: 'rose',    bg: '#4c0519', border: '#f43f5e', text: '#ffe4e6' },
-  { name: 'teal',    bg: '#042f2e', border: '#14b8a6', text: '#ccfbf1' },
-  { name: 'pink',    bg: '#500724', border: '#ec4899', text: '#fce7f3' },
-  { name: 'indigo',  bg: '#1e1b4b', border: '#6366f1', text: '#e0e7ff' },
-  { name: 'orange',  bg: '#431407', border: '#f97316', text: '#ffedd5' },
-  // Row 3 — extended palette
-  { name: 'sky',     bg: '#082f49', border: '#0ea5e9', text: '#e0f2fe' },
-  { name: 'emerald', bg: '#022c22', border: '#10b981', text: '#d1fae5' },
-  { name: 'violet',  bg: '#2e1065', border: '#8b5cf6', text: '#ede9fe' },
-  { name: 'lime',    bg: '#1a2e05', border: '#84cc16', text: '#ecfccb' },
   { name: 'red',     bg: '#450a0a', border: '#ef4444', text: '#fee2e2' },
-  // Row 4
-  { name: 'fuchsia', bg: '#3b0764', border: '#d946ef', text: '#fae8ff' },
-  { name: 'cyan',    bg: '#083344', border: '#06b6d4', text: '#cffafe' },
+  { name: 'rose',    bg: '#4c0519', border: '#f43f5e', text: '#ffe4e6' },
+  { name: 'orange',  bg: '#431407', border: '#f97316', text: '#ffedd5' },
+  { name: 'amber',   bg: '#451a03', border: '#f59e0b', text: '#fef3c7' },
   { name: 'yellow',  bg: '#422006', border: '#eab308', text: '#fef9c3' },
+  { name: 'lime',    bg: '#1a2e05', border: '#84cc16', text: '#ecfccb' },
+  { name: 'green',   bg: '#14532d', border: '#22c55e', text: '#dcfce7' },
+  { name: 'emerald', bg: '#022c22', border: '#10b981', text: '#d1fae5' },
+  { name: 'teal',    bg: '#042f2e', border: '#14b8a6', text: '#ccfbf1' },
+  { name: 'cyan',    bg: '#083344', border: '#06b6d4', text: '#cffafe' },
+  { name: 'sky',     bg: '#082f49', border: '#0ea5e9', text: '#e0f2fe' },
+  { name: 'blue',    bg: '#1e3a8a', border: '#3b82f6', text: '#eff6ff' },
+  { name: 'indigo',  bg: '#1e1b4b', border: '#6366f1', text: '#e0e7ff' },
+  { name: 'violet',  bg: '#2e1065', border: '#8b5cf6', text: '#ede9fe' },
+  { name: 'purple',  bg: '#4a044e', border: '#c026d3', text: '#fdf4ff' },
+  { name: 'fuchsia', bg: '#3b0764', border: '#d946ef', text: '#fae8ff' },
+  { name: 'pink',    bg: '#500724', border: '#ec4899', text: '#fce7f3' },
   { name: 'slate',   bg: '#0f172a', border: '#64748b', text: '#e2e8f0' },
   { name: 'stone',   bg: '#1c1917', border: '#78716c', text: '#f5f5f4' },
+  { name: 'default', bg: '#1e293b', border: '#475569', text: '#f1f5f9' },
 ];
 
 export default function CustomNode({ id, data, selected }) {
-  const { updateLabel, updateColor } = useFlowContext();
-  const [editing, setEditing]   = useState(false);
-  const [draft, setDraft]       = useState(data.label);
+  const { updateLabel, updateColor, updateColorForAll } = useFlowContext();
+  const { getNodes } = useReactFlow();
+  const [editing, setEditing]           = useState(false);
+  const [draft, setDraft]               = useState(data.label);
   const [paletteExpanded, setPaletteExpanded] = useState(false);
-  const inputRef  = useRef(null);
+  const inputRef   = useRef(null);
   const pressTimer = useRef(null);
 
   useEffect(() => { setDraft(data.label); }, [data.label]);
@@ -51,7 +49,7 @@ export default function CustomNode({ id, data, selected }) {
 
   const handleDoubleClick = useCallback((e) => { e.stopPropagation(); setEditing(true); }, []);
 
-  // Long-press to edit on touch (double-tap unreliable on mobile)
+  // Long-press to edit on touch
   const onTouchStart = useCallback((e) => {
     pressTimer.current = setTimeout(() => { e.preventDefault(); setEditing(true); }, 400);
   }, []);
@@ -63,7 +61,16 @@ export default function CustomNode({ id, data, selected }) {
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label); }
   }, [commit, data.label]);
 
-  const color = NODE_COLORS.find(c => c.name === data.color) ?? NODE_COLORS[0];
+  const handleColorPick = useCallback((colorName) => {
+    const selectedIds = getNodes().filter(n => n.selected).map(n => n.id);
+    if (selectedIds.length > 1) {
+      updateColorForAll(selectedIds, colorName);
+    } else {
+      updateColor(id, colorName);
+    }
+  }, [id, getNodes, updateColor, updateColorForAll]);
+
+  const color = NODE_COLORS.find(c => c.name === data.color) ?? NODE_COLORS[NODE_COLORS.length - 1];
 
   const handleStyle = {
     width: 12,
@@ -139,7 +146,7 @@ export default function CustomNode({ id, data, selected }) {
           </span>
         )}
 
-        {/* Color picker — expandable palette */}
+        {/* Color picker — expandable rainbow palette */}
         {selected && !editing && (
           <div
             onMouseDown={e => e.stopPropagation()}
@@ -161,7 +168,7 @@ export default function CustomNode({ id, data, selected }) {
                 <div
                   key={c.name}
                   title={c.name}
-                  onClick={e => { e.stopPropagation(); updateColor(id, c.name); }}
+                  onClick={e => { e.stopPropagation(); handleColorPick(c.name); }}
                   style={{
                     width: 22,
                     height: 22,
@@ -178,7 +185,6 @@ export default function CustomNode({ id, data, selected }) {
                 />
               ))}
             </div>
-            {/* Expand / collapse toggle */}
             <div
               onClick={e => { e.stopPropagation(); setPaletteExpanded(x => !x); }}
               title={paletteExpanded ? 'Show fewer colors' : 'Show more colors'}
