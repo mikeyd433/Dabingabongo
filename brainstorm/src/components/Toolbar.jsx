@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 function Btn({ children, onClick, title, danger, small, disabled, active }) {
   const base = {
@@ -40,7 +40,6 @@ function Btn({ children, onClick, title, danger, small, disabled, active }) {
   );
 }
 
-// Small token-status dot + manage-token button
 function TokenBtn({ hasToken, onManageToken, small }) {
   return (
     <button
@@ -68,6 +67,10 @@ function TokenBtn({ hasToken, onManageToken, small }) {
   );
 }
 
+const Sep = () => (
+  <div style={{ width: 1, height: 20, background: '#1e293b', flexShrink: 0, alignSelf: 'center' }} />
+);
+
 export default function Toolbar({
   onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG,
   onUndo, onRedo, canUndo, canRedo,
@@ -77,9 +80,20 @@ export default function Toolbar({
   onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
   onPresent, onOpenSearch,
 }) {
-  const isCompact = isMobile || isTablet; // 2-row scrollable layout
+  const isCompact = isMobile || isTablet;
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef(null);
+
+  useEffect(() => {
+    if (!showMore) return;
+    const handle = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showMore]);
 
   const handleImportJson = e => {
     const file = e.target.files?.[0];
@@ -131,17 +145,16 @@ export default function Toolbar({
     </button>
   );
 
+  // ── Compact (mobile / tablet) layout ──────────────────────────────────────
   if (isCompact) {
-    const sm = isMobile; // small buttons only on phone; tablet gets full-size
+    const sm = isMobile;
     return (
       <div style={{ background: '#020617', borderBottom: '1px solid #1e293b', flexShrink: 0, zIndex: 10 }}>
-        {/* Row 1: back + title + dark toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 6px' }}>
           <a href="/" style={linkStyle}>← Back</a>
           <span style={titleStyle}>Brainstorm</span>
           {darkBtn}
         </div>
-        {/* Row 2: action buttons, scrollable */}
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
           <Btn onClick={onOpenSearch} title="Search nodes" small={sm}>Find</Btn>
           <Btn onClick={onUndo} title="Undo (Ctrl+Z)" small={sm} disabled={!canUndo}>↩</Btn>
@@ -182,8 +195,47 @@ export default function Toolbar({
     );
   }
 
-  // Shorten gist URL for display
+  // ── Desktop layout ─────────────────────────────────────────────────────────
   const gistShort = gistUrl ? gistUrl.replace('https://gist.github.com/', '') : null;
+
+  const dropItemBase = (danger) => ({
+    color: danger ? '#f87171' : '#94a3b8',
+    background: 'transparent',
+  });
+
+  const DropItem = ({ children, onClick, danger }) => {
+    const base = dropItemBase(danger);
+    return (
+      <div
+        onClick={() => { setShowMore(false); onClick?.(); }}
+        style={{
+          padding: '8px 14px',
+          fontSize: 13,
+          cursor: 'pointer',
+          fontFamily: 'Inter, sans-serif',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          ...base,
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = danger ? '#3f1010' : '#1e293b';
+          e.currentTarget.style.color = danger ? '#fca5a5' : '#e2e8f0';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = base.background;
+          e.currentTarget.style.color = base.color;
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  const DropDivider = () => (
+    <div style={{ height: 1, background: '#1e293b', margin: '3px 0' }} />
+  );
 
   return (
     <div style={{
@@ -199,23 +251,25 @@ export default function Toolbar({
       <span style={titleStyle}>Brainstorm</span>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+
+        {/* Edit group */}
         <Btn onClick={onUndo} title="Undo (Ctrl+Z)" disabled={!canUndo}>↩ Undo</Btn>
         <Btn onClick={onRedo} title="Redo (Ctrl+Y)" disabled={!canRedo}>↪ Redo</Btn>
 
-        {/* Gist section */}
+        <Sep />
+
+        {/* Cloud group */}
         <Btn onClick={onSaveGist} title={gistUrl ? 'Update saved Gist' : 'Save diagram to GitHub Gist'} disabled={isSavingGist}>
           {isSavingGist ? '☁ Saving…' : gistUrl ? '☁ Update Gist' : '☁ Save Gist'}
         </Btn>
         <Btn onClick={onLoadGist} title="Load diagram from a GitHub Gist">☁ Load Gist</Btn>
-        {hasGist && <Btn onClick={onShowHistory} title="Browse version history">History</Btn>}
-        <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} />
         {gistShort && (
           <a
             href={gistUrl}
             target="_blank"
             rel="noreferrer"
             title="Open this gist on GitHub"
-            style={{ color: '#334155', fontSize: 11, fontFamily: 'Inter, sans-serif', textDecoration: 'none', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            style={{ color: '#334155', fontSize: 11, fontFamily: 'Inter, sans-serif', textDecoration: 'none', whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
             onMouseEnter={e => e.currentTarget.style.color = '#64748b'}
             onMouseLeave={e => e.currentTarget.style.color = '#334155'}
           >
@@ -223,13 +277,48 @@ export default function Toolbar({
           </a>
         )}
 
-        <Btn onClick={onShare}                               title="Copy shareable link to clipboard">Share</Btn>
-        <Btn onClick={onExportPNG}                           title="Export canvas as PNG">PNG</Btn>
-        <Btn onClick={onExportJSON}                          title="Export diagram as JSON">Export JSON</Btn>
-        <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON">↑ JSON</Btn>
-        <Btn onClick={() => importSvgRef.current?.click()}   title="Import SVG positions">↑ SVG pos</Btn>
-        <Btn onClick={onClear} danger                        title="Clear entire canvas">Clear</Btn>
-        <Btn onClick={onPresent}                             title="Fullscreen presentation mode (Esc to exit)">Present</Btn>
+        <Sep />
+
+        {/* Actions group */}
+        <Btn onClick={onShare}   title="Copy shareable link to clipboard">Share</Btn>
+        <Btn onClick={onPresent} title="Fullscreen presentation mode (Esc to exit)">Present</Btn>
+
+        <Sep />
+
+        {/* More dropdown */}
+        <div ref={moreRef} style={{ position: 'relative' }}>
+          <Btn onClick={() => setShowMore(m => !m)} active={showMore} title="More actions">
+            ⋯ More
+          </Btn>
+          {showMore && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              right: 0,
+              zIndex: 200,
+              background: '#020617',
+              border: '1px solid #334155',
+              borderRadius: 8,
+              padding: '4px 0',
+              minWidth: 180,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            }}>
+              {hasGist && <DropItem onClick={onShowHistory}>History</DropItem>}
+              <DropItem onClick={onManageToken}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: hasGistToken ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0 }} />
+                GitHub Token
+              </DropItem>
+              <DropDivider />
+              <DropItem onClick={onExportPNG}>Export PNG</DropItem>
+              <DropItem onClick={onExportJSON}>Export JSON</DropItem>
+              <DropItem onClick={() => importJsonRef.current?.click()}>Import JSON</DropItem>
+              <DropItem onClick={() => importSvgRef.current?.click()}>Import SVG</DropItem>
+              <DropDivider />
+              <DropItem onClick={onClear} danger>Clear canvas</DropItem>
+            </div>
+          )}
+        </div>
+
         <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
         <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
         {darkBtn}
