@@ -34,8 +34,7 @@ export default function CustomNode({ id, data, selected }) {
   const [editing, setEditing]           = useState(false);
   const [draft, setDraft]               = useState(data.label);
   const [paletteExpanded, setPaletteExpanded] = useState(false);
-  const inputRef   = useRef(null);
-  const pressTimer = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => { setDraft(data.label); }, [data.label]);
   useEffect(() => {
@@ -47,22 +46,8 @@ export default function CustomNode({ id, data, selected }) {
     updateLabel(id, draft || 'New Node');
   }, [id, draft, updateLabel]);
 
+  // onDoubleClick fires for both mouse double-click and touch double-tap
   const handleDoubleClick = useCallback((e) => { e.stopPropagation(); setEditing(true); }, []);
-
-  // Long-press to edit on touch
-  const onTouchStart = useCallback((e) => {
-    if (e.touches.length > 1) return; // ignore if already a multi-touch (pinch)
-    pressTimer.current = setTimeout(() => { e.preventDefault(); setEditing(true); }, 400);
-  }, []);
-  const cancelPress = useCallback(() => clearTimeout(pressTimer.current), []);
-
-  // If a second finger appears anywhere on screen after the timer started, cancel it.
-  // This prevents the keyboard from opening mid-pinch-zoom.
-  useEffect(() => {
-    const onWindowTouch = (e) => { if (e.touches.length > 1) cancelPress(); };
-    window.addEventListener('touchstart', onWindowTouch, { passive: true });
-    return () => window.removeEventListener('touchstart', onWindowTouch);
-  }, [cancelPress]);
 
   const handleKeyDown = useCallback((e) => {
     e.stopPropagation();
@@ -101,9 +86,6 @@ export default function CustomNode({ id, data, selected }) {
 
       <div
         onDoubleClick={handleDoubleClick}
-        onTouchStart={onTouchStart}
-        onTouchEnd={cancelPress}
-        onTouchMove={cancelPress}
         style={{
           width: '100%',
           height: '100%',
@@ -159,7 +141,7 @@ export default function CustomNode({ id, data, selected }) {
         {selected && !editing && (
           <div
             onMouseDown={e => e.stopPropagation()}
-            onTouchStart={e => { e.stopPropagation(); cancelPress(); }}
+            onTouchStart={e => e.stopPropagation()}
             style={{
               position: 'absolute',
               top: 'calc(100% + 10px)',

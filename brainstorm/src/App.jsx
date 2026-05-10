@@ -18,6 +18,7 @@ import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import GistPanel from './components/GistPanel';
+import CommitPanel from './components/CommitPanel';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
 import { saveGist, loadGist, extractGistId, fetchGistHistory, loadGistRevision } from './utils/gistApi';
@@ -120,6 +121,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const [gistUrl,     setGistUrl]     = useState(() => { try { return localStorage.getItem('brainstorm-gist-url') || null; } catch { return null; } });
   const [hasToken,    setHasToken]    = useState(() => { try { return Boolean(localStorage.getItem('brainstorm-github-token')); } catch { return false; } });
   const [isSavingGist, setIsSavingGist] = useState(false);
+  const [showCommitPanel, setShowCommitPanel] = useState(false);
   const [currentGistSha,    setCurrentGistSha]    = useState(null);
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showHistory,       setShowHistory]        = useState(false);
@@ -413,13 +415,13 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   }, [getNodes, getEdges, setNodes, setEdges]);
 
   // ── Gist handlers ──────────────────────────────────────────────────────────
-  const doSaveGist = useCallback(async () => {
+  const doSaveGist = useCallback(async (meta = null) => {
     const token = localStorage.getItem('brainstorm-github-token');
     if (!token) return;
     const curId = localStorage.getItem('brainstorm-gist-id');
     setIsSavingGist(true);
     try {
-      const result = await saveGist(token, { nodes: stripCallbacks(getNodes()), edges: getEdges() }, curId);
+      const result = await saveGist(token, { nodes: stripCallbacks(getNodes()), edges: getEdges() }, curId, meta);
       localStorage.setItem('brainstorm-gist-id',  result.id);
       localStorage.setItem('brainstorm-gist-url', result.htmlUrl);
       setGistId(result.id);
@@ -438,15 +440,15 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
       setGistPanel('token');
       return;
     }
-    doSaveGist();
-  }, [doSaveGist]);
+    setShowCommitPanel(true);
+  }, []);
 
   const handleTokenSave = useCallback((token) => {
     localStorage.setItem('brainstorm-github-token', token);
     setHasToken(true);
     setGistPanel(null);
-    if (pendingSaveRef.current) { pendingSaveRef.current = false; doSaveGist(); }
-  }, [doSaveGist]);
+    if (pendingSaveRef.current) { pendingSaveRef.current = false; setShowCommitPanel(true); }
+  }, []);
 
   const handleClearToken = useCallback(() => {
     localStorage.removeItem('brainstorm-github-token');
@@ -534,7 +536,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const hintColor     = darkMode ? '#334155' : '#94a3b8';
 
   const hint = isTouch
-    ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
+    ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Double-tap node to edit · Select edge + Del to delete')
     : 'Double-click canvas to add · Double-click node to edit · Double-click edge to label · Ctrl+C/V to copy/paste';
 
   return (
@@ -714,6 +716,12 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             onClearToken={handleClearToken}
             hasGist={Boolean(gistId)}
             onUnlinkGist={handleUnlinkGist}
+          />
+        )}
+        {showCommitPanel && (
+          <CommitPanel
+            onSave={(meta) => { setShowCommitPanel(false); doSaveGist(meta); }}
+            onClose={() => setShowCommitPanel(false)}
           />
         )}
         {showHistory && gistId && (
