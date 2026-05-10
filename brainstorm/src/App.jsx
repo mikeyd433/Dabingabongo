@@ -110,7 +110,8 @@ function makeEdgeOptions(darkMode) {
 }
 
 // Inner component — must live inside ReactFlowProvider
-function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
+function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
+  const isTouch = isMobile || isTablet; // touch-device behaviors: FAB, select mode, pan
   const [mobileSelectMode, setMobileSelectMode] = useState(false);
 
   // ── Gist state ─────────────────────────────────────────────────────────────
@@ -297,7 +298,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   // Desktop: double-click canvas to create node (tracked via timing in onPaneClick)
   const lastPaneClickRef = useRef(0);
   const onPaneClick = useCallback((event) => {
-    if (isMobile) return;
+    if (isTouch) return;
     if (event.shiftKey) return;
     const now = Date.now();
     const elapsed = now - lastPaneClickRef.current;
@@ -313,7 +314,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
         data: { label: 'New Node', color: 'default' },
       }]);
     }
-  }, [screenToFlowPosition, setNodes, isMobile]);
+  }, [screenToFlowPosition, setNodes, isTouch]);
 
   // Mobile: FAB adds node at viewport centre
   const addNodeAtCenter = useCallback(() => {
@@ -532,7 +533,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const controlsBorder = darkMode ? '#1e293b' : '#e2e8f0';
   const hintColor     = darkMode ? '#334155' : '#94a3b8';
 
-  const hint = isMobile
+  const hint = isTouch
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
     : 'Double-click canvas to add · Double-click node to edit · Double-click edge to label · Ctrl+C/V to copy/paste';
 
@@ -552,6 +553,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           darkMode={darkMode}
           onToggleDark={onToggleDark}
           isMobile={isMobile}
+          isTablet={isTablet}
           mobileSelectMode={mobileSelectMode}
           onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
           onDeleteSelected={handleDeleteSelected}
@@ -578,9 +580,9 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
             multiSelectionKeyCode="Shift"
-            selectionKeyCode={isMobile ? null : 'Shift'}
-            selectionOnDrag={isMobile && mobileSelectMode}
-            panOnDrag={isMobile ? !mobileSelectMode : true}
+            selectionKeyCode={isTouch ? null : 'Shift'}
+            selectionOnDrag={isTouch && mobileSelectMode}
+            panOnDrag={isTouch ? !mobileSelectMode : true}
             zoomOnDoubleClick={false}
             minZoom={0.05}
             fitView={!saved?.nodes?.length}
@@ -602,14 +604,14 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
                 background: '#020617',
                 border: `1px solid ${controlsBorder}`,
                 borderRadius: 8,
-                width:  isMobile ? 80 : 120,
-                height: isMobile ? 60 : 80,
+                width:  isMobile ? 80 : isTablet ? 100 : 120,
+                height: isMobile ? 60 : isTablet ? 70  : 80,
               }}
             />
           </ReactFlow>
 
-          {/* Mobile FAB — add node at centre */}
-          {isMobile && (
+          {/* FAB — add node at centre (touch devices) */}
+          {isTouch && (
             <button
               onClick={addNodeAtCenter}
               aria-label="Add node"
@@ -731,9 +733,14 @@ export default function App() {
   });
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  const [isTablet, setIsTablet] = useState(() => window.innerWidth >= 640 && window.innerWidth < 1024);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
+    const check = () => {
+      const w = window.innerWidth;
+      setIsMobile(w < 640);
+      setIsTablet(w >= 640 && w < 1024);
+    };
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
@@ -748,7 +755,7 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      <FlowCanvas darkMode={darkMode} onToggleDark={toggleDark} isMobile={isMobile} />
+      <FlowCanvas darkMode={darkMode} onToggleDark={toggleDark} isMobile={isMobile} isTablet={isTablet} />
     </ReactFlowProvider>
   );
 }
