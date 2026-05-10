@@ -40,7 +40,7 @@ function Btn({ children, onClick, title, danger, small, disabled }) {
   );
 }
 
-export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile }) {
+export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile, mobileSelectMode, onToggleMobileSelect }) {
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
 
@@ -135,6 +135,26 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
         }}>
           <Btn onClick={onUndo}  title="Undo (Ctrl+Z)"  small disabled={!canUndo}>↩</Btn>
           <Btn onClick={onRedo}  title="Redo (Ctrl+Y)"  small disabled={!canRedo}>↪</Btn>
+          <button
+            onClick={onToggleMobileSelect}
+            title={mobileSelectMode ? 'Exit select mode' : 'Enter select mode to drag-select nodes'}
+            style={{
+              padding: '5px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              border: `1px solid ${mobileSelectMode ? '#00ff00' : '#334155'}`,
+              background: mobileSelectMode ? '#0f4c0f' : '#1e293b',
+              color: mobileSelectMode ? '#00ff00' : '#94a3b8',
+              fontFamily: 'Inter, sans-serif',
+              whiteSpace: 'nowrap',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {mobileSelectMode ? '✓ Select' : 'Select'}
+          </button>
           <Btn onClick={onExportPNG}                           title="Export as PNG"                                           small>PNG</Btn>
           <Btn onClick={onExportJSON}                          title="Export JSON"                                              small>↓ JSON</Btn>
           <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                    small>↑ JSON</Btn>

@@ -90,6 +90,7 @@ function makeEdgeOptions(darkMode) {
 
 // Inner component — must live inside ReactFlowProvider
 function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
+  const [mobileSelectMode, setMobileSelectMode] = useState(false);
   const wrapper = useRef(null);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
 
@@ -191,6 +192,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   // Desktop: click canvas to create node
   const onPaneClick = useCallback((event) => {
     if (isMobile) return;
+    if (event.shiftKey) return; // Shift is for multi-select box
     const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const id  = `n${Date.now()}`;
     setNodes(ns => [...ns, {
@@ -305,8 +307,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const hintColor     = darkMode ? '#334155' : '#94a3b8';
 
   const hint = isMobile
-    ? 'Tap + to add · Double-tap to edit · Select edge + Del to delete'
-    : 'Click canvas to add · Double-click to edit · Select edge + Del to delete';
+    ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
+    : 'Click canvas to add · Double-click to edit · Shift+drag to multi-select · Del to delete';
 
   return (
     <FlowContext.Provider value={ctx}>
@@ -324,6 +326,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           darkMode={darkMode}
           onToggleDark={onToggleDark}
           isMobile={isMobile}
+          mobileSelectMode={mobileSelectMode}
+          onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
         />
 
         <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -337,7 +341,12 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
+            multiSelectionKeyCode="Shift"
+            selectionKeyCode={isMobile ? null : 'Shift'}
+            selectionOnDrag={isMobile && mobileSelectMode}
+            panOnDrag={isMobile ? !mobileSelectMode : true}
             zoomOnDoubleClick={false}
+            minZoom={0.05}
             fitView={!saved?.nodes?.length}
             fitViewOptions={{ padding: 0.3 }}
             proOptions={{ hideAttribution: false }}
