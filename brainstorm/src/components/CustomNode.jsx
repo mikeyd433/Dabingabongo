@@ -121,7 +121,7 @@ export default function CustomNode({ id, data, selected }) {
             }}
           />
         ) : (
-          <span style={{ color: color.text, fontSize: 14, wordBreak: 'break-word', width: '100%' }}>
+          <span style={{ color: color.text, fontSize: 14, wordBreak: 'break-word', whiteSpace: 'pre-wrap', display: 'block', width: '100%' }}>
             {data.label || 'New Node'}
           </span>
         )}

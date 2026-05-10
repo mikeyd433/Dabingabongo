@@ -38,10 +38,10 @@ function stripCallbacks(nodes) {
 
 // Full hierarchical layout via dagre — used when importing Lucidchart-origin files.
 function dagreLayout(nodes, edges) {
-  const NODE_W = 220, NODE_H = 60;
+  const NODE_W = 200, NODE_H = 60;
   const g = new dagre.graphlib.Graph({ multigraph: true });
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 90, ranksep: 140, marginx: 40, marginy: 40 });
+  g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 130, marginx: 40, marginy: 40 });
 
   nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
   edges.forEach((e, i) => {
@@ -53,7 +53,11 @@ function dagreLayout(nodes, edges) {
 
   return nodes.map(n => {
     const p = g.node(n.id);
-    return p ? { ...n, position: { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - NODE_H / 2) } } : n;
+    return p ? {
+      ...n,
+      position: { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - NODE_H / 2) },
+      style: { width: NODE_W },
+    } : n;
   });
 }
 
