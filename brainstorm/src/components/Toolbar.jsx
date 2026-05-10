@@ -40,33 +40,6 @@ function Btn({ children, onClick, title, danger, small, disabled, active }) {
   );
 }
 
-function TokenBtn({ hasToken, onManageToken, small }) {
-  return (
-    <button
-      onClick={onManageToken}
-      title={hasToken ? 'GitHub token set · click to manage' : 'No GitHub token — click to add one'}
-      style={{
-        padding: small ? '5px 8px' : '5px 10px',
-        borderRadius: 6,
-        fontSize: small ? 11 : 12,
-        cursor: 'pointer',
-        border: `1px solid ${hasToken ? '#166534' : '#334155'}`,
-        background: hasToken ? '#0f2d1a' : '#1e293b',
-        color: hasToken ? '#22c55e' : '#64748b',
-        fontFamily: 'Inter, sans-serif',
-        whiteSpace: 'nowrap',
-        touchAction: 'manipulation',
-        display: 'flex', alignItems: 'center', gap: 4,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#00ff00'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = hasToken ? '#166534' : '#334155'; }}
-    >
-      <span style={{ fontSize: 9, lineHeight: 1, borderRadius: '50%', width: 7, height: 7, background: hasToken ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0 }} />
-      🔑
-    </button>
-  );
-}
-
 const Sep = () => (
   <div style={{ width: 1, height: 20, background: '#1e293b', flexShrink: 0, alignSelf: 'center' }} />
 );
@@ -145,16 +118,71 @@ export default function Toolbar({
     </button>
   );
 
+  // ── Shared dropdown primitives (used in both layouts) ─────────────────────
+  const DropItem = ({ children, onClick, danger }) => {
+    const baseColor = danger ? '#f87171' : '#94a3b8';
+    return (
+      <div
+        onClick={() => { setShowMore(false); onClick?.(); }}
+        style={{
+          padding: '8px 14px',
+          fontSize: 13,
+          cursor: 'pointer',
+          fontFamily: 'Inter, sans-serif',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: baseColor,
+          background: 'transparent',
+          touchAction: 'manipulation',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = danger ? '#3f1010' : '#1e293b';
+          e.currentTarget.style.color = danger ? '#fca5a5' : '#e2e8f0';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = baseColor;
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  const DropDivider = () => (
+    <div style={{ height: 1, background: '#1e293b', margin: '3px 0' }} />
+  );
+
+  const dropdownStyle = {
+    position: 'absolute',
+    top: 'calc(100% + 4px)',
+    right: 0,
+    zIndex: 200,
+    background: '#020617',
+    border: '1px solid #334155',
+    borderRadius: 8,
+    padding: '4px 0',
+    minWidth: 180,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+  };
+
   // ── Compact (mobile / tablet) layout ──────────────────────────────────────
   if (isCompact) {
     const sm = isMobile;
     return (
-      <div style={{ background: '#020617', borderBottom: '1px solid #1e293b', flexShrink: 0, zIndex: 10 }}>
+      // moreRef covers the whole toolbar so click-outside closes the dropdown
+      // position:relative lets the dropdown escape the overflow-x:auto scroll row
+      <div ref={moreRef} style={{ background: '#020617', borderBottom: '1px solid #1e293b', flexShrink: 0, zIndex: 10, position: 'relative' }}>
+        {/* Row 1: back + title + dark toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 6px' }}>
           <a href="/" style={linkStyle}>← Back</a>
           <span style={titleStyle}>Brainstorm</span>
           {darkBtn}
         </div>
+
+        {/* Row 2: primary actions, scrollable */}
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
           <Btn onClick={onOpenSearch} title="Search nodes" small={sm}>Find</Btn>
           <Btn onClick={onUndo} title="Undo (Ctrl+Z)" small={sm} disabled={!canUndo}>↩</Btn>
@@ -179,63 +207,37 @@ export default function Toolbar({
           </Btn>
           <Btn onClick={onLoadGist} title="Load from GitHub Gist ID or URL" small={sm}>☁ Load</Btn>
           {hasGist && <Btn onClick={onShowHistory} title="Browse version history" small={sm}>History</Btn>}
-          <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} small={sm} />
-          <Btn onClick={onShare}          title="Copy shareable link to clipboard" small={sm}>Share</Btn>
-          <Btn onClick={onDeleteSelected} title="Delete selected nodes / edges"    small={sm} danger>Delete</Btn>
-          <Btn onClick={onExportPNG}      title="Export as PNG"                    small={sm}>PNG</Btn>
-          <Btn onClick={onExportJSON}     title="Export JSON"                      small={sm}>↓ JSON</Btn>
-          <Btn onClick={() => importJsonRef.current?.click()} title="Import JSON"  small={sm}>↑ JSON</Btn>
-          <Btn onClick={() => importSvgRef.current?.click()}  title="Import SVG positions" small={sm}>↑ SVG</Btn>
-          <Btn onClick={onPresent}        title="Fullscreen presentation mode"     small={sm}>Present</Btn>
-          <Btn onClick={onClear} danger   title="Clear canvas"                     small={sm}>Clear</Btn>
+          <Btn onClick={onShare}   title="Copy shareable link to clipboard" small={sm}>Share</Btn>
+          <Btn onClick={onPresent} title="Fullscreen presentation mode" small={sm}>Present</Btn>
+          <Btn onClick={() => setShowMore(m => !m)} active={showMore} small={sm}>⋯ More</Btn>
           <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
           <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
         </div>
+
+        {/* Dropdown — sibling to the scroll row so it isn't clipped by overflow-x */}
+        {showMore && (
+          <div style={dropdownStyle}>
+            <DropItem onClick={onManageToken}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: hasGistToken ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0 }} />
+              GitHub Token
+            </DropItem>
+            <DropDivider />
+            <DropItem onClick={onDeleteSelected} danger>Delete selected</DropItem>
+            <DropDivider />
+            <DropItem onClick={onExportPNG}>Export PNG</DropItem>
+            <DropItem onClick={onExportJSON}>Export JSON</DropItem>
+            <DropItem onClick={() => importJsonRef.current?.click()}>Import JSON</DropItem>
+            <DropItem onClick={() => importSvgRef.current?.click()}>Import SVG</DropItem>
+            <DropDivider />
+            <DropItem onClick={onClear} danger>Clear canvas</DropItem>
+          </div>
+        )}
       </div>
     );
   }
 
   // ── Desktop layout ─────────────────────────────────────────────────────────
   const gistShort = gistUrl ? gistUrl.replace('https://gist.github.com/', '') : null;
-
-  const dropItemBase = (danger) => ({
-    color: danger ? '#f87171' : '#94a3b8',
-    background: 'transparent',
-  });
-
-  const DropItem = ({ children, onClick, danger }) => {
-    const base = dropItemBase(danger);
-    return (
-      <div
-        onClick={() => { setShowMore(false); onClick?.(); }}
-        style={{
-          padding: '8px 14px',
-          fontSize: 13,
-          cursor: 'pointer',
-          fontFamily: 'Inter, sans-serif',
-          whiteSpace: 'nowrap',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          ...base,
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = danger ? '#3f1010' : '#1e293b';
-          e.currentTarget.style.color = danger ? '#fca5a5' : '#e2e8f0';
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = base.background;
-          e.currentTarget.style.color = base.color;
-        }}
-      >
-        {children}
-      </div>
-    );
-  };
-
-  const DropDivider = () => (
-    <div style={{ height: 1, background: '#1e293b', margin: '3px 0' }} />
-  );
 
   return (
     <div style={{
@@ -292,18 +294,7 @@ export default function Toolbar({
             ⋯ More
           </Btn>
           {showMore && (
-            <div style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              right: 0,
-              zIndex: 200,
-              background: '#020617',
-              border: '1px solid #334155',
-              borderRadius: 8,
-              padding: '4px 0',
-              minWidth: 180,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-            }}>
+            <div style={dropdownStyle}>
               <DropItem onClick={onManageToken}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: hasGistToken ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0 }} />
                 GitHub Token
