@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
@@ -28,7 +28,7 @@ export const NODE_COLORS = [
   { name: 'default', bg: '#1e293b', border: '#475569', text: '#f1f5f9' },
 ];
 
-export default function CustomNode({ id, data, selected }) {
+function CustomNode({ id, data, selected }) {
   const { updateLabel, updateColor, updateColorForAll } = useFlowContext();
   const { getNodes } = useReactFlow();
   const [editing, setEditing]           = useState(false);
@@ -197,3 +197,5 @@ export default function CustomNode({ id, data, selected }) {
     </>
   );
 }
+
+export default memo(CustomNode);
