@@ -534,7 +534,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const hintColor     = darkMode ? '#334155' : '#94a3b8';
 
   const hint = isTouch
-    ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
+    ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Double-tap node to edit · Select edge + Del to delete')
     : 'Double-click canvas to add · Double-click node to edit · Double-click edge to label · Ctrl+C/V to copy/paste';
 
   return (
