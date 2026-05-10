@@ -75,6 +75,7 @@ export default function Toolbar({
   mobileSelectMode, onToggleMobileSelect,
   onDeleteSelected, onShare,
   onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
+  onPresent,
 }) {
   const isCompact = isMobile || isTablet; // 2-row scrollable layout
   const importJsonRef = useRef(null);
@@ -171,6 +172,7 @@ export default function Toolbar({
           <Btn onClick={onExportJSON}     title="Export JSON"                      small={sm}>↓ JSON</Btn>
           <Btn onClick={() => importJsonRef.current?.click()} title="Import JSON"  small={sm}>↑ JSON</Btn>
           <Btn onClick={() => importSvgRef.current?.click()}  title="Import SVG positions" small={sm}>↑ SVG</Btn>
+          <Btn onClick={onPresent}        title="Fullscreen presentation mode"     small={sm}>Present</Btn>
           <Btn onClick={onClear} danger   title="Clear canvas"                     small={sm}>Clear</Btn>
           <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
           <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
@@ -226,6 +228,7 @@ export default function Toolbar({
         <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON">↑ JSON</Btn>
         <Btn onClick={() => importSvgRef.current?.click()}   title="Import SVG positions">↑ SVG pos</Btn>
         <Btn onClick={onClear} danger                        title="Clear entire canvas">Clear</Btn>
+        <Btn onClick={onPresent}                             title="Fullscreen presentation mode (Esc to exit)">Present</Btn>
         <input ref={importJsonRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportJson} />
         <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"     style={{ display: 'none' }} onChange={handleImportSvg} />
         {darkBtn}

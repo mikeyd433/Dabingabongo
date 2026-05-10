@@ -16,6 +16,7 @@ import { toPng } from 'html-to-image';
 import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
+import SearchBar from './components/SearchBar';
 import GistPanel from './components/GistPanel';
 import CommitPanel from './components/CommitPanel';
 import GistHistoryPanel from './components/GistHistoryPanel';
@@ -43,7 +44,15 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const [mobileSelectMode, setMobileSelectMode] = useState(false);
   const wrapper = useRef(null);
 
-  const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
+  // ── Presentation mode ──────────────────────────────────────────────────────
+  const [presentationMode, setPresentationMode] = useState(false);
+
+  // ── Search state ───────────────────────────────────────────────────────────
+  const [searchOpen,  setSearchOpen]  = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchIndex, setSearchIndex] = useState(0);
+
+  const { screenToFlowPosition, getNodes, getEdges, setViewport, setCenter } = useReactFlow();
 
   const saved = useMemo(() => loadSaved(), []);
 
@@ -101,7 +110,92 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     setNodes(ns => ns.map(n => ids.includes(n.id) ? { ...n, data: { ...n.data, color } } : n)),
   [setNodes]);
 
-  const ctx = useMemo(() => ({ updateLabel, updateColor, updateColorForAll }), [updateLabel, updateColor, updateColorForAll]);
+  // ── Search ─────────────────────────────────────────────────────────────────
+  const searchMatches = useMemo(() => {
+    if (!searchOpen || !searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return nodes.filter(n => (n.data?.label ?? '').toLowerCase().includes(q));
+  }, [searchOpen, searchQuery, nodes]);
+
+  const panToMatch = useCallback((node) => {
+    if (!node) return;
+    const n = getNodes().find(gn => gn.id === node.id) ?? node;
+    const x = n.position.x + (n.width  ?? 150) / 2;
+    const y = n.position.y + (n.height ??  50) / 2;
+    setCenter(x, y, { zoom: 1.2, duration: 500 });
+  }, [getNodes, setCenter]);
+
+  // Auto-navigate to first match whenever the query changes
+  useEffect(() => {
+    if (!searchOpen) return;
+    setSearchIndex(0);
+    if (searchMatches.length > 0) panToMatch(searchMatches[0]);
+  }, [searchQuery, searchOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goNextMatch = useCallback(() => {
+    if (!searchMatches.length) return;
+    const next = (searchIndex + 1) % searchMatches.length;
+    setSearchIndex(next);
+    panToMatch(searchMatches[next]);
+  }, [searchMatches, searchIndex, panToMatch]);
+
+  const goPrevMatch = useCallback(() => {
+    if (!searchMatches.length) return;
+    const prev = (searchIndex - 1 + searchMatches.length) % searchMatches.length;
+    setSearchIndex(prev);
+    panToMatch(searchMatches[prev]);
+  }, [searchMatches, searchIndex, panToMatch]);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchIndex(0);
+  }, []);
+
+  // ── Presentation mode ──────────────────────────────────────────────────────
+  const enterPresentation = useCallback(() => {
+    closeSearch();
+    setPresentationMode(true);
+    document.documentElement.requestFullscreen?.().catch?.(() => {});
+  }, [closeSearch]);
+
+  const exitPresentation = useCallback(() => {
+    setPresentationMode(false);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }, []);
+
+  // Sync with browser fullscreen (e.g. user pressing F11 or browser Esc)
+  useEffect(() => {
+    const onFsChange = () => { if (!document.fullscreenElement) setPresentationMode(false); };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // ── Global keyboard shortcuts ──────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (presentationMode) { exitPresentation(); return; }
+        if (searchOpen)       { closeSearch();       return; }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [presentationMode, searchOpen, exitPresentation, closeSearch]);
+
+  // ── Context value ──────────────────────────────────────────────────────────
+  const searchMatchIds  = useMemo(() => new Set(searchMatches.map(n => n.id)), [searchMatches]);
+  const searchCurrentId = searchMatches[searchIndex]?.id ?? null;
+
+  const ctx = useMemo(() => ({
+    updateLabel, updateColor, updateColorForAll,
+    presentationMode, searchMatchIds, searchCurrentId,
+  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
@@ -241,38 +335,41 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
 
   const hint = isTouch
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Double-tap node to edit · Select edge + Del to delete')
-    : 'Double-click canvas to add · Double-click node to edit · Double-click edge to label · Ctrl+C/V to copy/paste';
+    : 'Double-click canvas to add · Double-click node to edit · Ctrl+C/V copy/paste · Ctrl+F search';
 
   return (
     <FlowContext.Provider value={ctx}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Inter, sans-serif' }}>
-        <Toolbar
-          onClear={handleClear}
-          onExportJSON={handleExportJSON}
-          onImportJSON={handleImportJSON}
-          onImportSVG={handleImportSVG}
-          onExportPNG={handleExportPNG}
-          onUndo={undo}
-          onRedo={redo}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          darkMode={darkMode}
-          onToggleDark={onToggleDark}
-          isMobile={isMobile}
-          isTablet={isTablet}
-          mobileSelectMode={mobileSelectMode}
-          onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
-          onDeleteSelected={handleDeleteSelected}
-          onShare={handleShare}
-          onSaveGist={handleSaveGist}
-          onLoadGist={() => setGistPanel('load')}
-          onManageToken={() => setGistPanel('token')}
-          onShowHistory={() => setShowHistory(true)}
-          hasGistToken={hasToken}
-          gistUrl={gistUrl}
-          isSavingGist={isSavingGist}
-          hasGist={Boolean(gistId)}
-        />
+        {!presentationMode && (
+          <Toolbar
+            onClear={handleClear}
+            onExportJSON={handleExportJSON}
+            onImportJSON={handleImportJSON}
+            onImportSVG={handleImportSVG}
+            onExportPNG={handleExportPNG}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            darkMode={darkMode}
+            onToggleDark={onToggleDark}
+            isMobile={isMobile}
+            isTablet={isTablet}
+            mobileSelectMode={mobileSelectMode}
+            onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
+            onDeleteSelected={handleDeleteSelected}
+            onShare={handleShare}
+            onSaveGist={handleSaveGist}
+            onLoadGist={() => setGistPanel('load')}
+            onManageToken={() => setGistPanel('token')}
+            onShowHistory={() => setShowHistory(true)}
+            hasGistToken={hasToken}
+            gistUrl={gistUrl}
+            isSavingGist={isSavingGist}
+            hasGist={Boolean(gistId)}
+            onPresent={enterPresentation}
+          />
+        )}
 
         <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <ReactFlow
@@ -297,27 +394,31 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             style={{ background: canvasBg }}
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={dotColor} />
-            <Controls style={{ background: controlsBg, border: `1px solid ${controlsBorder}`, borderRadius: 8 }} />
-            <MiniMap
-              nodeColor={n => {
-                const c = NODE_COLORS.find(col => col.name === (n.data?.color ?? 'default')) ?? NODE_COLORS[NODE_COLORS.length - 1];
-                return c.border;
-              }}
-              nodeStrokeWidth={0}
-              position={isMobile ? 'bottom-left' : 'bottom-right'}
-              maskColor="rgba(2,6,23,0.65)"
-              style={{
-                background: '#020617',
-                border: `1px solid ${controlsBorder}`,
-                borderRadius: 8,
-                width:  isMobile ? 80 : isTablet ? 100 : 120,
-                height: isMobile ? 60 : isTablet ? 70  : 80,
-              }}
-            />
+            {!presentationMode && (
+              <Controls style={{ background: controlsBg, border: `1px solid ${controlsBorder}`, borderRadius: 8 }} />
+            )}
+            {!presentationMode && (
+              <MiniMap
+                nodeColor={n => {
+                  const c = NODE_COLORS.find(col => col.name === (n.data?.color ?? 'default')) ?? NODE_COLORS[NODE_COLORS.length - 1];
+                  return c.border;
+                }}
+                nodeStrokeWidth={0}
+                position={isMobile ? 'bottom-left' : 'bottom-right'}
+                maskColor="rgba(2,6,23,0.65)"
+                style={{
+                  background: '#020617',
+                  border: `1px solid ${controlsBorder}`,
+                  borderRadius: 8,
+                  width:  isMobile ? 80 : isTablet ? 100 : 120,
+                  height: isMobile ? 60 : isTablet ? 70  : 80,
+                }}
+              />
+            )}
           </ReactFlow>
 
           {/* FAB — add node at centre (touch devices) */}
-          {isTouch && (
+          {isTouch && !presentationMode && (
             <button
               onClick={addNodeAtCenter}
               aria-label="Add node"
@@ -379,23 +480,56 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             </div>
           )}
 
-          <div style={{
-            position: 'absolute',
-            bottom: 12,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            color: hintColor,
-            fontSize: 11,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-            maxWidth: '90vw',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textAlign: 'center',
-          }}>
-            {hint}
-          </div>
+          {/* Bottom hint */}
+          {!presentationMode && (
+            <div style={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: hintColor,
+              fontSize: 11,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+              maxWidth: '90vw',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              textAlign: 'center',
+            }}>
+              {hint}
+            </div>
+          )}
+
+          {/* Presentation mode — subtle exit hint */}
+          {presentationMode && (
+            <div style={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: 'rgba(100,116,139,0.4)',
+              fontSize: 11,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}>
+              Press Esc to exit presentation
+            </div>
+          )}
+
+          {/* Floating search bar */}
+          {searchOpen && (
+            <SearchBar
+              query={searchQuery}
+              onChange={setSearchQuery}
+              matchCount={searchMatches.length}
+              currentIndex={searchIndex}
+              onNext={goNextMatch}
+              onPrev={goPrevMatch}
+              onClose={closeSearch}
+            />
+          )}
         </div>
       </div>
 
