@@ -1,28 +1,30 @@
 import { useRef } from 'react';
 
-function Btn({ children, onClick, title, danger, small }) {
+function Btn({ children, onClick, title, danger, small, disabled }) {
   const base = {
     padding: small ? '5px 10px' : '6px 14px',
     borderRadius: 6,
     fontSize: small ? 12 : 13,
     fontWeight: 500,
-    cursor: 'pointer',
+    cursor: disabled ? 'default' : 'pointer',
     border: `1px solid ${danger ? '#7f1d1d' : '#334155'}`,
     background: '#1e293b',
-    color: danger ? '#f87171' : '#94a3b8',
+    color: disabled ? '#334155' : (danger ? '#f87171' : '#94a3b8'),
     transition: 'background 0.15s, color 0.15s, border-color 0.15s',
     fontFamily: 'Inter, sans-serif',
     whiteSpace: 'nowrap',
     touchAction: 'manipulation',
     WebkitTapHighlightColor: 'transparent',
+    opacity: disabled ? 0.45 : 1,
   };
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       title={title}
       style={base}
       onMouseEnter={e => {
+        if (disabled) return;
         e.currentTarget.style.background   = danger ? '#7f1d1d' : '#0f4c0f';
         e.currentTarget.style.color        = danger ? '#fca5a5' : '#00ff00';
         e.currentTarget.style.borderColor  = danger ? '#ef4444' : '#00ff00';
@@ -38,7 +40,7 @@ function Btn({ children, onClick, title, danger, small }) {
   );
 }
 
-export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, darkMode, onToggleDark, isMobile }) {
+export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile }) {
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
 
@@ -131,11 +133,13 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
         }}>
-          <Btn onClick={onExportPNG}                           title="Export as PNG"                                         small>PNG</Btn>
-          <Btn onClick={onExportJSON}                          title="Export JSON"                                            small>↓ JSON</Btn>
-          <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                  small>↑ JSON</Btn>
+          <Btn onClick={onUndo}  title="Undo (Ctrl+Z)"  small disabled={!canUndo}>↩</Btn>
+          <Btn onClick={onRedo}  title="Redo (Ctrl+Y)"  small disabled={!canRedo}>↪</Btn>
+          <Btn onClick={onExportPNG}                           title="Export as PNG"                                           small>PNG</Btn>
+          <Btn onClick={onExportJSON}                          title="Export JSON"                                              small>↓ JSON</Btn>
+          <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                    small>↑ JSON</Btn>
           <Btn onClick={() => importSvgRef.current?.click()}   title="Import Lucidchart SVG — applies positions to loaded nodes" small>↑ SVG</Btn>
-          <Btn onClick={onClear} danger                        title="Clear canvas"                                           small>Clear</Btn>
+          <Btn onClick={onClear} danger                        title="Clear canvas"                                             small>Clear</Btn>
           <input ref={importJsonRef} type="file" accept=".json,application/json"   style={{ display: 'none' }} onChange={handleImportJson} />
           <input ref={importSvgRef}  type="file" accept=".svg,image/svg+xml"       style={{ display: 'none' }} onChange={handleImportSvg} />
         </div>
@@ -167,6 +171,8 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
       <span style={titleStyle}>Brainstorm</span>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <Btn onClick={onUndo}  title="Undo (Ctrl+Z)" disabled={!canUndo}>↩ Undo</Btn>
+        <Btn onClick={onRedo}  title="Redo (Ctrl+Y)" disabled={!canRedo}>↪ Redo</Btn>
         <Btn onClick={onExportPNG}                           title="Export canvas as PNG">PNG</Btn>
         <Btn onClick={onExportJSON}                          title="Export diagram as JSON">Export JSON</Btn>
         <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON">↑ JSON</Btn>
