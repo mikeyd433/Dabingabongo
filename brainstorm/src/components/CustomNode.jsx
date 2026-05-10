@@ -63,8 +63,21 @@ function CustomNode({ id, data, selected }) {
 
   useEffect(() => { setDraft(data.label); }, [data.label]);
   useEffect(() => {
-    if (editing) { inputRef.current?.focus(); inputRef.current?.select(); }
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+      // size the textarea to its content on open
+      const el = inputRef.current;
+      if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
+    }
   }, [editing]);
+
+  const autoResize = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
 
   const commit = useCallback(() => {
     setEditing(false);
@@ -76,7 +89,7 @@ function CustomNode({ id, data, selected }) {
 
   const handleKeyDown = useCallback((e) => {
     e.stopPropagation();
-    if (e.key === 'Enter') commit();
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit(); }
     if (e.key === 'Escape') { setEditing(false); setDraft(data.label); }
   }, [commit, data.label]);
 
@@ -224,21 +237,30 @@ function CustomNode({ id, data, selected }) {
         )}
 
         {editing ? (
-          <input
+          <textarea
             ref={inputRef}
             value={draft}
-            onChange={e => setDraft(e.target.value)}
+            onChange={e => { setDraft(e.target.value); autoResize(); }}
             onBlur={commit}
             onKeyDown={handleKeyDown}
+            rows={1}
             style={{
               background: 'transparent',
               border: 'none',
               outline: 'none',
               color: color.text,
-              fontSize: 16,
+              fontSize: 14,
               fontFamily: 'Inter, sans-serif',
               width: '100%',
               padding: 0,
+              margin: 0,
+              resize: 'none',
+              overflow: 'hidden',
+              lineHeight: 1.4,
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap',
+              display: 'block',
+              boxSizing: 'border-box',
             }}
           />
         ) : (
