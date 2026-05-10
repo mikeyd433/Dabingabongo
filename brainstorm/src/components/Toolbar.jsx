@@ -263,6 +263,7 @@ export default function Toolbar({
           {isSavingGist ? '☁ Saving…' : gistUrl ? '☁ Update Gist' : '☁ Save Gist'}
         </Btn>
         <Btn onClick={onLoadGist} title="Load diagram from a GitHub Gist">☁ Load Gist</Btn>
+        {hasGist && <Btn onClick={onShowHistory} title="Browse version history">History</Btn>}
         {gistShort && (
           <a
             href={gistUrl}
@@ -303,7 +304,6 @@ export default function Toolbar({
               minWidth: 180,
               boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
             }}>
-              {hasGist && <DropItem onClick={onShowHistory}>History</DropItem>}
               <DropItem onClick={onManageToken}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: hasGistToken ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0 }} />
                 GitHub Token
