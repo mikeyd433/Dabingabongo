@@ -309,6 +309,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
         id: `n${now}`,
         type: 'editableNode',
         position: pos,
+        style: { width: 150 },
         data: { label: 'New Node', color: 'default' },
       }]);
     }
@@ -326,7 +327,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     setNodes(ns => [...ns, {
       id,
       type: 'editableNode',
-      position: { x: pos.x - 60, y: pos.y - 20 },
+      position: { x: pos.x - 75, y: pos.y - 20 },
+      style: { width: 150 },
       data: { label: 'New Node', color: 'default' },
     }]);
   }, [screenToFlowPosition, setNodes]);
@@ -369,7 +371,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     const mappedNodes = data.nodes.map(n => ({
       ...n,
       type: 'editableNode',
-      style: undefined,
       data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
     }));
     const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
@@ -469,7 +470,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
         alert('Invalid gist content — expected a brainstorm JSON.'); return;
       }
       const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode', style: undefined,
+        ...n, type: 'editableNode',
         data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
       }));
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
@@ -496,7 +497,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
         alert('Invalid revision content.'); return;
       }
       const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode', style: undefined,
+        ...n, type: 'editableNode',
         data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
       }));
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
@@ -661,7 +662,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
                   try {
                     const { data, sha } = await loadGist(gistId, token);
                     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) return;
-                    const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', style: undefined, data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } }));
+                    const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } }));
                     const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
                     setNodes(deoverlapNodes(mappedNodes));
                     setEdges(mappedEdges);

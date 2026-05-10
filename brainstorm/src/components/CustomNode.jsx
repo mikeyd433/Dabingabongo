@@ -134,7 +134,7 @@ export default function CustomNode({ id, data, selected }) {
               border: 'none',
               outline: 'none',
               color: color.text,
-              fontSize: 14,
+              fontSize: 16,
               fontFamily: 'Inter, sans-serif',
               width: '100%',
               padding: 0,
