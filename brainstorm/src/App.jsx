@@ -18,6 +18,7 @@ import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import SearchBar from './components/SearchBar';
 import ContextMenu from './components/ContextMenu';
+import NodeDetailsPanel from './components/NodeDetailsPanel';
 import GistPanel from './components/GistPanel';
 import CommitPanel from './components/CommitPanel';
 import GistHistoryPanel from './components/GistHistoryPanel';
@@ -48,6 +49,11 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   // ── Context menu ──────────────────────────────────────────────────────────
   const [contextMenu, setContextMenu] = useState(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  // ── Node details panel ─────────────────────────────────────────────────────
+  const [detailsNodeId, setDetailsNodeId] = useState(null);
+  const closeDetails = useCallback(() => setDetailsNodeId(null), []);
+  const openDetailsPanel = useCallback((nodeId) => setDetailsNodeId(nodeId), []);
 
   // ── Presentation mode ──────────────────────────────────────────────────────
   const [presentationMode, setPresentationMode] = useState(false);
@@ -113,6 +119,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
 
   const updateColorForAll = useCallback((ids, color) =>
     setNodes(ns => ns.map(n => ids.includes(n.id) ? { ...n, data: { ...n.data, color } } : n)),
+  [setNodes]);
+
+  const updateDetails = useCallback((id, details) =>
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, details } } : n)),
   [setNodes]);
 
   // ── Context menu actions ───────────────────────────────────────────────────
@@ -235,12 +245,13 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
       if (e.key === 'Escape') {
         if (contextMenu)      { closeContextMenu();  return; }
         if (presentationMode) { exitPresentation();  return; }
+        if (detailsNodeId)    { closeDetails();       return; }
         if (searchOpen)       { closeSearch();        return; }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [contextMenu, presentationMode, searchOpen, closeContextMenu, exitPresentation, closeSearch]);
+  }, [contextMenu, presentationMode, detailsNodeId, searchOpen, closeContextMenu, exitPresentation, closeDetails, closeSearch]);
 
   // ── Context value ──────────────────────────────────────────────────────────
   const searchMatchIds  = useMemo(() => new Set(searchMatches.map(n => n.id)), [searchMatches]);
@@ -249,8 +260,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const ctx = useMemo(() => ({
     updateLabel, updateColor, updateColorForAll,
     presentationMode, searchMatchIds, searchCurrentId,
-    openNodeMenu, isTouch, darkMode,
-  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch, darkMode]);
+    openNodeMenu, openDetailsPanel, isTouch, darkMode,
+  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, openDetailsPanel, isTouch, darkMode]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
@@ -592,6 +603,19 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         </div>
       </div>
 
+      {detailsNodeId && (() => {
+        const n = nodes.find(nd => nd.id === detailsNodeId);
+        return (
+          <NodeDetailsPanel
+            nodeId={detailsNodeId}
+            nodeLabel={n?.data?.label ?? ''}
+            details={n?.data?.details ?? ''}
+            onUpdate={updateDetails}
+            onClose={closeDetails}
+          />
+        );
+      })()}
+
       {contextMenu && (
         <ContextMenu
           menu={contextMenu}
@@ -601,6 +625,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
           onColorNodes={handleContextColor}
           onDeleteEdge={handleContextDeleteEdge}
           onResetEdge={handleContextResetEdge}
+          onOpenDetails={openDetailsPanel}
         />
       )}
 
