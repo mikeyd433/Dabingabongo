@@ -11,7 +11,7 @@ function orthogonalPath(pts) {
   return d;
 }
 
-// Draggable green dot for an existing waypoint corner
+// Existing corner (waypoint) — green draggable dot, double-click removes
 function WaypointHandle({ x, y, index, onUpdate }) {
   const { getViewport } = useReactFlow();
   const onUpdateRef = useRef(onUpdate);
@@ -64,7 +64,7 @@ function WaypointHandle({ x, y, index, onUpdate }) {
   );
 }
 
-// Gray circle at segment midpoint — drag to insert a new corner there
+// Gray circle at segment midpoint — drag to insert a new corner
 function MidpointHandle({ x, y, insertAt, edgeId, onHoverChange }) {
   const { setEdges, getViewport } = useReactFlow();
 
@@ -90,10 +90,7 @@ function MidpointHandle({ x, y, insertAt, edgeId, onHoverChange }) {
         return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
       }));
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
-    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup',   onUp);
   }, [x, y, insertAt, edgeId, setEdges, getViewport]);
@@ -121,9 +118,9 @@ function MidpointHandle({ x, y, insertAt, edgeId, onHoverChange }) {
   );
 }
 
-// Pill-shaped handle on an actual H/V segment — drags the segment without adding a new corner.
-// axis='y': horizontal segment, drag moves it up/down → updates waypoints[wpIdx].y
-// axis='x': vertical segment,   drag moves it left/right → updates waypoints[wpIdx].x
+// Pill handle on an actual H/V segment — slides the segment without adding corners
+// axis='y': horizontal segment, drag up/down → updates waypoints[wpIdx].y
+// axis='x': vertical segment, drag left/right → updates waypoints[wpIdx].x
 function SegmentHandle({ x, y, axis, wpIdx, edgeId, onHoverChange }) {
   const { setEdges, getViewport } = useReactFlow();
 
@@ -133,32 +130,25 @@ function SegmentHandle({ x, y, axis, wpIdx, edgeId, onHoverChange }) {
     let last = { x: e.clientX, y: e.clientY };
     const onMove = (me) => {
       const { zoom } = getViewport();
-      const delta = axis === 'y'
-        ? (me.clientY - last.y) / zoom
-        : (me.clientX - last.x) / zoom;
+      const delta = axis === 'y' ? (me.clientY - last.y) / zoom : (me.clientX - last.x) / zoom;
       last = { x: me.clientX, y: me.clientY };
       setEdges(eds => eds.map(edge => {
         if (edge.id !== edgeId) return edge;
         const wps = [...(edge.data?.waypoints ?? [])];
-        if (wpIdx < wps.length) {
-          wps[wpIdx] = { ...wps[wpIdx], [axis]: wps[wpIdx][axis] + delta };
-        }
+        if (wpIdx < wps.length) wps[wpIdx] = { ...wps[wpIdx], [axis]: wps[wpIdx][axis] + delta };
         return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
       }));
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
-    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup',   onUp);
   }, [axis, wpIdx, edgeId, setEdges, getViewport]);
 
-  const isH = axis === 'y'; // horizontal segment → drag vertically
+  const isH = axis === 'y';
   return (
     <div
       className="nodrag nopan"
-      title={isH ? 'Drag to slide segment up/down' : 'Drag to slide segment left/right'}
+      title={isH ? 'Drag to slide up/down' : 'Drag to slide left/right'}
       onMouseDown={onMouseDown}
       onMouseEnter={e => { onHoverChange(true);  e.currentTarget.style.background = '#64748b'; e.currentTarget.style.borderColor = '#94a3b8'; }}
       onMouseLeave={e => { onHoverChange(false); e.currentTarget.style.background = '#1e293b'; e.currentTarget.style.borderColor = '#334155'; }}
@@ -187,29 +177,40 @@ export default memo(function WaypointEdge({
 }) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
+  const [editing,   setEditing]   = useState(false);
+  const [labelDraft, setLabelDraft] = useState(data?.label ?? '');
   const hoverTimer = useRef(null);
-  const waypoints = data?.waypoints ?? [];
+  const inputRef   = useRef(null);
+  const waypoints  = data?.waypoints ?? [];
 
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  useEffect(() => { setLabelDraft(data?.label ?? ''); }, [data?.label]);
+  useEffect(() => { if (editing) { inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
 
   const setHover = useCallback((val) => {
     clearTimeout(hoverTimer.current);
-    if (val) {
-      setIsHovered(true);
-    } else {
-      hoverTimer.current = setTimeout(() => setIsHovered(false), 150);
-    }
+    if (val) { setIsHovered(true); }
+    else { hoverTimer.current = setTimeout(() => setIsHovered(false), 150); }
   }, []);
 
+  const commitLabel = useCallback(() => {
+    setEditing(false);
+    const trimmed = labelDraft.trim();
+    setEdges(eds => eds.map(e => e.id !== id ? e : { ...e, data: { ...(e.data ?? {}), label: trimmed } }));
+  }, [id, labelDraft, setEdges]);
+
+  const openEditor = useCallback((e) => {
+    e.stopPropagation();
+    setLabelDraft(data?.label ?? '');
+    setEditing(true);
+  }, [data?.label]);
+
+  // Build path
   let edgePath;
   if (waypoints.length === 0) {
     [edgePath] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   } else {
-    edgePath = orthogonalPath([
-      { x: sourceX, y: sourceY },
-      ...waypoints,
-      { x: targetX, y: targetY },
-    ]);
+    edgePath = orthogonalPath([{ x: sourceX, y: sourceY }, ...waypoints, { x: targetX, y: targetY }]);
   }
 
   const handleWaypointUpdate = useCallback((index, newPos) => {
@@ -230,7 +231,7 @@ export default memo(function WaypointEdge({
 
   const allPts = [{ x: sourceX, y: sourceY }, ...waypoints, { x: targetX, y: targetY }];
 
-  // Midpoint handles (one per allPts segment) — insert a new corner
+  // Midpoint handles — add a new corner
   const midpointHandles = allPts.slice(0, -1).map((pt, i) => ({
     key: `mid-${i}`,
     x: (pt.x + allPts[i + 1].x) / 2,
@@ -238,43 +239,28 @@ export default memo(function WaypointEdge({
     insertAt: i,
   }));
 
-  // Segment handles — slide existing H/V segments without adding corners.
-  // The orthogonalPath from pts[i-1] → pts[i] creates:
-  //   H segment: y = pts[i-1].y  → controlled by waypoints[i-2].y (i ≥ 2)
-  //   V segment: x = pts[i].x   → controlled by waypoints[i-1].x  (i < allPts.length-1)
+  // Segment slide handles — slide existing H/V segments
+  // orthogonalPath transition i: H seg y=allPts[i-1].y (slidable if i≥2), V seg x=allPts[i].x (slidable if i<n-1)
   const segmentHandles = [];
   if (waypoints.length > 0) {
     for (let i = 1; i < allPts.length; i++) {
       const prev = allPts[i - 1], cur = allPts[i];
-      // H segment: only slidable if it's not the very first (source.y fixed)
-      if (i >= 2) {
-        segmentHandles.push({
-          key: `sh-h-${i}`,
-          x: (prev.x + cur.x) / 2,
-          y: prev.y,
-          axis: 'y',
-          wpIdx: i - 2,
-        });
-      }
-      // V segment: only slidable if it's not the very last (target.x fixed)
-      if (i < allPts.length - 1) {
-        segmentHandles.push({
-          key: `sh-v-${i}`,
-          x: cur.x,
-          y: (prev.y + cur.y) / 2,
-          axis: 'x',
-          wpIdx: i - 1,
-        });
-      }
+      if (i >= 2)                     segmentHandles.push({ key: `sh-h-${i}`, x: (prev.x + cur.x) / 2, y: prev.y,               axis: 'y', wpIdx: i - 2 });
+      if (i < allPts.length - 1)      segmentHandles.push({ key: `sh-v-${i}`, x: cur.x,               y: (prev.y + cur.y) / 2,  axis: 'x', wpIdx: i - 1 });
     }
   }
+
+  // Label position: centroid of all path points
+  const labelX = allPts.reduce((s, p) => s + p.x, 0) / allPts.length;
+  const labelY = allPts.reduce((s, p) => s + p.y, 0) / allPts.length;
+  const hasLabel = Boolean(data?.label);
 
   const showHandles = isHovered || selected;
 
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
-      {/* Wide transparent stroke for hover detection */}
+      {/* Wide transparent stroke — hover detection + double-click to label */}
       <path
         d={edgePath}
         stroke="transparent"
@@ -283,37 +269,80 @@ export default memo(function WaypointEdge({
         style={{ pointerEvents: 'stroke', cursor: 'default' }}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
+        onDoubleClick={openEditor}
       />
       <EdgeLabelRenderer>
-        {/* Existing corner handles (green dots) */}
+        {/* Edge label — always visible if set, or when editing */}
+        {(hasLabel || editing) && (
+          <div
+            className="nodrag nopan"
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+              zIndex: 20,
+            }}
+          >
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={labelDraft}
+                onChange={e => setLabelDraft(e.target.value)}
+                onBlur={commitLabel}
+                onKeyDown={e => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter')  commitLabel();
+                  if (e.key === 'Escape') { setEditing(false); setLabelDraft(data?.label ?? ''); }
+                }}
+                placeholder="Label…"
+                style={{
+                  background: '#020617',
+                  border: '1px solid #475569',
+                  borderRadius: 4,
+                  color: '#e2e8f0',
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  outline: 'none',
+                  minWidth: 64,
+                  fontFamily: 'Inter, sans-serif',
+                  textAlign: 'center',
+                }}
+              />
+            ) : (
+              <div
+                onDoubleClick={openEditor}
+                style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: 4,
+                  color: '#94a3b8',
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'text',
+                  whiteSpace: 'nowrap',
+                  userSelect: 'none',
+                }}
+              >
+                {data.label}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Existing corner handles */}
         {waypoints.map((wp, i) => (
-          <WaypointHandle
-            key={`wp-${i}`}
-            x={wp.x} y={wp.y}
-            index={i}
-            onUpdate={handleWaypointUpdate}
-          />
+          <WaypointHandle key={`wp-${i}`} x={wp.x} y={wp.y} index={i} onUpdate={handleWaypointUpdate} />
         ))}
-        {/* Midpoint handles — add a new corner (gray circle → green on hover) */}
+
+        {/* Midpoint handles — add new corner (gray circle) */}
         {showHandles && midpointHandles.map(({ key, x, y, insertAt }) => (
-          <MidpointHandle
-            key={key}
-            x={x} y={y}
-            insertAt={insertAt}
-            edgeId={id}
-            onHoverChange={setHover}
-          />
+          <MidpointHandle key={key} x={x} y={y} insertAt={insertAt} edgeId={id} onHoverChange={setHover} />
         ))}
-        {/* Segment slide handles — slide H/V segments (pill shape, ns/ew cursor) */}
+
+        {/* Segment slide handles — pill shape, constrained drag */}
         {showHandles && segmentHandles.map(({ key, x, y, axis, wpIdx }) => (
-          <SegmentHandle
-            key={key}
-            x={x} y={y}
-            axis={axis}
-            wpIdx={wpIdx}
-            edgeId={id}
-            onHoverChange={setHover}
-          />
+          <SegmentHandle key={key} x={x} y={y} axis={axis} wpIdx={wpIdx} edgeId={id} onHoverChange={setHover} />
         ))}
       </EdgeLabelRenderer>
     </>

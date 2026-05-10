@@ -3,6 +3,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
+  MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -13,7 +14,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { toPng } from 'html-to-image';
 
-import CustomNode from './components/CustomNode';
+import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
@@ -190,6 +191,51 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
+  // Copy / paste nodes (Ctrl+C / Ctrl+V)
+  const clipboardRef  = useRef(null);
+  const pasteCountRef = useRef(0);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      // Don't intercept when user is typing inside an input or textarea
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'c') {
+        const selNodes = getNodes().filter(n => n.selected);
+        if (!selNodes.length) return;
+        e.preventDefault();
+        const selIds = new Set(selNodes.map(n => n.id));
+        clipboardRef.current = {
+          nodes: stripCallbacks(selNodes),
+          edges: getEdges().filter(ed => selIds.has(ed.source) && selIds.has(ed.target)),
+        };
+        pasteCountRef.current = 0;
+      }
+
+      if (e.key === 'v') {
+        const cb = clipboardRef.current;
+        if (!cb?.nodes.length) return;
+        e.preventDefault();
+        pasteCountRef.current++;
+        const off = pasteCountRef.current * 30;
+        const idMap = {};
+        const newNodes = cb.nodes.map(n => {
+          const newId = `n${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          idMap[n.id] = newId;
+          return { ...n, id: newId, position: { x: n.position.x + off, y: n.position.y + off }, selected: true, type: 'editableNode' };
+        });
+        const newEdges = cb.edges
+          .filter(ed => idMap[ed.source] && idMap[ed.target])
+          .map(ed => ({ ...ed, id: `e${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, source: idMap[ed.source], target: idMap[ed.target], ...makeEdgeOptions(darkMode) }));
+        setNodes(ns => [...ns.map(n => ({ ...n, selected: false })), ...newNodes]);
+        setEdges(es => [...es, ...newEdges]);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [getNodes, getEdges, setNodes, setEdges, darkMode]);
+
   // ── Context callbacks ──────────────────────────────────────────────────────
   const updateLabel = useCallback((id, label) =>
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n)),
@@ -351,7 +397,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
 
   const hint = isMobile
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
-    : 'Double-click canvas to add node · Double-click node to edit · Hover edge to bend it';
+    : 'Double-click canvas to add · Double-click node to edit · Double-click edge to label · Ctrl+C/V to copy/paste';
 
   return (
     <FlowContext.Provider value={ctx}>
@@ -399,6 +445,15 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={dotColor} />
             <Controls style={{ background: controlsBg, border: `1px solid ${controlsBorder}`, borderRadius: 8 }} />
+            <MiniMap
+              nodeColor={n => {
+                const c = NODE_COLORS.find(col => col.name === (n.data?.color ?? 'default')) ?? NODE_COLORS[NODE_COLORS.length - 1];
+                return c.border;
+              }}
+              nodeStrokeWidth={0}
+              maskColor="rgba(2,6,23,0.65)"
+              style={{ background: '#020617', border: `1px solid ${controlsBorder}`, borderRadius: 8 }}
+            />
           </ReactFlow>
 
           {/* Mobile FAB — add node at centre */}
