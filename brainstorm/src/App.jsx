@@ -24,7 +24,24 @@ const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
 const STORAGE_KEY = 'brainstorm-v1';
 
+function encodeShareState(nodes, edges) {
+  const json = JSON.stringify({ nodes, edges });
+  return btoa(unescape(encodeURIComponent(json)));
+}
+
+function decodeShareState(encoded) {
+  return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+}
+
 function loadSaved() {
+  // URL-shared state takes priority over localStorage
+  const hash = window.location.hash;
+  if (hash.startsWith('#share=')) {
+    try {
+      const data = decodeShareState(hash.slice(7));
+      if (Array.isArray(data?.nodes) && Array.isArray(data?.edges)) return data;
+    } catch {}
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
@@ -193,17 +210,24 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
   }, [setEdges, darkMode]);
 
-  // Desktop: double-click canvas to create node
-  const onPaneDoubleClick = useCallback((event) => {
+  // Desktop: double-click canvas to create node (tracked via timing in onPaneClick)
+  const lastPaneClickRef = useRef(0);
+  const onPaneClick = useCallback((event) => {
     if (isMobile) return;
-    const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-    const id  = `n${Date.now()}`;
-    setNodes(ns => [...ns, {
-      id,
-      type: 'editableNode',
-      position: pos,
-      data: { label: 'New Node', color: 'default' },
-    }]);
+    if (event.shiftKey) return;
+    const now = Date.now();
+    const elapsed = now - lastPaneClickRef.current;
+    lastPaneClickRef.current = now;
+    if (elapsed > 50 && elapsed < 350) {
+      // Second click within double-click window — create node
+      const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setNodes(ns => [...ns, {
+        id: `n${now}`,
+        type: 'editableNode',
+        position: pos,
+        data: { label: 'New Node', color: 'default' },
+      }]);
+    }
   }, [screenToFlowPosition, setNodes, isMobile]);
 
   // Mobile: FAB adds node at viewport centre
@@ -294,6 +318,14 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     }
   }, [getNodes, setNodes, setEdges, darkMode]);
 
+  const handleShare = useCallback(() => {
+    const encoded = encodeShareState(stripCallbacks(getNodes()), getEdges());
+    const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
+    navigator.clipboard.writeText(url)
+      .then(() => alert('Shareable link copied to clipboard!'))
+      .catch(() => prompt('Copy this shareable link:', url));
+  }, [getNodes, getEdges]);
+
   const handleExportPNG = useCallback(() => {
     const el = wrapper.current?.querySelector('.react-flow__viewport');
     if (!el) return;
@@ -311,7 +343,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
 
   const hint = isMobile
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
-    : 'Double-click canvas to add · Double-click node to edit · Shift+drag to multi-select · Drag edge to bend it';
+    : 'Double-click canvas to add node · Double-click node to edit · Hover edge to bend it';
 
   return (
     <FlowContext.Provider value={ctx}>
@@ -331,6 +363,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           isMobile={isMobile}
           mobileSelectMode={mobileSelectMode}
           onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
+          onShare={handleShare}
         />
 
         <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -340,7 +373,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onPaneDoubleClick={onPaneDoubleClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}

@@ -1,7 +1,6 @@
-import { memo, useCallback, useRef, useEffect } from 'react';
+import { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow } from 'reactflow';
 
-// Orthogonal (right-angle) SVG path through a list of {x,y} points
 function orthogonalPath(pts) {
   if (pts.length < 2) return '';
   let d = `M ${pts[0].x} ${pts[0].y}`;
@@ -12,15 +11,7 @@ function orthogonalPath(pts) {
   return d;
 }
 
-// Shortest distance from point p to line segment a→b (in flow space)
-function distToSegment(p, a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  if (dx === 0 && dy === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
-  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
-}
-
-// Draggable waypoint dot (rendered in flow-space via EdgeLabelRenderer)
+// Draggable green dot for an existing waypoint
 function WaypointHandle({ x, y, index, onUpdate }) {
   const { getViewport } = useReactFlow();
   const onUpdateRef = useRef(onUpdate);
@@ -29,7 +20,6 @@ function WaypointHandle({ x, y, index, onUpdate }) {
   const startDrag = useCallback((clientX, clientY) => {
     let last = { x: clientX, y: clientY };
     let cur  = { x, y };
-
     const onMove = (e) => {
       const mx = e.clientX ?? e.touches?.[0]?.clientX;
       const my = e.clientY ?? e.touches?.[0]?.clientY;
@@ -75,46 +65,69 @@ function WaypointHandle({ x, y, index, onUpdate }) {
   );
 }
 
-// "+" button at segment midpoints when the edge is selected
-function AddWaypointBtn({ x, y, insertAt, edgeId }) {
-  const { setEdges } = useReactFlow();
+// Gray dot shown at segment midpoints on hover — drag to bend the edge there
+function MidpointHandle({ x, y, insertAt, edgeId, onHoverChange }) {
+  const { setEdges, getViewport } = useReactFlow();
 
-  const handleClick = useCallback((e) => {
+  const onMouseDown = useCallback((e) => {
     e.stopPropagation();
+    e.preventDefault();
+
+    // Insert waypoint at this midpoint
     setEdges(eds => eds.map(edge => {
       if (edge.id !== edgeId) return edge;
       const wps = [...(edge.data?.waypoints ?? [])];
       wps.splice(insertAt, 0, { x, y });
       return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
     }));
-  }, [edgeId, insertAt, x, y, setEdges]);
+
+    // Immediately start dragging the newly inserted waypoint
+    let last = { x: e.clientX, y: e.clientY };
+    let cur  = { x, y };
+
+    const onMove = (me) => {
+      const { zoom } = getViewport();
+      cur = { x: cur.x + (me.clientX - last.x) / zoom, y: cur.y + (me.clientY - last.y) / zoom };
+      last = { x: me.clientX, y: me.clientY };
+      setEdges(eds => eds.map(edge => {
+        if (edge.id !== edgeId) return edge;
+        const wps = [...(edge.data?.waypoints ?? [])];
+        if (insertAt < wps.length) wps[insertAt] = { ...cur };
+        return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
+      }));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  }, [x, y, insertAt, edgeId, setEdges, getViewport]);
 
   return (
     <div
       className="nodrag nopan"
-      title="Click to add waypoint"
-      onClick={handleClick}
+      title="Drag to bend edge"
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
       style={{
         position: 'absolute',
         transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
-        width: 18,
-        height: 18,
+        width: 12,
+        height: 12,
         borderRadius: '50%',
-        background: '#0f172a',
-        border: '2px solid #475569',
-        color: '#94a3b8',
-        fontSize: 14,
-        fontWeight: 700,
-        lineHeight: '14px',
-        textAlign: 'center',
-        cursor: 'pointer',
-        zIndex: 5,
+        background: '#475569',
+        border: '2px solid #1e293b',
+        cursor: 'grab',
+        zIndex: 8,
         pointerEvents: 'all',
-        userSelect: 'none',
+        touchAction: 'none',
+        transition: 'background 0.1s, border-color 0.1s',
       }}
-    >
-      +
-    </div>
+      onMouseOver={e => { e.currentTarget.style.background = '#00ff00'; e.currentTarget.style.borderColor = '#020617'; }}
+      onMouseOut={e => { e.currentTarget.style.background = '#475569'; e.currentTarget.style.borderColor = '#1e293b'; }}
+    />
   );
 }
 
@@ -124,8 +137,22 @@ export default memo(function WaypointEdge({
   sourcePosition, targetPosition,
   data, markerEnd, style, selected,
 }) {
-  const { setEdges, screenToFlowPosition, getViewport } = useReactFlow();
+  const { setEdges } = useReactFlow();
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimer = useRef(null);
   const waypoints = data?.waypoints ?? [];
+
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+
+  // Delayed hover state so mouse can travel from the path to a handle dot
+  const setHover = useCallback((val) => {
+    clearTimeout(hoverTimer.current);
+    if (val) {
+      setIsHovered(true);
+    } else {
+      hoverTimer.current = setTimeout(() => setIsHovered(false), 150);
+    }
+  }, []);
 
   // Build SVG path
   let edgePath;
@@ -139,7 +166,6 @@ export default memo(function WaypointEdge({
     ]);
   }
 
-  // Stable waypoint update handler
   const handleWaypointUpdate = useCallback((index, newPos) => {
     setEdges(eds => eds.map(edge => {
       if (edge.id !== id) return edge;
@@ -156,53 +182,6 @@ export default memo(function WaypointEdge({
     }));
   }, [setEdges, id]);
 
-  // Drag the edge path itself to insert a waypoint and immediately move it
-  const handleEdgePathDrag = useCallback((e) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
-    // Find which segment the drag started on
-    const allPts = [{ x: sourceX, y: sourceY }, ...waypoints, { x: targetX, y: targetY }];
-    let minDist = Infinity, insertAt = 0;
-    for (let i = 0; i < allPts.length - 1; i++) {
-      const d = distToSegment(flowPos, allPts[i], allPts[i + 1]);
-      if (d < minDist) { minDist = d; insertAt = i; }
-    }
-
-    // Insert the new waypoint
-    setEdges(eds => eds.map(edge => {
-      if (edge.id !== id) return edge;
-      const wps = [...(edge.data?.waypoints ?? [])];
-      wps.splice(insertAt, 0, { ...flowPos });
-      return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
-    }));
-
-    // Continue dragging the newly inserted waypoint
-    let last = { x: e.clientX, y: e.clientY };
-    let cur  = { ...flowPos };
-
-    const onMove = (me) => {
-      const { zoom } = getViewport();
-      cur = { x: cur.x + (me.clientX - last.x) / zoom, y: cur.y + (me.clientY - last.y) / zoom };
-      last = { x: me.clientX, y: me.clientY };
-      setEdges(eds => eds.map(edge => {
-        if (edge.id !== id) return edge;
-        const wps = [...(edge.data?.waypoints ?? [])];
-        if (insertAt < wps.length) wps[insertAt] = { ...cur };
-        return { ...edge, data: { ...(edge.data ?? {}), waypoints: wps } };
-      }));
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup',   onUp);
-  }, [id, sourceX, sourceY, targetX, targetY, waypoints, setEdges, screenToFlowPosition, getViewport]);
-
-  // Segment midpoints for the "+" add-waypoint buttons
   const allPts = [{ x: sourceX, y: sourceY }, ...waypoints, { x: targetX, y: targetY }];
   const segmentMids = allPts.slice(0, -1).map((pt, i) => ({
     x: (pt.x + allPts[i + 1].x) / 2,
@@ -210,19 +189,23 @@ export default memo(function WaypointEdge({
     insertAt: i,
   }));
 
+  const showHandles = isHovered || selected;
+
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
-      {/* Transparent wide path — drag anywhere on the line to bend it */}
+      {/* Wide transparent stroke — hover detection */}
       <path
         d={edgePath}
         stroke="transparent"
         strokeWidth={20}
         fill="none"
-        style={{ cursor: 'crosshair', pointerEvents: 'stroke' }}
-        onMouseDown={handleEdgePathDrag}
+        style={{ pointerEvents: 'stroke', cursor: 'default' }}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
       />
       <EdgeLabelRenderer>
+        {/* Existing waypoint handles */}
         {waypoints.map((wp, i) => (
           <WaypointHandle
             key={`wp-${i}`}
@@ -232,13 +215,15 @@ export default memo(function WaypointEdge({
             onUpdate={handleWaypointUpdate}
           />
         ))}
-        {selected && segmentMids.map(({ x, y, insertAt }) => (
-          <AddWaypointBtn
-            key={`add-${insertAt}`}
+        {/* Midpoint bend handles — visible on hover or selection */}
+        {showHandles && segmentMids.map(({ x, y, insertAt }) => (
+          <MidpointHandle
+            key={`mid-${insertAt}`}
             x={x}
             y={y}
             insertAt={insertAt}
             edgeId={id}
+            onHoverChange={setHover}
           />
         ))}
       </EdgeLabelRenderer>
