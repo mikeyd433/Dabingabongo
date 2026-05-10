@@ -368,6 +368,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             isSavingGist={isSavingGist}
             hasGist={Boolean(gistId)}
             onPresent={enterPresentation}
+            onOpenSearch={() => setSearchOpen(true)}
           />
         )}
 
