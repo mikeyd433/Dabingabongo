@@ -17,8 +17,10 @@ import { toPng } from 'html-to-image';
 import CustomNode, { NODE_COLORS } from './components/CustomNode';
 import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
+import GistPanel from './components/GistPanel';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
+import { saveGist, loadGist, extractGistId } from './utils/gistApi';
 import dagre from 'dagre';
 import LZString from 'lz-string';
 
@@ -109,6 +111,14 @@ function makeEdgeOptions(darkMode) {
 // Inner component — must live inside ReactFlowProvider
 function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const [mobileSelectMode, setMobileSelectMode] = useState(false);
+
+  // ── Gist state ─────────────────────────────────────────────────────────────
+  const [gistPanel,   setGistPanel]   = useState(null); // null | 'token' | 'load'
+  const [gistId,      setGistId]      = useState(() => { try { return localStorage.getItem('brainstorm-gist-id') || null; } catch { return null; } });
+  const [gistUrl,     setGistUrl]     = useState(() => { try { return localStorage.getItem('brainstorm-gist-url') || null; } catch { return null; } });
+  const [hasToken,    setHasToken]    = useState(() => { try { return Boolean(localStorage.getItem('brainstorm-github-token')); } catch { return false; } });
+  const [isSavingGist, setIsSavingGist] = useState(false);
+  const pendingSaveRef = useRef(false);
   const wrapper = useRef(null);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
 
@@ -372,6 +382,80 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     setEdges(es => es.filter(e => !selEdgeIds.has(e.id) && !selNodeIds.has(e.source) && !selNodeIds.has(e.target)));
   }, [getNodes, getEdges, setNodes, setEdges]);
 
+  // ── Gist handlers ──────────────────────────────────────────────────────────
+  const doSaveGist = useCallback(async () => {
+    const token = localStorage.getItem('brainstorm-github-token');
+    if (!token) return;
+    const curId = localStorage.getItem('brainstorm-gist-id');
+    setIsSavingGist(true);
+    try {
+      const result = await saveGist(token, { nodes: stripCallbacks(getNodes()), edges: getEdges() }, curId);
+      localStorage.setItem('brainstorm-gist-id',  result.id);
+      localStorage.setItem('brainstorm-gist-url', result.html_url);
+      setGistId(result.id);
+      setGistUrl(result.html_url);
+    } catch (err) {
+      alert(`Gist save failed: ${err.message}`);
+    } finally {
+      setIsSavingGist(false);
+    }
+  }, [getNodes, getEdges]);
+
+  const handleSaveGist = useCallback(() => {
+    if (!localStorage.getItem('brainstorm-github-token')) {
+      pendingSaveRef.current = true;
+      setGistPanel('token');
+      return;
+    }
+    doSaveGist();
+  }, [doSaveGist]);
+
+  const handleTokenSave = useCallback((token) => {
+    localStorage.setItem('brainstorm-github-token', token);
+    setHasToken(true);
+    setGistPanel(null);
+    if (pendingSaveRef.current) { pendingSaveRef.current = false; doSaveGist(); }
+  }, [doSaveGist]);
+
+  const handleClearToken = useCallback(() => {
+    localStorage.removeItem('brainstorm-github-token');
+    setHasToken(false);
+    setGistPanel(null);
+  }, []);
+
+  const handleUnlinkGist = useCallback(() => {
+    localStorage.removeItem('brainstorm-gist-id');
+    localStorage.removeItem('brainstorm-gist-url');
+    setGistId(null);
+    setGistUrl(null);
+    setGistPanel(null);
+  }, []);
+
+  const handleLoadGistId = useCallback(async (input) => {
+    setGistPanel(null);
+    try {
+      const id = extractGistId(input);
+      const { data, htmlUrl, id: resolvedId } = await loadGist(id);
+      if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
+        alert('Invalid gist content — expected a brainstorm JSON.'); return;
+      }
+      const mappedNodes = data.nodes.map(n => ({
+        ...n, type: 'editableNode', style: undefined,
+        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+      }));
+      const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
+      const isLC = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
+      setNodes(isLC ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
+      setEdges(mappedEdges);
+      localStorage.setItem('brainstorm-gist-id',  resolvedId);
+      localStorage.setItem('brainstorm-gist-url', htmlUrl);
+      setGistId(resolvedId);
+      setGistUrl(htmlUrl);
+    } catch (err) {
+      alert(`Gist load failed: ${err.message}`);
+    }
+  }, [setNodes, setEdges, darkMode]);
+
   const handleShare = useCallback(() => {
     const encoded = encodeShareState(stripCallbacks(getNodes()), getEdges());
     const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
@@ -419,6 +503,12 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           onToggleMobileSelect={() => setMobileSelectMode(m => !m)}
           onDeleteSelected={handleDeleteSelected}
           onShare={handleShare}
+          onSaveGist={handleSaveGist}
+          onLoadGist={() => setGistPanel('load')}
+          onManageToken={() => setGistPanel('token')}
+          hasGistToken={hasToken}
+          gistUrl={gistUrl}
+          isSavingGist={isSavingGist}
         />
 
         <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -512,6 +602,18 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           </div>
         </div>
       </div>
+        {gistPanel && (
+          <GistPanel
+            mode={gistPanel}
+            onClose={() => { setGistPanel(null); pendingSaveRef.current = false; }}
+            onTokenSave={handleTokenSave}
+            onLoad={handleLoadGistId}
+            hasToken={hasToken}
+            onClearToken={handleClearToken}
+            hasGist={Boolean(gistId)}
+            onUnlinkGist={handleUnlinkGist}
+          />
+        )}
     </FlowContext.Provider>
   );
 }
