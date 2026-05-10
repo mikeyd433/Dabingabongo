@@ -40,7 +40,7 @@ function Btn({ children, onClick, title, danger, small, disabled }) {
   );
 }
 
-export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile, mobileSelectMode, onToggleMobileSelect }) {
+export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportSVG, onExportPNG, onUndo, onRedo, canUndo, canRedo, darkMode, onToggleDark, isMobile, mobileSelectMode, onToggleMobileSelect, onShare }) {
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
 
@@ -155,6 +155,7 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
           >
             {mobileSelectMode ? '✓ Select' : 'Select'}
           </button>
+          <Btn onClick={onShare}                                   title="Copy shareable link to clipboard"                       small>Share</Btn>
           <Btn onClick={onExportPNG}                           title="Export as PNG"                                           small>PNG</Btn>
           <Btn onClick={onExportJSON}                          title="Export JSON"                                              small>↓ JSON</Btn>
           <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON"                    small>↑ JSON</Btn>
@@ -193,6 +194,7 @@ export default function Toolbar({ onClear, onExportJSON, onImportJSON, onImportS
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <Btn onClick={onUndo}  title="Undo (Ctrl+Z)" disabled={!canUndo}>↩ Undo</Btn>
         <Btn onClick={onRedo}  title="Redo (Ctrl+Y)" disabled={!canRedo}>↪ Redo</Btn>
+        <Btn onClick={onShare}                               title="Copy shareable link to clipboard">Share</Btn>
         <Btn onClick={onExportPNG}                           title="Export canvas as PNG">PNG</Btn>
         <Btn onClick={onExportJSON}                          title="Export diagram as JSON">Export JSON</Btn>
         <Btn onClick={() => importJsonRef.current?.click()}  title="Import Lucidchart JSON or native JSON">↑ JSON</Btn>
