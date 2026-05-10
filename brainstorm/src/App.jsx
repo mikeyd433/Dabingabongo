@@ -341,7 +341,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     const mappedNodes = data.nodes.map(n => ({
       ...n,
       type: 'editableNode',
-      data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+      data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
     }));
     const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
     const isLucidchartOrigin = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
