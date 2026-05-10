@@ -152,8 +152,13 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
       alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
-    setNodes(data.nodes.map(n => ({ ...n, data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
-    setEdges(data.edges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
+    setNodes(data.nodes.map(n => ({
+      ...n,
+      type: 'editableNode',
+      style: undefined,
+      data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+    })));
+    setEdges(data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
   }, [setNodes, setEdges, darkMode]);
 
   const handleImportSVG = useCallback((svgText) => {
