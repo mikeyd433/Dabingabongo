@@ -182,17 +182,20 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, color } } : n)),
   [setNodes]);
 
-  const ctx = useMemo(() => ({ updateLabel, updateColor }), [updateLabel, updateColor]);
+  const updateColorForAll = useCallback((ids, color) =>
+    setNodes(ns => ns.map(n => ids.includes(n.id) ? { ...n, data: { ...n.data, color } } : n)),
+  [setNodes]);
+
+  const ctx = useMemo(() => ({ updateLabel, updateColor, updateColorForAll }), [updateLabel, updateColor, updateColorForAll]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
     setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
   }, [setEdges, darkMode]);
 
-  // Desktop: click canvas to create node
-  const onPaneClick = useCallback((event) => {
+  // Desktop: double-click canvas to create node
+  const onPaneDoubleClick = useCallback((event) => {
     if (isMobile) return;
-    if (event.shiftKey) return; // Shift is for multi-select box
     const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const id  = `n${Date.now()}`;
     setNodes(ns => [...ns, {
@@ -308,7 +311,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
 
   const hint = isMobile
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Long-press to edit · Select edge + Del to delete')
-    : 'Click canvas to add · Double-click to edit · Shift+drag to multi-select · Del to delete';
+    : 'Double-click canvas to add · Double-click node to edit · Shift+drag to multi-select · Drag edge to bend it';
 
   return (
     <FlowContext.Provider value={ctx}>
@@ -337,7 +340,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onPaneClick={onPaneClick}
+            onPaneDoubleClick={onPaneDoubleClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
