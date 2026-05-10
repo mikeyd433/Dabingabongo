@@ -97,7 +97,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
       }
       const mappedNodes = data.nodes.map(n => ({
         ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
       }));
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       const isLC = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
@@ -124,7 +124,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
       }
       const mappedNodes = data.nodes.map(n => ({
         ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details },
       }));
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       setNodes(deoverlapNodes(mappedNodes));
@@ -141,7 +141,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
     try {
       const { data, sha } = await loadGist(gistId, token);
       if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) return;
-      const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } }));
+      const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details } }));
       const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
       setNodes(deoverlapNodes(mappedNodes));
       setEdges(mappedEdges);
