@@ -35,13 +35,11 @@ function stripCallbacks(nodes) {
   return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
 }
 
-// Spread nodes that share the same position (common in Lucidchart exports).
-// Groups nodes within SNAP px of each other and fans them out in a grid.
+// Spread nodes that share the same (or very close) position.
+// Phase 1: grid-cluster nodes within SNAP px and fan them out in a grid.
+// Phase 2: iterative repulsion to resolve any remaining overlaps.
 function deoverlapNodes(nodes) {
-  const SNAP   = 15;   // px threshold to consider two positions "the same"
-  const STEP_X = 250;  // horizontal gap between stacked nodes
-  const STEP_Y = 100;  // vertical gap when wrapping to next row
-  const COLS   = 3;    // nodes per row before wrapping
+  const SNAP = 120, STEP_X = 280, STEP_Y = 110, COLS = 3;
 
   const groups = new Map();
   nodes.forEach(node => {
@@ -49,18 +47,38 @@ function deoverlapNodes(nodes) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(node.id);
   });
-
   const offsets = new Map();
   groups.forEach(ids => {
-    ids.forEach((id, i) => {
-      offsets.set(id, { dx: (i % COLS) * STEP_X, dy: Math.floor(i / COLS) * STEP_Y });
-    });
+    ids.forEach((id, i) => offsets.set(id, { dx: (i % COLS) * STEP_X, dy: Math.floor(i / COLS) * STEP_Y }));
   });
 
-  return nodes.map(node => {
-    const { dx, dy } = offsets.get(node.id) ?? { dx: 0, dy: 0 };
-    return { ...node, position: { x: node.position.x + dx, y: node.position.y + dy } };
+  let pos = nodes.map(n => {
+    const o = offsets.get(n.id) ?? { dx: 0, dy: 0 };
+    return { id: n.id, x: n.position.x + o.dx, y: n.position.y + o.dy };
   });
+
+  // Push apart any nodes still closer than MIN_W × MIN_H
+  const MIN_W = 220, MIN_H = 90;
+  for (let pass = 0; pass < 10; pass++) {
+    let moved = false;
+    for (let i = 0; i < pos.length; i++) {
+      for (let j = i + 1; j < pos.length; j++) {
+        const adx = Math.abs(pos[j].x - pos[i].x);
+        const ady = Math.abs(pos[j].y - pos[i].y);
+        if (adx < MIN_W && ady < MIN_H) {
+          const dir  = pos[j].x >= pos[i].x ? 1 : -1;
+          const push = (MIN_W - adx) / 2 + 1;
+          pos[j].x += push * dir;
+          pos[i].x -= push * dir;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+
+  const posMap = new Map(pos.map(p => [p.id, { x: Math.round(p.x), y: Math.round(p.y) }]));
+  return nodes.map(n => ({ ...n, position: posMap.get(n.id) ?? n.position }));
 }
 
 function makeEdgeOptions(darkMode) {
@@ -94,6 +112,66 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
       }));
     } catch {}
   }, [nodes, edges]);
+
+  // ── Undo / Redo ────────────────────────────────────────────────────────────
+  const historyRef     = useRef([]);
+  const historyIdxRef  = useRef(-1);
+  const debounceRef    = useRef(null);
+  const isRestoringRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // Debounced snapshot — fires 400 ms after the last nodes/edges change
+  useEffect(() => {
+    if (isRestoringRef.current) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const snap = { nodes: stripCallbacks(getNodes()), edges: getEdges() };
+      const cur  = historyRef.current[historyIdxRef.current];
+      if (cur && JSON.stringify(snap) === JSON.stringify(cur)) return;
+      historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1);
+      historyRef.current.push(snap);
+      if (historyRef.current.length > 50) historyRef.current.shift();
+      historyIdxRef.current = historyRef.current.length - 1;
+      setCanUndo(historyIdxRef.current > 0);
+      setCanRedo(false);
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [nodes, edges, getNodes, getEdges]);
+
+  const restoreSnapshot = useCallback((snap) => {
+    isRestoringRef.current = true;
+    setNodes(snap.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
+    setEdges(snap.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
+    setTimeout(() => { isRestoringRef.current = false; }, 500);
+  }, [setNodes, setEdges, darkMode]);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current--;
+    restoreSnapshot(historyRef.current[historyIdxRef.current]);
+    setCanUndo(historyIdxRef.current > 0);
+    setCanRedo(true);
+  }, [restoreSnapshot]);
+
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current++;
+    restoreSnapshot(historyRef.current[historyIdxRef.current]);
+    setCanUndo(true);
+    setCanRedo(historyIdxRef.current < historyRef.current.length - 1);
+  }, [restoreSnapshot]);
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   // ── Context callbacks ──────────────────────────────────────────────────────
   const updateLabel = useCallback((id, label) =>
@@ -140,10 +218,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
       data: { label: 'New Node', color: 'default' },
     }]);
   }, [screenToFlowPosition, setNodes]);
-
-  const onEdgeClick = useCallback((_, edge) => {
-    setEdges(eds => eds.filter(e => e.id !== edge.id));
-  }, [setEdges]);
 
   // ── Toolbar actions ────────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
@@ -227,8 +301,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const hintColor     = darkMode ? '#334155' : '#94a3b8';
 
   const hint = isMobile
-    ? 'Tap + to add · Double-tap to edit · Tap edge to delete'
-    : 'Click canvas to add · Double-click to edit · Click edge to delete · Del to remove';
+    ? 'Tap + to add · Double-tap to edit · Select edge + Del to delete'
+    : 'Click canvas to add · Double-click to edit · Select edge + Del to delete';
 
   return (
     <FlowContext.Provider value={ctx}>
@@ -239,6 +313,10 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           onImportJSON={handleImportJSON}
           onImportSVG={handleImportSVG}
           onExportPNG={handleExportPNG}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
           darkMode={darkMode}
           onToggleDark={onToggleDark}
           isMobile={isMobile}
@@ -252,7 +330,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onPaneClick={onPaneClick}
-            onEdgeClick={onEdgeClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             deleteKeyCode={['Backspace', 'Delete']}
