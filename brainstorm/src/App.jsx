@@ -9,7 +9,6 @@ import ReactFlow, {
   addEdge,
   useReactFlow,
   ReactFlowProvider,
-  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toPng } from 'html-to-image';
@@ -19,138 +18,31 @@ import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import GistPanel from './components/GistPanel';
 import CommitPanel from './components/CommitPanel';
+import GistHistoryPanel from './components/GistHistoryPanel';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
-import { saveGist, loadGist, extractGistId, fetchGistHistory, loadGistRevision } from './utils/gistApi';
-import GistHistoryPanel from './components/GistHistoryPanel';
-import dagre from 'dagre';
-import LZString from 'lz-string';
+import { useHistory } from './hooks/useHistory';
+import { useClipboard } from './hooks/useClipboard';
+import { useGist } from './hooks/useGist';
+import {
+  STORAGE_KEY,
+  makeEdgeOptions,
+  stripCallbacks,
+  loadSaved,
+  dagreLayout,
+  deoverlapNodes,
+  encodeShareState,
+} from './utils/flowUtils';
 
 const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
-const STORAGE_KEY = 'brainstorm-v1';
-
-function encodeShareState(nodes, edges) {
-  return LZString.compressToEncodedURIComponent(JSON.stringify({ nodes, edges }));
-}
-
-function decodeShareState(encoded) {
-  return JSON.parse(LZString.decompressFromEncodedURIComponent(encoded));
-}
-
-function loadSaved() {
-  // URL-shared state takes priority over localStorage
-  const hash = window.location.hash;
-  if (hash.startsWith('#share=')) {
-    try {
-      const data = decodeShareState(hash.slice(7));
-      if (Array.isArray(data?.nodes) && Array.isArray(data?.edges)) return data;
-    } catch {}
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
-}
-
-function stripCallbacks(nodes) {
-  return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
-}
-
-// Full hierarchical layout via dagre — used when importing Lucidchart-origin files.
-function dagreLayout(nodes, edges) {
-  const NODE_W = 200, NODE_H = 60;
-  const g = new dagre.graphlib.Graph({ multigraph: true });
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 130, marginx: 40, marginy: 40 });
-
-  nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
-  edges.forEach((e, i) => {
-    if (g.hasNode(e.source) && g.hasNode(e.target))
-      g.setEdge(e.source, e.target, {}, `e${i}`);
-  });
-
-  dagre.layout(g);
-
-  return nodes.map(n => {
-    const p = g.node(n.id);
-    return p ? {
-      ...n,
-      position: { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - NODE_H / 2) },
-      style: { width: NODE_W },
-    } : n;
-  });
-}
-
-// Lightweight deoverlap — used for native brainstorm files with already-good positions.
-function deoverlapNodes(nodes) {
-  const SNAP = 120, STEP_X = 280, STEP_Y = 110, COLS = 3;
-  const groups = new Map();
-  nodes.forEach(node => {
-    const key = `${Math.round(node.position.x / SNAP)},${Math.round(node.position.y / SNAP)}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(node.id);
-  });
-  const offsets = new Map();
-  groups.forEach(ids => {
-    ids.forEach((id, i) => offsets.set(id, { dx: (i % COLS) * STEP_X, dy: Math.floor(i / COLS) * STEP_Y }));
-  });
-  return nodes.map(node => {
-    const o = offsets.get(node.id) ?? { dx: 0, dy: 0 };
-    return { ...node, position: { x: Math.round(node.position.x + o.dx), y: Math.round(node.position.y + o.dy) } };
-  });
-}
-
-function makeEdgeOptions(darkMode) {
-  const color = darkMode ? '#475569' : '#94a3b8';
-  return {
-    markerEnd: { type: MarkerType.ArrowClosed, color },
-    style: { stroke: color, strokeWidth: 2 },
-  };
-}
 
 // Inner component — must live inside ReactFlowProvider
 function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
-  const isTouch = isMobile || isTablet; // touch-device behaviors: FAB, select mode, pan
+  const isTouch = isMobile || isTablet;
   const [mobileSelectMode, setMobileSelectMode] = useState(false);
-
-  // ── Gist state ─────────────────────────────────────────────────────────────
-  const [gistPanel,   setGistPanel]   = useState(null); // null | 'token' | 'load'
-  const [gistId,      setGistId]      = useState(() => { try { return localStorage.getItem('brainstorm-gist-id') || null; } catch { return null; } });
-  const [gistUrl,     setGistUrl]     = useState(() => { try { return localStorage.getItem('brainstorm-gist-url') || null; } catch { return null; } });
-  const [hasToken,    setHasToken]    = useState(() => { try { return Boolean(localStorage.getItem('brainstorm-github-token')); } catch { return false; } });
-  const [isSavingGist, setIsSavingGist] = useState(false);
-  const [showCommitPanel, setShowCommitPanel] = useState(false);
-  const [currentGistSha,    setCurrentGistSha]    = useState(null);
-  const [newVersionAvailable, setNewVersionAvailable] = useState(false);
-  const [showHistory,       setShowHistory]        = useState(false);
-  const currentGistShaRef = useRef(null);
-  const pendingSaveRef = useRef(false);
   const wrapper = useRef(null);
 
-  const updateCurrentSha = useCallback((sha) => {
-    currentGistShaRef.current = sha;
-    setCurrentGistSha(sha);
-    setNewVersionAvailable(false);
-  }, []);
-
-  // Poll every 30 s for new gist versions (only when a gist is loaded)
-  useEffect(() => {
-    if (!gistId) return;
-    const check = async () => {
-      if (document.visibilityState === 'hidden') return;
-      const token = localStorage.getItem('brainstorm-github-token');
-      try {
-        const { latestSha } = await fetchGistHistory(gistId, token);
-        if (latestSha && latestSha !== currentGistShaRef.current && currentGistShaRef.current !== null) {
-          setNewVersionAvailable(true);
-        }
-      } catch {}
-    };
-    const id = setInterval(check, 15_000);
-    return () => clearInterval(id);
-  }, [gistId]);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
 
   const saved = useMemo(() => loadSaved(), []);
@@ -165,117 +57,36 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   // Auto-save on every change
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        nodes: stripCallbacks(nodes),
-        edges,
-      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes: stripCallbacks(nodes), edges }));
     } catch {}
   }, [nodes, edges]);
 
-  // ── Undo / Redo ────────────────────────────────────────────────────────────
-  const historyRef     = useRef([]);
-  const historyIdxRef  = useRef(-1);
-  const debounceRef    = useRef(null);
-  const isRestoringRef = useRef(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
+  // ── Custom hooks ───────────────────────────────────────────────────────────
+  const { undo, redo, canUndo, canRedo } = useHistory({
+    darkMode, getNodes, getEdges, setNodes, setEdges, nodes, edges,
+  });
 
-  // Debounced snapshot — fires 400 ms after the last nodes/edges change
-  useEffect(() => {
-    if (isRestoringRef.current) return;
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const snap = { nodes: stripCallbacks(getNodes()), edges: getEdges() };
-      const cur  = historyRef.current[historyIdxRef.current];
-      if (cur && JSON.stringify(snap) === JSON.stringify(cur)) return;
-      historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1);
-      historyRef.current.push(snap);
-      if (historyRef.current.length > 50) historyRef.current.shift();
-      historyIdxRef.current = historyRef.current.length - 1;
-      setCanUndo(historyIdxRef.current > 0);
-      setCanRedo(false);
-    }, 400);
-    return () => clearTimeout(debounceRef.current);
-  }, [nodes, edges, getNodes, getEdges]);
+  useClipboard({ darkMode, getNodes, getEdges, setNodes, setEdges });
 
-  const restoreSnapshot = useCallback((snap) => {
-    isRestoringRef.current = true;
-    setNodes(snap.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
-    setEdges(snap.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
-    setTimeout(() => { isRestoringRef.current = false; }, 500);
-  }, [setNodes, setEdges, darkMode]);
-
-  const undo = useCallback(() => {
-    if (historyIdxRef.current <= 0) return;
-    historyIdxRef.current--;
-    restoreSnapshot(historyRef.current[historyIdxRef.current]);
-    setCanUndo(historyIdxRef.current > 0);
-    setCanRedo(true);
-  }, [restoreSnapshot]);
-
-  const redo = useCallback(() => {
-    if (historyIdxRef.current >= historyRef.current.length - 1) return;
-    historyIdxRef.current++;
-    restoreSnapshot(historyRef.current[historyIdxRef.current]);
-    setCanUndo(true);
-    setCanRedo(historyIdxRef.current < historyRef.current.length - 1);
-  }, [restoreSnapshot]);
-
-  // Keyboard shortcuts: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo
-  useEffect(() => {
-    const onKey = (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
-
-  // Copy / paste nodes (Ctrl+C / Ctrl+V)
-  const clipboardRef  = useRef(null);
-  const pasteCountRef = useRef(0);
-  useEffect(() => {
-    const onKey = (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      // Don't intercept when user is typing inside an input or textarea
-      const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (e.key === 'c') {
-        const selNodes = getNodes().filter(n => n.selected);
-        if (!selNodes.length) return;
-        e.preventDefault();
-        const selIds = new Set(selNodes.map(n => n.id));
-        clipboardRef.current = {
-          nodes: stripCallbacks(selNodes),
-          edges: getEdges().filter(ed => selIds.has(ed.source) && selIds.has(ed.target)),
-        };
-        pasteCountRef.current = 0;
-      }
-
-      if (e.key === 'v') {
-        const cb = clipboardRef.current;
-        if (!cb?.nodes.length) return;
-        e.preventDefault();
-        pasteCountRef.current++;
-        const off = pasteCountRef.current * 30;
-        const idMap = {};
-        const newNodes = cb.nodes.map(n => {
-          const newId = `n${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-          idMap[n.id] = newId;
-          return { ...n, id: newId, position: { x: n.position.x + off, y: n.position.y + off }, selected: true, type: 'editableNode' };
-        });
-        const newEdges = cb.edges
-          .filter(ed => idMap[ed.source] && idMap[ed.target])
-          .map(ed => ({ ...ed, id: `e${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, source: idMap[ed.source], target: idMap[ed.target], ...makeEdgeOptions(darkMode) }));
-        setNodes(ns => [...ns.map(n => ({ ...n, selected: false })), ...newNodes]);
-        setEdges(es => [...es, ...newEdges]);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [getNodes, getEdges, setNodes, setEdges, darkMode]);
+  const {
+    gistPanel, setGistPanel,
+    gistId, gistUrl,
+    hasToken,
+    isSavingGist,
+    showCommitPanel, setShowCommitPanel,
+    currentGistSha,
+    newVersionAvailable, setNewVersionAvailable,
+    showHistory, setShowHistory,
+    pendingSaveRef,
+    doSaveGist,
+    handleSaveGist,
+    handleTokenSave,
+    handleClearToken,
+    handleUnlinkGist,
+    handleLoadGistId,
+    handleLoadRevision,
+    handleLoadLatest,
+  } = useGist({ darkMode, getNodes, getEdges, setNodes, setEdges });
 
   // ── Context callbacks ──────────────────────────────────────────────────────
   const updateLabel = useCallback((id, label) =>
@@ -297,7 +108,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     setEdges(eds => addEdge({ ...params, ...makeEdgeOptions(darkMode) }, eds));
   }, [setEdges, darkMode]);
 
-  // Desktop: double-click canvas to create node (tracked via timing in onPaneClick)
+  // Desktop: double-click canvas to create node
   const lastPaneClickRef = useRef(0);
   const onPaneClick = useCallback((event) => {
     if (isTouch) return;
@@ -306,7 +117,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     const elapsed = now - lastPaneClickRef.current;
     lastPaneClickRef.current = now;
     if (elapsed > 50 && elapsed < 350) {
-      // Second click within double-click window — create node
       const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       setNodes(ns => [...ns, {
         id: `n${now}`,
@@ -318,7 +128,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     }
   }, [screenToFlowPosition, setNodes, isTouch]);
 
-  // Mobile: FAB adds node at viewport centre
+  // Touch: FAB adds node at viewport centre
   const addNodeAtCenter = useCallback(() => {
     const bounds = wrapper.current?.getBoundingClientRect();
     if (!bounds) return;
@@ -353,21 +163,17 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   }, [getNodes, getEdges]);
 
   const handleImportJSON = useCallback((data) => {
-    // Auto-detect LucidChart format
     if (isLucidChart(data)) {
       try {
         const { nodes: lNodes, edges: lEdges, extraPages } = convertLucidChart(data);
         setNodes(lNodes);
         setEdges(lEdges.map(e => ({ ...e, ...makeEdgeOptions(darkMode) })));
-        if (extraPages > 0) {
-          alert(`Imported page 1 of ${extraPages + 1}. Only the first page is imported.`);
-        }
+        if (extraPages > 0) alert(`Imported page 1 of ${extraPages + 1}. Only the first page is imported.`);
       } catch (err) {
         alert(`LucidChart import failed: ${err.message}`);
       }
       return;
     }
-    // Native brainstorm format
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
       alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
@@ -377,8 +183,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
       data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
     }));
     const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
-    // If the source file used Lucidchart node/edge types, apply dagre for a clean hierarchy.
-    // Otherwise keep the existing positions and just deoverlap.
     const isLucidchartOrigin = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
     setNodes(isLucidchartOrigin ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
     setEdges(mappedEdges);
@@ -387,7 +191,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const handleImportSVG = useCallback((svgText) => {
     const currentNodes = getNodes();
     if (currentNodes.length > 0) {
-      // Nodes already loaded from JSON — apply SVG positions/colours on top.
       try {
         const updated = applyLucidChartSVGPositions(svgText, currentNodes);
         setNodes(updated);
@@ -395,7 +198,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
         alert(`SVG position import failed: ${err.message}`);
       }
     } else {
-      // Empty canvas — fall back to standalone SVG converter.
       try {
         const { nodes: sNodes, edges: sEdges } = convertLucidChartSVG(svgText);
         setNodes(sNodes);
@@ -414,104 +216,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
     setEdges(es => es.filter(e => !selEdgeIds.has(e.id) && !selNodeIds.has(e.source) && !selNodeIds.has(e.target)));
   }, [getNodes, getEdges, setNodes, setEdges]);
 
-  // ── Gist handlers ──────────────────────────────────────────────────────────
-  const doSaveGist = useCallback(async (meta = null) => {
-    const token = localStorage.getItem('brainstorm-github-token');
-    if (!token) return;
-    const curId = localStorage.getItem('brainstorm-gist-id');
-    setIsSavingGist(true);
-    try {
-      const result = await saveGist(token, { nodes: stripCallbacks(getNodes()), edges: getEdges() }, curId, meta);
-      localStorage.setItem('brainstorm-gist-id',  result.id);
-      localStorage.setItem('brainstorm-gist-url', result.htmlUrl);
-      setGistId(result.id);
-      setGistUrl(result.htmlUrl);
-      if (result.sha) updateCurrentSha(result.sha);
-    } catch (err) {
-      alert(`Gist save failed: ${err.message}`);
-    } finally {
-      setIsSavingGist(false);
-    }
-  }, [getNodes, getEdges, updateCurrentSha]);
-
-  const handleSaveGist = useCallback(() => {
-    if (!localStorage.getItem('brainstorm-github-token')) {
-      pendingSaveRef.current = true;
-      setGistPanel('token');
-      return;
-    }
-    setShowCommitPanel(true);
-  }, []);
-
-  const handleTokenSave = useCallback((token) => {
-    localStorage.setItem('brainstorm-github-token', token);
-    setHasToken(true);
-    setGistPanel(null);
-    if (pendingSaveRef.current) { pendingSaveRef.current = false; setShowCommitPanel(true); }
-  }, []);
-
-  const handleClearToken = useCallback(() => {
-    localStorage.removeItem('brainstorm-github-token');
-    setHasToken(false);
-    setGistPanel(null);
-  }, []);
-
-  const handleUnlinkGist = useCallback(() => {
-    localStorage.removeItem('brainstorm-gist-id');
-    localStorage.removeItem('brainstorm-gist-url');
-    setGistId(null);
-    setGistUrl(null);
-    setGistPanel(null);
-  }, []);
-
-  const handleLoadGistId = useCallback(async (input) => {
-    setGistPanel(null);
-    try {
-      const id = extractGistId(input);
-      const { data, htmlUrl, id: resolvedId, sha } = await loadGist(id);
-      if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
-        alert('Invalid gist content — expected a brainstorm JSON.'); return;
-      }
-      const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
-      }));
-      const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
-      const isLC = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
-      setNodes(isLC ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
-      setEdges(mappedEdges);
-      localStorage.setItem('brainstorm-gist-id',  resolvedId);
-      localStorage.setItem('brainstorm-gist-url', htmlUrl);
-      setGistId(resolvedId);
-      setGistUrl(htmlUrl);
-      if (sha) updateCurrentSha(sha);
-    } catch (err) {
-      alert(`Gist load failed: ${err.message}`);
-    }
-  }, [setNodes, setEdges, darkMode, updateCurrentSha]);
-
-  const handleLoadRevision = useCallback(async (sha) => {
-    if (!gistId) return;
-    setShowHistory(false);
-    try {
-      const token = localStorage.getItem('brainstorm-github-token');
-      const { data } = await loadGistRevision(gistId, sha, token);
-      if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
-        alert('Invalid revision content.'); return;
-      }
-      const mappedNodes = data.nodes.map(n => ({
-        ...n, type: 'editableNode',
-        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
-      }));
-      const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
-      setNodes(deoverlapNodes(mappedNodes));
-      setEdges(mappedEdges);
-      updateCurrentSha(sha);
-    } catch (err) {
-      alert(`Failed to load revision: ${err.message}`);
-    }
-  }, [gistId, darkMode, setNodes, setEdges, updateCurrentSha]);
-
   const handleShare = useCallback(() => {
     const encoded = encodeShareState(stripCallbacks(getNodes()), getEdges());
     const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
@@ -529,11 +233,11 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   }, [darkMode]);
 
   // ── Theme values ───────────────────────────────────────────────────────────
-  const canvasBg      = darkMode ? '#0f172a' : '#f1f5f9';
-  const dotColor      = darkMode ? '#1e293b' : '#cbd5e1';
-  const controlsBg    = darkMode ? '#020617' : '#ffffff';
+  const canvasBg       = darkMode ? '#0f172a' : '#f1f5f9';
+  const dotColor       = darkMode ? '#1e293b' : '#cbd5e1';
+  const controlsBg     = darkMode ? '#020617' : '#ffffff';
   const controlsBorder = darkMode ? '#1e293b' : '#e2e8f0';
-  const hintColor     = darkMode ? '#334155' : '#94a3b8';
+  const hintColor      = darkMode ? '#334155' : '#94a3b8';
 
   const hint = isTouch
     ? (mobileSelectMode ? 'Drag to select multiple nodes · Tap Select to exit' : 'Tap + to add · Double-tap node to edit · Select edge + Del to delete')
@@ -619,7 +323,6 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
               aria-label="Add node"
               style={{
                 position: 'absolute',
-                // On tablet the minimap is bottom-right (~78px tall); raise FAB above it
                 bottom: isTablet ? 92 : 76,
                 right: 12,
                 width: 52,
@@ -662,18 +365,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
             }}>
               <span style={{ color: '#22c55e', fontSize: 13 }}>New version available</span>
               <button
-                onClick={async () => {
-                  const token = localStorage.getItem('brainstorm-github-token');
-                  try {
-                    const { data, sha } = await loadGist(gistId, token);
-                    if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) return;
-                    const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } }));
-                    const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
-                    setNodes(deoverlapNodes(mappedNodes));
-                    setEdges(mappedEdges);
-                    if (sha) updateCurrentSha(sha);
-                  } catch (err) { alert(`Load failed: ${err.message}`); }
-                }}
+                onClick={handleLoadLatest}
                 style={{ padding: '4px 10px', borderRadius: 5, fontSize: 12, cursor: 'pointer', border: '1px solid #22c55e', background: '#0f4c0f', color: '#22c55e', fontFamily: 'Inter, sans-serif' }}
               >
                 Load
@@ -706,32 +398,33 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
           </div>
         </div>
       </div>
-        {gistPanel && (
-          <GistPanel
-            mode={gistPanel}
-            onClose={() => { setGistPanel(null); pendingSaveRef.current = false; }}
-            onTokenSave={handleTokenSave}
-            onLoad={handleLoadGistId}
-            hasToken={hasToken}
-            onClearToken={handleClearToken}
-            hasGist={Boolean(gistId)}
-            onUnlinkGist={handleUnlinkGist}
-          />
-        )}
-        {showCommitPanel && (
-          <CommitPanel
-            onSave={(meta) => { setShowCommitPanel(false); doSaveGist(meta); }}
-            onClose={() => setShowCommitPanel(false)}
-          />
-        )}
-        {showHistory && gistId && (
-          <GistHistoryPanel
-            gistId={gistId}
-            currentSha={currentGistSha}
-            onLoad={handleLoadRevision}
-            onClose={() => setShowHistory(false)}
-          />
-        )}
+
+      {gistPanel && (
+        <GistPanel
+          mode={gistPanel}
+          onClose={() => { setGistPanel(null); pendingSaveRef.current = false; }}
+          onTokenSave={handleTokenSave}
+          onLoad={handleLoadGistId}
+          hasToken={hasToken}
+          onClearToken={handleClearToken}
+          hasGist={Boolean(gistId)}
+          onUnlinkGist={handleUnlinkGist}
+        />
+      )}
+      {showCommitPanel && (
+        <CommitPanel
+          onSave={(meta) => { setShowCommitPanel(false); doSaveGist(meta); }}
+          onClose={() => setShowCommitPanel(false)}
+        />
+      )}
+      {showHistory && gistId && (
+        <GistHistoryPanel
+          gistId={gistId}
+          currentSha={currentGistSha}
+          onLoad={handleLoadRevision}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </FlowContext.Provider>
   );
 }
@@ -741,9 +434,6 @@ export default function App() {
     try { return localStorage.getItem('brainstorm-dark') !== 'false'; } catch { return true; }
   });
 
-  // Use (pointer: coarse) to detect touch-primary devices (phones, tablets)
-  // regardless of CSS pixel width. Galaxy Tab S7/S8 in landscape is ~1280px wide
-  // so a width-only breakpoint would miss it.
   const getLayout = () => {
     const coarse = window.matchMedia('(pointer: coarse)').matches;
     const w = window.innerWidth;
@@ -755,7 +445,7 @@ export default function App() {
     const check = () => setLayout(getLayout());
     const mql = window.matchMedia('(pointer: coarse)');
     window.addEventListener('resize', check);
-    mql.addEventListener('change', check); // handle mouse connect/disconnect
+    mql.addEventListener('change', check);
     return () => {
       window.removeEventListener('resize', check);
       mql.removeEventListener('change', check);

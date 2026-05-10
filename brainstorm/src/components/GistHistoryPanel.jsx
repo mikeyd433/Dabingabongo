@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchGistHistory, loadGistRevision } from '../utils/gistApi';
+
+const PAGE_SIZE = 10;
 
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -14,13 +16,13 @@ function relativeTime(iso) {
 }
 
 export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }) {
-  const [history,    setHistory]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
-  // commit metadata per SHA: { [sha]: { author, description, ts } | null }
-  // undefined = not yet fetched, null = fetched but no _commit in that revision
-  const [commitMeta, setCommitMeta] = useState({});
+  const [history,     setHistory]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [commitMeta,  setCommitMeta]  = useState({});
   const [expandedSha, setExpandedSha] = useState(null);
+  const [page,        setPage]        = useState(1);
+  const fetchedRef = useRef(new Set());
 
   // Phase 1: fetch the history list
   useEffect(() => {
@@ -30,22 +32,30 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
       .catch(err => { setError(err.message); setLoading(false); });
   }, [gistId]);
 
-  // Phase 2: once history is loaded, fetch commit metadata for each revision in parallel
+  // Phase 2: fetch commit metadata only for the currently visible revisions
   useEffect(() => {
-    if (!history.length) return;
+    const visible = history.slice(0, page * PAGE_SIZE);
+    const unfetched = visible.filter(rev => !fetchedRef.current.has(rev.version));
+    if (!unfetched.length) return;
     const token = localStorage.getItem('brainstorm-github-token');
+    unfetched.forEach(rev => fetchedRef.current.add(rev.version));
     Promise.all(
-      history.map(rev =>
+      unfetched.map(rev =>
         loadGistRevision(gistId, rev.version, token)
           .then(({ commit }) => [rev.version, commit])
           .catch(() => [rev.version, null])
       )
     ).then(results => {
-      const meta = {};
-      results.forEach(([sha, commit]) => { meta[sha] = commit; });
-      setCommitMeta(meta);
+      setCommitMeta(prev => {
+        const next = { ...prev };
+        results.forEach(([sha, commit]) => { next[sha] = commit; });
+        return next;
+      });
     });
-  }, [history, gistId]);
+  }, [history, page, gistId]);
+
+  const visibleHistory = history.slice(0, page * PAGE_SIZE);
+  const hasMore = history.length > page * PAGE_SIZE;
 
   const toggleExpand = (e, sha) => {
     e.stopPropagation();
@@ -72,12 +82,12 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
           {loading && <div style={{ padding: 28, color: '#475569', textAlign: 'center', fontSize: 13 }}>Loading…</div>}
           {error   && <div style={{ padding: 28, color: '#f87171', textAlign: 'center', fontSize: 13 }}>{error}</div>}
 
-          {!loading && !error && history.map((rev, i) => {
-            const isCurrent = rev.version === currentSha;
-            const isLatest  = i === 0;
-            const meta      = commitMeta[rev.version]; // undefined = loading, null = no commit info
-            const author    = meta === undefined ? null : (meta?.author ?? null);
-            const desc      = meta?.description ?? '';
+          {!loading && !error && visibleHistory.map((rev, i) => {
+            const isCurrent  = rev.version === currentSha;
+            const isLatest   = i === 0;
+            const meta       = commitMeta[rev.version];
+            const author     = meta === undefined ? null : (meta?.author ?? null);
+            const desc       = meta?.description ?? '';
             const isExpanded = expandedSha === rev.version;
 
             return (
@@ -96,15 +106,13 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
                   onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Row 1: time + badges */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ color: isCurrent ? '#22c55e' : '#cbd5e1', fontSize: 13, fontWeight: isCurrent ? 600 : 400 }}>
                         {relativeTime(rev.committed_at)}
                       </span>
-                      {isLatest && <span style={{ fontSize: 10, color: '#22c55e', background: '#0f2d1a', border: '1px solid #166534', borderRadius: 3, padding: '1px 5px' }}>latest</span>}
+                      {isLatest  && <span style={{ fontSize: 10, color: '#22c55e', background: '#0f2d1a', border: '1px solid #166534', borderRadius: 3, padding: '1px 5px' }}>latest</span>}
                       {isCurrent && <span style={{ fontSize: 10, color: '#64748b', background: '#1e293b', border: '1px solid #334155', borderRadius: 3, padding: '1px 5px' }}>loaded</span>}
                     </div>
-                    {/* Row 2: author + sha */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {author !== null ? (
                         <span style={{ color: '#475569', fontSize: 11, fontWeight: 500 }}>{author}</span>
@@ -115,7 +123,6 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
                     </div>
                   </div>
 
-                  {/* Right side: description button + load arrow */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
                     {desc && (
                       <button
@@ -136,7 +143,6 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
                   </div>
                 </div>
 
-                {/* Inline description expansion */}
                 {isExpanded && desc && (
                   <div style={{ padding: '10px 20px 12px', background: '#050d18', borderTop: '1px solid #0a0f1e' }}>
                     <div style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>
@@ -149,6 +155,17 @@ export default function GistHistoryPanel({ gistId, currentSha, onLoad, onClose }
               </div>
             );
           })}
+
+          {!loading && !error && hasMore && (
+            <div style={{ padding: '12px 20px', textAlign: 'center' }}>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                style={{ padding: '6px 18px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: '1px solid #334155', background: '#1e293b', color: '#94a3b8', fontFamily: 'Inter, sans-serif' }}
+              >
+                Load more ({history.length - page * PAGE_SIZE} remaining)
+              </button>
+            </div>
+          )}
 
           {!loading && !error && history.length === 0 && (
             <div style={{ padding: 28, color: '#475569', textAlign: 'center', fontSize: 13 }}>No history yet.</div>
