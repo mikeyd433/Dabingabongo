@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 
 export default function NodeDetailsPanel({ nodeId, nodeLabel, details, onUpdate, onClose }) {
   const [draft, setDraft] = useState(details ?? '');
+  const [editing, setEditing] = useState(false);
   const textareaRef = useRef(null);
 
-  // Sync draft when switching to a different node
+  // Sync draft and reset to read mode when switching nodes
   useEffect(() => {
     setDraft(details ?? '');
+    setEditing(false);
   }, [nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, [nodeId]);
+    if (editing) textareaRef.current?.focus();
+  }, [editing]);
+
+  const startEditing = () => setEditing(true);
+  const stopEditing  = () => setEditing(false);
 
   return (
     <div
@@ -58,32 +63,55 @@ export default function NodeDetailsPanel({ nodeId, nodeLabel, details, onUpdate,
         </button>
       </div>
 
-      {/* Textarea */}
-      <textarea
-        ref={textareaRef}
-        value={draft}
-        onChange={e => { setDraft(e.target.value); onUpdate(nodeId, e.target.value); }}
-        onKeyDown={e => {
-          e.stopPropagation();
-          if (e.key === 'Escape') onClose();
-        }}
-        placeholder="Add notes or details for this node…"
-        style={{
-          flex: 1,
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color: '#cbd5e1',
-          fontSize: 13,
-          fontFamily: 'Inter, sans-serif',
-          lineHeight: 1.65,
-          padding: '10px 14px',
-          resize: 'none',
-          minHeight: 140,
-        }}
-      />
+      {/* Body — read view or edit view */}
+      {editing ? (
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={e => { setDraft(e.target.value); onUpdate(nodeId, e.target.value); }}
+          onBlur={stopEditing}
+          onKeyDown={e => {
+            e.stopPropagation();
+            if (e.key === 'Escape') { stopEditing(); }
+          }}
+          placeholder="Add notes or details for this node…"
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: '#cbd5e1',
+            fontSize: 13,
+            fontFamily: 'Inter, sans-serif',
+            lineHeight: 1.65,
+            padding: '10px 14px',
+            resize: 'none',
+            minHeight: 140,
+          }}
+        />
+      ) : (
+        <div
+          onClick={startEditing}
+          title="Tap to edit"
+          style={{
+            flex: 1,
+            color: draft ? '#cbd5e1' : '#334155',
+            fontSize: 13,
+            fontFamily: 'Inter, sans-serif',
+            lineHeight: 1.65,
+            padding: '10px 14px',
+            minHeight: 140,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            cursor: 'text',
+            userSelect: 'text',
+          }}
+        >
+          {draft || 'Tap to add notes…'}
+        </div>
+      )}
 
-      {/* Footer: char count hint */}
+      {/* Footer: char count */}
       {draft.length > 0 && (
         <div style={{ padding: '3px 14px 8px', color: '#1e293b', fontSize: 11, textAlign: 'right', flexShrink: 0 }}>
           {draft.length}
