@@ -6,10 +6,13 @@ export function extractGistId(input) {
   return m ? m[1] : input.trim();
 }
 
-export async function saveGist(token, data, existingId = null) {
+export async function saveGist(token, data, existingId = null, meta = null) {
+  const payload = meta
+    ? { ...data, _commit: { author: meta.author, description: meta.description, ts: new Date().toISOString() } }
+    : data;
   const body = {
     description: 'Brainstorm diagram',
-    files: { [FILENAME]: { content: JSON.stringify(data, null, 2) } },
+    files: { [FILENAME]: { content: JSON.stringify(payload, null, 2) } },
   };
   if (!existingId) body.public = false;
 
@@ -56,7 +59,8 @@ export async function fetchGistHistory(gistId, token = null) {
   };
 }
 
-// Load the diagram content at a specific revision sha
+// Load the diagram content at a specific revision sha.
+// Returns { data, commit } where commit is { author, description, ts } or null.
 export async function loadGistRevision(gistId, sha, token = null) {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await fetch(`${API}/gists/${gistId}/${sha}`, { headers });
@@ -64,5 +68,6 @@ export async function loadGistRevision(gistId, sha, token = null) {
   const gist = await res.json();
   const file = gist.files[FILENAME];
   if (!file) throw new Error(`No "${FILENAME}" found in this revision`);
-  return { data: JSON.parse(file.content) };
+  const { _commit, ...data } = JSON.parse(file.content);
+  return { data, commit: _commit ?? null };
 }
