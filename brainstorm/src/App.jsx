@@ -18,6 +18,7 @@ import WaypointEdge from './components/WaypointEdge';
 import Toolbar from './components/Toolbar';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
+import dagre from 'dagre';
 
 const nodeTypes = { editableNode: CustomNode };
 const edgeTypes = { default: WaypointEdge };
@@ -35,12 +36,30 @@ function stripCallbacks(nodes) {
   return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
 }
 
-// Spread nodes that share the same (or very close) position.
-// Phase 1: grid-cluster nodes within SNAP px and fan them out in a grid.
-// Phase 2: iterative repulsion to resolve any remaining overlaps.
+// Full hierarchical layout via dagre — used when importing Lucidchart-origin files.
+function dagreLayout(nodes, edges) {
+  const NODE_W = 220, NODE_H = 60;
+  const g = new dagre.graphlib.Graph({ multigraph: true });
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: 'TB', nodesep: 90, ranksep: 140, marginx: 40, marginy: 40 });
+
+  nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
+  edges.forEach((e, i) => {
+    if (g.hasNode(e.source) && g.hasNode(e.target))
+      g.setEdge(e.source, e.target, {}, `e${i}`);
+  });
+
+  dagre.layout(g);
+
+  return nodes.map(n => {
+    const p = g.node(n.id);
+    return p ? { ...n, position: { x: Math.round(p.x - NODE_W / 2), y: Math.round(p.y - NODE_H / 2) } } : n;
+  });
+}
+
+// Lightweight deoverlap — used for native brainstorm files with already-good positions.
 function deoverlapNodes(nodes) {
   const SNAP = 120, STEP_X = 280, STEP_Y = 110, COLS = 3;
-
   const groups = new Map();
   nodes.forEach(node => {
     const key = `${Math.round(node.position.x / SNAP)},${Math.round(node.position.y / SNAP)}`;
@@ -51,34 +70,10 @@ function deoverlapNodes(nodes) {
   groups.forEach(ids => {
     ids.forEach((id, i) => offsets.set(id, { dx: (i % COLS) * STEP_X, dy: Math.floor(i / COLS) * STEP_Y }));
   });
-
-  let pos = nodes.map(n => {
-    const o = offsets.get(n.id) ?? { dx: 0, dy: 0 };
-    return { id: n.id, x: n.position.x + o.dx, y: n.position.y + o.dy };
+  return nodes.map(node => {
+    const o = offsets.get(node.id) ?? { dx: 0, dy: 0 };
+    return { ...node, position: { x: Math.round(node.position.x + o.dx), y: Math.round(node.position.y + o.dy) } };
   });
-
-  // Push apart any nodes still closer than MIN_W × MIN_H
-  const MIN_W = 220, MIN_H = 90;
-  for (let pass = 0; pass < 10; pass++) {
-    let moved = false;
-    for (let i = 0; i < pos.length; i++) {
-      for (let j = i + 1; j < pos.length; j++) {
-        const adx = Math.abs(pos[j].x - pos[i].x);
-        const ady = Math.abs(pos[j].y - pos[i].y);
-        if (adx < MIN_W && ady < MIN_H) {
-          const dir  = pos[j].x >= pos[i].x ? 1 : -1;
-          const push = (MIN_W - adx) / 2 + 1;
-          pos[j].x += push * dir;
-          pos[i].x -= push * dir;
-          moved = true;
-        }
-      }
-    }
-    if (!moved) break;
-  }
-
-  const posMap = new Map(pos.map(p => [p.id, { x: Math.round(p.x), y: Math.round(p.y) }]));
-  return nodes.map(n => ({ ...n, position: posMap.get(n.id) ?? n.position }));
 }
 
 function makeEdgeOptions(darkMode) {
@@ -254,13 +249,18 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
       alert('Invalid file. Expected a brainstorm JSON or a LucidChart JSON export.'); return;
     }
-    setNodes(deoverlapNodes(data.nodes.map(n => ({
+    const mappedNodes = data.nodes.map(n => ({
       ...n,
       type: 'editableNode',
       style: undefined,
       data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
-    }))));
-    setEdges(data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
+    }));
+    const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
+    // If the source file used Lucidchart node/edge types, apply dagre for a clean hierarchy.
+    // Otherwise keep the existing positions and just deoverlap.
+    const isLucidchartOrigin = data.nodes.some(n => n.type === 'default' || n.type === 'smoothstep');
+    setNodes(isLucidchartOrigin ? dagreLayout(mappedNodes, mappedEdges) : deoverlapNodes(mappedNodes));
+    setEdges(mappedEdges);
   }, [setNodes, setEdges, darkMode]);
 
   const handleImportSVG = useCallback((svgText) => {
