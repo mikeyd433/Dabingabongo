@@ -20,7 +20,8 @@ import Toolbar from './components/Toolbar';
 import GistPanel from './components/GistPanel';
 import { FlowContext } from './contexts/FlowContext';
 import { isLucidChart, convertLucidChart, convertLucidChartSVG, applyLucidChartSVGPositions } from './utils/lucidchartConverter';
-import { saveGist, loadGist, extractGistId } from './utils/gistApi';
+import { saveGist, loadGist, extractGistId, fetchGistHistory, loadGistRevision } from './utils/gistApi';
+import GistHistoryPanel from './components/GistHistoryPanel';
 import dagre from 'dagre';
 import LZString from 'lz-string';
 
@@ -118,8 +119,35 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
   const [gistUrl,     setGistUrl]     = useState(() => { try { return localStorage.getItem('brainstorm-gist-url') || null; } catch { return null; } });
   const [hasToken,    setHasToken]    = useState(() => { try { return Boolean(localStorage.getItem('brainstorm-github-token')); } catch { return false; } });
   const [isSavingGist, setIsSavingGist] = useState(false);
+  const [currentGistSha,    setCurrentGistSha]    = useState(null);
+  const [newVersionAvailable, setNewVersionAvailable] = useState(false);
+  const [showHistory,       setShowHistory]        = useState(false);
+  const currentGistShaRef = useRef(null);
   const pendingSaveRef = useRef(false);
   const wrapper = useRef(null);
+
+  const updateCurrentSha = useCallback((sha) => {
+    currentGistShaRef.current = sha;
+    setCurrentGistSha(sha);
+    setNewVersionAvailable(false);
+  }, []);
+
+  // Poll every 30 s for new gist versions (only when a gist is loaded)
+  useEffect(() => {
+    if (!gistId) return;
+    const check = async () => {
+      if (document.visibilityState === 'hidden') return;
+      const token = localStorage.getItem('brainstorm-github-token');
+      try {
+        const { latestSha } = await fetchGistHistory(gistId, token);
+        if (latestSha && latestSha !== currentGistShaRef.current && currentGistShaRef.current !== null) {
+          setNewVersionAvailable(true);
+        }
+      } catch {}
+    };
+    const id = setInterval(check, 30_000);
+    return () => clearInterval(id);
+  }, [gistId]);
   const { screenToFlowPosition, getNodes, getEdges, setViewport } = useReactFlow();
 
   const saved = useMemo(() => loadSaved(), []);
@@ -391,15 +419,16 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     try {
       const result = await saveGist(token, { nodes: stripCallbacks(getNodes()), edges: getEdges() }, curId);
       localStorage.setItem('brainstorm-gist-id',  result.id);
-      localStorage.setItem('brainstorm-gist-url', result.html_url);
+      localStorage.setItem('brainstorm-gist-url', result.htmlUrl);
       setGistId(result.id);
-      setGistUrl(result.html_url);
+      setGistUrl(result.htmlUrl);
+      if (result.sha) updateCurrentSha(result.sha);
     } catch (err) {
       alert(`Gist save failed: ${err.message}`);
     } finally {
       setIsSavingGist(false);
     }
-  }, [getNodes, getEdges]);
+  }, [getNodes, getEdges, updateCurrentSha]);
 
   const handleSaveGist = useCallback(() => {
     if (!localStorage.getItem('brainstorm-github-token')) {
@@ -435,7 +464,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
     setGistPanel(null);
     try {
       const id = extractGistId(input);
-      const { data, htmlUrl, id: resolvedId } = await loadGist(id);
+      const { data, htmlUrl, id: resolvedId, sha } = await loadGist(id);
       if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
         alert('Invalid gist content — expected a brainstorm JSON.'); return;
       }
@@ -451,10 +480,33 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
       localStorage.setItem('brainstorm-gist-url', htmlUrl);
       setGistId(resolvedId);
       setGistUrl(htmlUrl);
+      if (sha) updateCurrentSha(sha);
     } catch (err) {
       alert(`Gist load failed: ${err.message}`);
     }
-  }, [setNodes, setEdges, darkMode]);
+  }, [setNodes, setEdges, darkMode, updateCurrentSha]);
+
+  const handleLoadRevision = useCallback(async (sha) => {
+    if (!gistId) return;
+    setShowHistory(false);
+    try {
+      const token = localStorage.getItem('brainstorm-github-token');
+      const { data } = await loadGistRevision(gistId, sha, token);
+      if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) {
+        alert('Invalid revision content.'); return;
+      }
+      const mappedNodes = data.nodes.map(n => ({
+        ...n, type: 'editableNode', style: undefined,
+        data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' },
+      }));
+      const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
+      setNodes(deoverlapNodes(mappedNodes));
+      setEdges(mappedEdges);
+      updateCurrentSha(sha);
+    } catch (err) {
+      alert(`Failed to load revision: ${err.message}`);
+    }
+  }, [gistId, darkMode, setNodes, setEdges, updateCurrentSha]);
 
   const handleShare = useCallback(() => {
     const encoded = encodeShareState(stripCallbacks(getNodes()), getEdges());
@@ -506,9 +558,11 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
           onSaveGist={handleSaveGist}
           onLoadGist={() => setGistPanel('load')}
           onManageToken={() => setGistPanel('token')}
+          onShowHistory={() => setShowHistory(true)}
           hasGistToken={hasToken}
           gistUrl={gistUrl}
           isSavingGist={isSavingGist}
+          hasGist={Boolean(gistId)}
         />
 
         <div ref={wrapper} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -583,6 +637,50 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             </button>
           )}
 
+          {newVersionAvailable && (
+            <div style={{
+              position: 'absolute',
+              top: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#0f2d1a',
+              border: '1px solid #166534',
+              borderRadius: 8,
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              zIndex: 20,
+              fontFamily: 'Inter, sans-serif',
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ color: '#22c55e', fontSize: 13 }}>New version available</span>
+              <button
+                onClick={async () => {
+                  const token = localStorage.getItem('brainstorm-github-token');
+                  try {
+                    const { data, sha } = await loadGist(gistId, token);
+                    if (!Array.isArray(data?.nodes) || !Array.isArray(data?.edges)) return;
+                    const mappedNodes = data.nodes.map(n => ({ ...n, type: 'editableNode', style: undefined, data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } }));
+                    const mappedEdges = data.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) }));
+                    setNodes(deoverlapNodes(mappedNodes));
+                    setEdges(mappedEdges);
+                    if (sha) updateCurrentSha(sha);
+                  } catch (err) { alert(`Load failed: ${err.message}`); }
+                }}
+                style={{ padding: '4px 10px', borderRadius: 5, fontSize: 12, cursor: 'pointer', border: '1px solid #22c55e', background: '#0f4c0f', color: '#22c55e', fontFamily: 'Inter, sans-serif' }}
+              >
+                Load
+              </button>
+              <button
+                onClick={() => setNewVersionAvailable(false)}
+                style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div style={{
             position: 'absolute',
             bottom: 12,
@@ -612,6 +710,14 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
             onClearToken={handleClearToken}
             hasGist={Boolean(gistId)}
             onUnlinkGist={handleUnlinkGist}
+          />
+        )}
+        {showHistory && gistId && (
+          <GistHistoryPanel
+            gistId={gistId}
+            currentSha={currentGistSha}
+            onLoad={handleLoadRevision}
+            onClose={() => setShowHistory(false)}
           />
         )}
     </FlowContext.Provider>

@@ -74,7 +74,7 @@ export default function Toolbar({
   darkMode, onToggleDark, isMobile,
   mobileSelectMode, onToggleMobileSelect,
   onDeleteSelected, onShare,
-  onSaveGist, onLoadGist, onManageToken, hasGistToken, gistUrl, isSavingGist,
+  onSaveGist, onLoadGist, onManageToken, onShowHistory, hasGistToken, gistUrl, isSavingGist, hasGist,
 }) {
   const importJsonRef = useRef(null);
   const importSvgRef  = useRef(null);
@@ -160,6 +160,7 @@ export default function Toolbar({
             {isSavingGist ? '…' : gistUrl ? '☁ Update' : '☁ Save'}
           </Btn>
           <Btn onClick={onLoadGist} title="Load from GitHub Gist ID or URL" small>☁ Load</Btn>
+          {hasGist && <Btn onClick={onShowHistory} title="Browse version history" small>History</Btn>}
           <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} small />
           <Btn onClick={onShare}          title="Copy shareable link to clipboard" small>Share</Btn>
           <Btn onClick={onDeleteSelected} title="Delete selected nodes / edges"    small danger>Delete</Btn>
@@ -200,6 +201,7 @@ export default function Toolbar({
           {isSavingGist ? '☁ Saving…' : gistUrl ? '☁ Update Gist' : '☁ Save Gist'}
         </Btn>
         <Btn onClick={onLoadGist} title="Load diagram from a GitHub Gist">☁ Load Gist</Btn>
+        {hasGist && <Btn onClick={onShowHistory} title="Browse version history">History</Btn>}
         <TokenBtn hasToken={hasGistToken} onManageToken={onManageToken} />
         {gistShort && (
           <a
