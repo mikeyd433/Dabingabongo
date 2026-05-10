@@ -51,9 +51,18 @@ export default function CustomNode({ id, data, selected }) {
 
   // Long-press to edit on touch
   const onTouchStart = useCallback((e) => {
+    if (e.touches.length > 1) return; // ignore if already a multi-touch (pinch)
     pressTimer.current = setTimeout(() => { e.preventDefault(); setEditing(true); }, 400);
   }, []);
   const cancelPress = useCallback(() => clearTimeout(pressTimer.current), []);
+
+  // If a second finger appears anywhere on screen after the timer started, cancel it.
+  // This prevents the keyboard from opening mid-pinch-zoom.
+  useEffect(() => {
+    const onWindowTouch = (e) => { if (e.touches.length > 1) cancelPress(); };
+    window.addEventListener('touchstart', onWindowTouch, { passive: true });
+    return () => window.removeEventListener('touchstart', onWindowTouch);
+  }, [cancelPress]);
 
   const handleKeyDown = useCallback((e) => {
     e.stopPropagation();
