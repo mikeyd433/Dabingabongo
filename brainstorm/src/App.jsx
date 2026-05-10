@@ -451,8 +451,15 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile }) {
                 return c.border;
               }}
               nodeStrokeWidth={0}
+              position={isMobile ? 'bottom-left' : 'bottom-right'}
               maskColor="rgba(2,6,23,0.65)"
-              style={{ background: '#020617', border: `1px solid ${controlsBorder}`, borderRadius: 8 }}
+              style={{
+                background: '#020617',
+                border: `1px solid ${controlsBorder}`,
+                borderRadius: 8,
+                width:  isMobile ? 80 : 120,
+                height: isMobile ? 60 : 80,
+              }}
             />
           </ReactFlow>
 
