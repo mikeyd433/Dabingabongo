@@ -13,7 +13,7 @@ export function makeEdgeOptions(darkMode) {
 }
 
 export function stripCallbacks(nodes) {
-  return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color } }));
+  return nodes.map(n => ({ ...n, data: { label: n.data.label, color: n.data.color, details: n.data.details } }));
 }
 
 export function encodeShareState(nodes, edges) {
