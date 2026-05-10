@@ -116,14 +116,18 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   [setNodes]);
 
   // ── Context menu actions ───────────────────────────────────────────────────
+  const openNodeMenu = useCallback((nodeId, x, y) => {
+    const selectedIds = getNodes().filter(n => n.selected).map(n => n.id);
+    const ids = selectedIds.includes(nodeId) && selectedIds.length > 1
+      ? selectedIds
+      : [nodeId];
+    setContextMenu({ type: 'node', ids, x, y });
+  }, [getNodes]);
+
   const onNodeContextMenu = useCallback((event, node) => {
     event.preventDefault();
-    const selectedIds = getNodes().filter(n => n.selected).map(n => n.id);
-    const ids = selectedIds.includes(node.id) && selectedIds.length > 1
-      ? selectedIds
-      : [node.id];
-    setContextMenu({ type: 'node', ids, x: event.clientX, y: event.clientY });
-  }, [getNodes]);
+    openNodeMenu(node.id, event.clientX, event.clientY);
+  }, [openNodeMenu]);
 
   const onEdgeContextMenu = useCallback((event, edge) => {
     event.preventDefault();
@@ -241,7 +245,8 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const ctx = useMemo(() => ({
     updateLabel, updateColor, updateColorForAll,
     presentationMode, searchMatchIds, searchCurrentId,
-  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId]);
+    openNodeMenu, isTouch,
+  }), [updateLabel, updateColor, updateColorForAll, presentationMode, searchMatchIds, searchCurrentId, openNodeMenu, isTouch]);
 
   // ── Flow event handlers ────────────────────────────────────────────────────
   const onConnect = useCallback((params) => {
