@@ -29,7 +29,10 @@ export function useHistory({ darkMode, getNodes, getEdges, setNodes, setEdges, n
 
   const restoreSnapshot = useCallback((snap) => {
     isRestoringRef.current = true;
-    setNodes(snap.nodes.map(n => ({ ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default' } })));
+    setNodes(snap.nodes.map(n => n.type === 'stub'
+      ? { ...n, type: 'stub', data: {} }
+      : { ...n, type: 'editableNode', data: { label: n.data?.label ?? 'Node', color: n.data?.color ?? 'default', details: n.data?.details } }
+    ));
     setEdges(snap.edges.map(e => ({ ...e, type: 'default', ...makeEdgeOptions(darkMode) })));
     setTimeout(() => { isRestoringRef.current = false; }, 500);
   }, [setNodes, setEdges, darkMode]);
