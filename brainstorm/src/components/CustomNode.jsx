@@ -287,7 +287,7 @@ function CustomNode({ id, data, selected }) {
             }}
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 22px)', gap: 5 }}>
-              {(paletteExpanded ? NODE_COLORS : NODE_COLORS.slice(0, 10)).map(c => (
+              {(paletteExpanded ? palette : palette.slice(0, 10)).map(c => (
                 <div
                   key={c.name}
                   title={c.name}

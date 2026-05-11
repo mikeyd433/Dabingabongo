@@ -71,7 +71,7 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIndex, setSearchIndex] = useState(0);
 
-  const { screenToFlowPosition, getNodes, getEdges, setViewport, setCenter } = useReactFlow();
+  const { screenToFlowPosition, getNodes, getEdges, setViewport, setCenter, getViewport, fitView } = useReactFlow();
 
   const saved = useMemo(() => loadSaved(), []);
 
@@ -461,13 +461,22 @@ function FlowCanvas({ darkMode, onToggleDark, isMobile, isTablet }) {
       .catch(() => prompt('Copy this shareable link:', url));
   }, [getNodes, getEdges]);
 
-  const handleExportPNG = useCallback(() => {
+  const handleExportPNG = useCallback(async () => {
     const el = wrapper.current?.querySelector('.react-flow__viewport');
     if (!el) return;
-    toPng(el, { backgroundColor: darkMode ? '#0f172a' : '#f1f5f9', pixelRatio: 2 })
-      .then(url => Object.assign(document.createElement('a'), { href: url, download: `brainstorm-${Date.now()}.png` }).click())
-      .catch(err => { console.error(err); alert('PNG export failed — try zooming to fit first.'); });
-  }, [darkMode]);
+    const prevViewport = getViewport();
+    fitView({ padding: 0.08, duration: 0 });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try {
+      const url = await toPng(el, { backgroundColor: darkMode ? '#0f172a' : '#f1f5f9', pixelRatio: 2 });
+      Object.assign(document.createElement('a'), { href: url, download: `brainstorm-${Date.now()}.png` }).click();
+    } catch (err) {
+      console.error(err);
+      alert('PNG export failed.');
+    } finally {
+      setViewport(prevViewport);
+    }
+  }, [darkMode, getViewport, fitView, setViewport]);
 
   // ── Theme values ───────────────────────────────────────────────────────────
   const canvasBg       = darkMode ? '#0f172a' : '#f1f5f9';
