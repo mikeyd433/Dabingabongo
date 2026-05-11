@@ -92,6 +92,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
   }, []);
 
   const handleLoadGistId = useCallback(async (input) => {
+    if (getNodes().length > 0 && !confirm('Loading will replace your current diagram. Continue?')) return;
     setGistPanel(null);
     try {
       const id = extractGistId(input);
@@ -116,6 +117,7 @@ export function useGist({ darkMode, getNodes, getEdges, setNodes, setEdges }) {
 
   const handleLoadRevision = useCallback(async (sha) => {
     if (!gistId) return;
+    if (getNodes().length > 0 && !confirm('Loading this revision will replace your current diagram. Continue?')) return;
     setShowHistory(false);
     try {
       const token = localStorage.getItem('brainstorm-github-token');
