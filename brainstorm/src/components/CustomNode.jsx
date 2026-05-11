@@ -239,6 +239,7 @@ function CustomNode({ id, data, selected }) {
         {editing ? (
           <textarea
             ref={inputRef}
+            className="nodrag nopan"
             value={draft}
             onChange={e => { setDraft(e.target.value); autoResize(); }}
             onBlur={commit}
