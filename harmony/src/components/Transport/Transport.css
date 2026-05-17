@@ -1,0 +1,120 @@
+/* Transport.css */
+
+.transport-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--transport-height);
+  background: linear-gradient(180deg, rgba(13,13,20,0.85) 0%, var(--bg-darkest) 100%);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-subtle);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transport-inner {
+  max-width: 900px;
+  width: 100%;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---- Transport Buttons ---- */
+.transport-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+}
+
+.transport-icon {
+  font-style: normal;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.play-all-btn {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+  min-width: 120px;
+  justify-content: center;
+}
+
+.play-all-btn:hover:not(:disabled) {
+  background: #6b5ce7;
+}
+
+.stop-btn {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.stop-btn:hover:not(:disabled) {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.loop-btn {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.loop-btn:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.loop-btn.active {
+  background: rgba(74,222,128,0.15);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+/* ---- Playing Indicator ---- */
+.playing-indicator {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--accent-green);
+  font-weight: 500;
+}
+
+.playing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: playing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes playing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+  .transport-btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  .play-all-btn {
+    min-width: 100px;
+  }
+}

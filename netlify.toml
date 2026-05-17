@@ -18,6 +18,17 @@
   to   = "/brainstorm/index.html"
   status = 200
 
+# SPA fallback for harmony app
+[[redirects]]
+  from = "/harmony"
+  to   = "/harmony/"
+  status = 301
+
+[[redirects]]
+  from = "/harmony/*"
+  to   = "/harmony/index.html"
+  status = 200
+
 [[redirects]]
   from = "/songs"
   to   = "/songs/"

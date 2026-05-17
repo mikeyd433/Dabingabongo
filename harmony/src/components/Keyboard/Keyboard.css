@@ -1,0 +1,105 @@
+/* Keyboard.css */
+
+.keyboard-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.keyboard-placeholder {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 20px 0;
+}
+
+.keyboard {
+  position: relative;
+  display: flex;
+  user-select: none;
+  height: 100px;
+  /* Width = 7 white keys × 40px */
+  width: 280px;
+}
+
+/* ---- White Keys ---- */
+.white-key {
+  width: 40px;
+  height: 100px;
+  background: #e8e8e8;
+  border: 1px solid #888;
+  border-radius: 0 0 5px 5px;
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.white-key:hover:not(.root) {
+  background: #d0ccff;
+}
+
+.white-key.selected {
+  background: var(--accent-secondary);
+}
+
+.white-key.selected:hover:not(.root) {
+  background: #8b7ef7;
+}
+
+.white-key.root {
+  background: var(--accent-primary);
+  cursor: default;
+}
+
+.key-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.55);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.white-key.root .key-label,
+.white-key.selected .key-label {
+  color: rgba(255,255,255,0.85);
+}
+
+/* ---- Black Keys ---- */
+.black-key {
+  width: 26px;
+  height: 60px;
+  background: #1a1a2e;
+  border: 1px solid #000;
+  border-radius: 0 0 4px 4px;
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.black-key:hover {
+  background: #3a2a6e;
+}
+
+.black-key.selected {
+  background: var(--accent-primary);
+}
+
+.black-key.selected:hover {
+  background: #6b5ce7;
+}
+
+/* ---- Root Label ---- */
+.keyboard-root-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
