@@ -326,6 +326,82 @@ marquee {
     letter-spacing: 1px;
 }
 
+/* Confidential tools section */
+.confidential-section {
+    text-align: center;
+    margin: 40px auto 20px;
+    max-width: 500px;
+}
+
+.confidential-btn {
+    background-color: #1a0000;
+    color: #ff3333;
+    border: 2px solid #cc0000;
+    border-radius: 4px;
+    padding: 12px 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 8px rgba(200, 0, 0, 0.3);
+}
+
+.confidential-btn:hover {
+    background-color: #2a0000;
+    box-shadow: 0 0 16px rgba(200, 0, 0, 0.6);
+}
+
+.confidential-btn.open {
+    background-color: #2a0000;
+    border-color: #ff4444;
+}
+
+.confidential-panel {
+    margin-top: 12px;
+    background-color: #0d0d0d;
+    border: 1px solid #cc0000;
+    border-radius: 6px;
+    padding: 16px;
+    box-shadow: 0 0 20px rgba(200, 0, 0, 0.2);
+}
+
+.confidential-header {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #cc0000;
+    letter-spacing: 0.12em;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+}
+
+.confidential-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tool-link {
+    display: block;
+    background-color: #1a1a1a;
+    color: #00ff00;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 10px 16px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    text-decoration: none;
+    transition: background-color 0.2s, border-color 0.2s;
+    text-align: left;
+}
+
+.tool-link:hover {
+    background-color: #222;
+    border-color: #006600;
+}
+
 /* Footer styles */
 .footer {
     text-align: center;

@@ -635,36 +635,27 @@
             });
         </script>
 
-        <div style="text-align:center; margin: 30px auto 20px;">
-            <a href="/convert.html" style="
-                display: inline-block;
-                background-color: #006600;
-                color: #ffffff;
-                border: 2px solid #008800;
-                border-radius: 6px;
-                padding: 10px 24px;
-                font-family: 'Roboto', sans-serif;
-                font-size: 14px;
-                text-decoration: none;
-                transition: background-color 0.2s;
-            " onmouseover="this.style.backgroundColor='#008800'" onmouseout="this.style.backgroundColor='#006600'">
-                IVR Audio Converter
-            </a>
-            &nbsp;
-            <a href="/adventure.html" style="
-                display: inline-block;
-                background-color: #006600;
-                color: #ffffff;
-                border: 2px solid #008800;
-                border-radius: 6px;
-                padding: 10px 24px;
-                font-family: 'Roboto', sans-serif;
-                font-size: 14px;
-                text-decoration: none;
-                transition: background-color 0.2s;
-            " onmouseover="this.style.backgroundColor='#008800'" onmouseout="this.style.backgroundColor='#006600'">
-                Adventure Audio
-            </a>
+        <div class="confidential-section">
+            <button id="confidential-toggle" class="confidential-btn">
+                🔒 CONFIDENTIAL: DO NOT ENTER
+            </button>
+            <div id="confidential-panel" class="confidential-panel hidden">
+                <div class="confidential-header">⚠ AUTHORIZED PERSONNEL ONLY ⚠</div>
+                <div class="confidential-tools">
+                    <a href="/convert.html" class="tool-link">🎙 IVR Audio Converter</a>
+                    <a href="/adventure.html" class="tool-link">🎮 Adventure Audio</a>
+                    <a href="/brainstorm/" class="tool-link">🧠 Brainstorm App</a>
+                    <a href="/harmony/" class="tool-link">🎵 Harmony Helper</a>
+                </div>
+            </div>
         </div>
+
+        <script>
+            document.getElementById('confidential-toggle').addEventListener('click', function() {
+                const panel = document.getElementById('confidential-panel');
+                panel.classList.toggle('hidden');
+                this.classList.toggle('open');
+            });
+        </script>
     </body>
 </html>
