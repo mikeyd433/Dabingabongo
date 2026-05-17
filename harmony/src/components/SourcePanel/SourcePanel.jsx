@@ -6,53 +6,66 @@ import './SourcePanel.css';
 
 const PICKER_NOTES = getPickerNotes();
 
+function drawWaveform(canvas, audioBuffer) {
+  const dpr = window.devicePixelRatio || 1;
+  const displayW = canvas.clientWidth;
+  const displayH = canvas.clientHeight;
+  if (!displayW || !displayH) return;
+
+  canvas.width = displayW * dpr;
+  canvas.height = displayH * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = displayW;
+  const H = displayH;
+
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!audioBuffer) {
+    ctx.fillStyle = '#444';
+    ctx.font = '13px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No audio loaded', W / 2, H / 2 + 5);
+    return;
+  }
+
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.ceil(data.length / W);
+
+  ctx.beginPath();
+  ctx.strokeStyle = '#7c6af7';
+  ctx.lineWidth = 1;
+
+  for (let x = 0; x < W; x++) {
+    let min = 1.0, max = -1.0;
+    for (let j = 0; j < step; j++) {
+      const d = data[x * step + j] || 0;
+      if (d < min) min = d;
+      if (d > max) max = d;
+    }
+    ctx.moveTo(x, ((1 + min) / 2) * H);
+    ctx.lineTo(x, ((1 + max) / 2) * H);
+  }
+  ctx.stroke();
+}
+
 function WaveformCanvas({ audioBuffer }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
 
-    ctx.clearRect(0, 0, width, height);
+    drawWaveform(canvas, audioBuffer);
 
-    if (!audioBuffer) {
-      ctx.fillStyle = '#2a2a2a';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = '#555';
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No audio loaded', width / 2, height / 2);
-      return;
-    }
-
-    const data = audioBuffer.getChannelData(0);
-    const step = Math.ceil(data.length / width);
-
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.beginPath();
-    ctx.strokeStyle = '#7c6af7';
-    ctx.lineWidth = 1;
-
-    for (let x = 0; x < width; x++) {
-      let min = 1.0, max = -1.0;
-      for (let j = 0; j < step; j++) {
-        const d = data[x * step + j] || 0;
-        if (d < min) min = d;
-        if (d > max) max = d;
-      }
-      const yLow = ((1 + min) / 2) * height;
-      const yHigh = ((1 + max) / 2) * height;
-      ctx.moveTo(x, yLow);
-      ctx.lineTo(x, yHigh);
-    }
-    ctx.stroke();
+    const ro = new ResizeObserver(() => drawWaveform(canvas, audioBuffer));
+    ro.observe(canvas);
+    return () => ro.disconnect();
   }, [audioBuffer]);
 
-  return <canvas ref={canvasRef} className="waveform-canvas" width={600} height={80} />;
+  return <canvas ref={canvasRef} className="waveform-canvas" />;
 }
 
 export default function SourcePanel({

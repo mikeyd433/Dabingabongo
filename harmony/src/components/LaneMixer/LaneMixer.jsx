@@ -28,6 +28,7 @@ export default function LaneMixer({
   selectedKeys,
   chordPreset,
   audioReady,
+  onSemitoneChange,
   onFineTuneChange,
   onVolumeChange,
   onMuteToggle,
@@ -36,8 +37,8 @@ export default function LaneMixer({
   onKeyToggle,
   onClearChord,
 }) {
-  // Is any lane soloed?
   const isSoloed = lanes.some(l => l.soloed);
+  const presetIntervals = chordPreset?.intervals ?? null;
 
   return (
     <div className="lane-mixer panel-card">
@@ -67,6 +68,13 @@ export default function LaneMixer({
         </div>
       )}
 
+      {!audioReady && (
+        <div className="lanes-no-audio">
+          <span className="lanes-no-audio-icon">🎵</span>
+          <span>Load or record audio above to start</span>
+        </div>
+      )}
+
       {lanes.length === 0 ? (
         <div className="lanes-empty">
           {mode === 'keyboard'
@@ -74,20 +82,28 @@ export default function LaneMixer({
             : 'No lanes loaded'}
         </div>
       ) : (
-        <div className="lanes-list">
-          {lanes.map(lane => (
-            <Lane
-              key={lane.id}
-              lane={lane}
-              isSoloed={isSoloed}
-              audioReady={audioReady}
-              onFineTuneChange={onFineTuneChange}
-              onVolumeChange={onVolumeChange}
-              onMuteToggle={onMuteToggle}
-              onSoloToggle={onSoloToggle}
-              onPlay={onPlay}
-            />
-          ))}
+        <div className={`lanes-list ${!audioReady ? 'lanes-list-disabled' : ''}`}>
+          {lanes.map(lane => {
+            const isInPreset = presetIntervals
+              ? presetIntervals.includes(lane.semitones)
+              : null;
+            return (
+              <Lane
+                key={lane.id}
+                lane={lane}
+                isSoloed={isSoloed}
+                audioReady={audioReady}
+                isInPreset={isInPreset}
+                presetActive={presetIntervals !== null && mode === 'interval'}
+                onSemitoneChange={onSemitoneChange}
+                onFineTuneChange={onFineTuneChange}
+                onVolumeChange={onVolumeChange}
+                onMuteToggle={onMuteToggle}
+                onSoloToggle={onSoloToggle}
+                onPlay={onPlay}
+              />
+            );
+          })}
         </div>
       )}
     </div>
