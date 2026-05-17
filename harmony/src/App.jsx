@@ -344,6 +344,23 @@ export default function App() {
     });
   }, [engine]);
 
+  // ── Clear audio ──
+  const handleClearAudio = useCallback(() => {
+    engine.stopAll();
+    engine.disposeAll();
+    setIsPlaying(false);
+    setAudioBuffer(null);
+    setDetectedNote(null);
+    setRootNote(null);
+    setChordPreset(null);
+    if (mode === 'interval') {
+      setLanes(buildIntervalLanes());
+    } else {
+      setSelectedKeys(new Set());
+      setLanes([]);
+    }
+  }, [engine, mode]);
+
   // Initial build of interval lane nodes (only once we have audio)
   const prevAudioRef = useRef(null);
   useEffect(() => {
@@ -374,6 +391,7 @@ export default function App() {
           onAudioLoad={handleAudioLoad}
           onRootNoteChange={handleRootNoteChange}
           onRootNoteModeChange={handleRootNoteModeChange}
+          onClear={handleClearAudio}
         />
 
         <ModeBar
