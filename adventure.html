@@ -9,56 +9,6 @@
     <style>
         .page { max-width: 800px; margin: 40px auto; }
 
-        /* Login */
-        .login-box {
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 40px;
-            max-width: 360px;
-            margin: 80px auto;
-            text-align: center;
-        }
-        .login-box h2 {
-            color: var(--accent-color);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 28px;
-            font-size: 18px;
-            text-shadow: 0 0 10px rgba(0,255,0,0.3);
-        }
-        .login-box input {
-            width: 100%;
-            padding: 10px 12px;
-            margin-bottom: 14px;
-            background-color: var(--background-color);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            color: var(--text-color);
-            font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        .login-box input:focus { outline: none; border-color: var(--accent-color); }
-        .login-btn {
-            width: 100%;
-            padding: 10px;
-            background-color: #006600;
-            color: var(--text-color);
-            border: 2px solid #008800;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .login-btn:hover { background-color: #008800; }
-        .login-error {
-            color: #ff4444;
-            font-size: 13px;
-            margin-top: 10px;
-            display: none;
-        }
-
         /* Main page */
         .page-header {
             display: flex;
@@ -76,17 +26,17 @@
             text-shadow: 0 0 10px rgba(0,255,0,0.3);
             margin: 0;
         }
-        .logout-btn {
+        .back-to-tools {
             background-color: #333;
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
             border-radius: 4px;
             padding: 6px 14px;
             font-size: 13px;
-            cursor: pointer;
-            transition: background-color 0.2s;
+            text-decoration: none;
+            transition: background-color 0.2s, color 0.2s;
         }
-        .logout-btn:hover { background-color: #444; color: var(--text-color); }
+        .back-to-tools:hover { background-color: #444; color: var(--text-color); }
 
         .back-link {
             display: inline-block;
@@ -217,24 +167,12 @@
 </head>
 <body>
 
-    <!-- Login screen -->
-    <div id="login-screen">
-        <div class="login-box">
-            <h2>Adventure Audio</h2>
-            <input type="text" id="username" placeholder="Username" autocomplete="username">
-            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
-            <button class="login-btn" id="login-btn">Log In</button>
-            <div class="login-error" id="login-error">Incorrect username or password.</div>
-        </div>
-    </div>
-
-    <!-- Main page (hidden until logged in) -->
-    <div id="main-page" style="display:none">
+    <div id="main-page">
         <div class="page">
             <a href="/" class="back-link">← Back to DaBingaBongo</a>
             <div class="page-header">
                 <h1>Adventure Game Audio</h1>
-                <button class="logout-btn" id="logout-btn">Log Out</button>
+                <a href="/login.html" class="back-to-tools">← Tools</a>
             </div>
 
             <div class="info-box">
@@ -253,45 +191,11 @@
     </div>
 
     <script>
-        const CREDENTIALS = { username: 'admin', password: 'password' };
-        const SESSION_KEY = 'adventure_auth';
-
-        const loginScreen = document.getElementById('login-screen');
-        const mainPage    = document.getElementById('main-page');
-        const loginError  = document.getElementById('login-error');
-
-        function showMain() {
-            loginScreen.style.display = 'none';
-            mainPage.style.display = 'block';
-            loadClips();
+        if (!sessionStorage.getItem('dbb_tools_auth')) {
+            window.location.replace('/login.html');
         }
 
-        function showLogin() {
-            sessionStorage.removeItem(SESSION_KEY);
-            mainPage.style.display = 'none';
-            loginScreen.style.display = 'block';
-        }
-
-        // Check existing session
-        if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-            showMain();
-        }
-
-        document.getElementById('login-btn').addEventListener('click', attemptLogin);
-        document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
-        document.getElementById('logout-btn').addEventListener('click', showLogin);
-
-        function attemptLogin() {
-            const u = document.getElementById('username').value.trim();
-            const p = document.getElementById('password').value;
-            if (u === CREDENTIALS.username && p === CREDENTIALS.password) {
-                sessionStorage.setItem(SESSION_KEY, 'true');
-                loginError.style.display = 'none';
-                showMain();
-            } else {
-                loginError.style.display = 'block';
-            }
-        }
+        loadClips();
 
         async function loadClips() {
             const listEl = document.getElementById('clip-list');
