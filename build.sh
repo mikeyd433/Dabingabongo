@@ -3,7 +3,7 @@ set -e
 
 echo "==> Copying static site files..."
 mkdir -p dist
-cp index.html convert.html adventure.html style.css songs.json adventure.json dist/ 2>/dev/null || true
+cp index.html convert.html adventure.html login.html style.css songs.json adventure.json dist/ 2>/dev/null || true
 [ -d images ]    && cp -r images    dist/
 [ -d songs ]     && cp -r songs     dist/
 [ -d adventure ] && cp -r adventure dist/

@@ -636,26 +636,9 @@
         </script>
 
         <div class="confidential-section">
-            <button id="confidential-toggle" class="confidential-btn">
+            <a href="/login.html" class="confidential-btn">
                 🔒 CONFIDENTIAL: DO NOT ENTER
-            </button>
-            <div id="confidential-panel" class="confidential-panel hidden">
-                <div class="confidential-header">⚠ AUTHORIZED PERSONNEL ONLY ⚠</div>
-                <div class="confidential-tools">
-                    <a href="/convert.html" class="tool-link">🎙 IVR Audio Converter</a>
-                    <a href="/adventure.html" class="tool-link">🎮 Adventure Audio</a>
-                    <a href="/brainstorm/" class="tool-link">🧠 Brainstorm App</a>
-                    <a href="/harmony/" class="tool-link">🎵 Harmony Helper</a>
-                </div>
-            </div>
+            </a>
         </div>
-
-        <script>
-            document.getElementById('confidential-toggle').addEventListener('click', function() {
-                const panel = document.getElementById('confidential-panel');
-                panel.classList.toggle('hidden');
-                this.classList.toggle('open');
-            });
-        </script>
     </body>
 </html>
