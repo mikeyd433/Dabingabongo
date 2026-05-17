@@ -14,4 +14,10 @@ npm install
 npm run build
 cd ..
 
+echo "==> Building React harmony app..."
+cd harmony
+npm install
+npm run build
+cd ..
+
 echo "==> Done. Output in dist/"
