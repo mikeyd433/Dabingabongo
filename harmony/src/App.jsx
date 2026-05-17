@@ -263,6 +263,14 @@ export default function App() {
   }, [rootNote, audioBuffer, engine, loop]);
 
   // ── Lane control handlers ──
+  const handleSemitoneChange = useCallback((id, semitones) => {
+    setLanes(prev => prev.map(l =>
+      l.id === id ? { ...l, semitones } : l
+    ));
+    const lane = lanes.find(l => l.id === id);
+    if (lane) engine.updatePitch(id, semitones, lane.fineTune);
+  }, [lanes, engine]);
+
   const handleFineTuneChange = useCallback((id, cents) => {
     setLanes(prev => prev.map(l =>
       l.id === id ? { ...l, fineTune: cents } : l
@@ -354,6 +362,7 @@ export default function App() {
           <div className="app-title">Harmony Helper</div>
           <div className="app-subtitle">dabingabongo.com</div>
         </div>
+        <a href="/login.html" className="header-back-link">← Tools</a>
       </header>
 
       <main className="app-main">
@@ -382,6 +391,7 @@ export default function App() {
           selectedKeys={selectedKeys}
           chordPreset={chordPreset}
           audioReady={!!audioBuffer}
+          onSemitoneChange={handleSemitoneChange}
           onFineTuneChange={handleFineTuneChange}
           onVolumeChange={handleVolumeChange}
           onMuteToggle={handleMuteToggle}

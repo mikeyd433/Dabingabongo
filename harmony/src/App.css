@@ -83,6 +83,22 @@ body {
   font-size: 0.85rem;
 }
 
+.header-back-link {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.header-back-link:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
 .app-main {
   flex: 1;
   max-width: 900px;

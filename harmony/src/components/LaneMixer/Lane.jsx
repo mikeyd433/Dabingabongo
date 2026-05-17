@@ -16,6 +16,9 @@ import React, { useCallback } from 'react';
 export default function Lane({
   lane,
   isSoloed,
+  isInPreset,
+  presetActive,
+  onSemitoneChange,
   onFineTuneChange,
   onVolumeChange,
   onMuteToggle,
@@ -28,6 +31,8 @@ export default function Lane({
       ? true
       : lane.muted && !lane.soloed;
 
+  const isDimmed = presetActive && isInPreset === false;
+
   const handleFineTune = useCallback(
     (e) => onFineTuneChange(lane.id, Number(e.target.value)),
     [lane.id, onFineTuneChange]
@@ -38,14 +43,45 @@ export default function Lane({
     [lane.id, onVolumeChange]
   );
 
+  const handleSemitone = useCallback(
+    (e) => onSemitoneChange(lane.id, Number(e.target.value)),
+    [lane.id, onSemitoneChange]
+  );
+
+  const semitoneLabel = lane.semitones === 0
+    ? '0 st'
+    : `${lane.semitones > 0 ? '+' : ''}${lane.semitones} st`;
+
   return (
-    <div className={`lane ${isEffectivelyMuted ? 'lane-muted' : ''} ${lane.soloed ? 'lane-soloed' : ''}`}>
+    <div className={[
+      'lane',
+      isEffectivelyMuted ? 'lane-muted' : '',
+      lane.soloed ? 'lane-soloed' : '',
+      isDimmed ? 'lane-dimmed' : '',
+      presetActive && isInPreset ? 'lane-preset-active' : '',
+    ].filter(Boolean).join(' ')}>
       {/* Header */}
       <div className="lane-header">
-        <span className="lane-label">{lane.label}</span>
-        <span className="lane-semitones">
-          {lane.semitones > 0 ? `+${lane.semitones}` : lane.semitones} st
-        </span>
+        {lane.isCustom ? (
+          <div className="lane-custom-header">
+            <span className="lane-label">{lane.label}</span>
+            <input
+              type="number"
+              className="custom-semitone-input"
+              min={-24}
+              max={24}
+              value={lane.semitones}
+              onChange={handleSemitone}
+              aria-label={`Semitones for ${lane.label}`}
+            />
+            <span className="lane-semitones">st</span>
+          </div>
+        ) : (
+          <>
+            <span className="lane-label">{lane.label}</span>
+            <span className="lane-semitones">{semitoneLabel}</span>
+          </>
+        )}
       </div>
 
       {/* Controls */}
