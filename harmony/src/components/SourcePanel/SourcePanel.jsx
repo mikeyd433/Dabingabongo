@@ -76,6 +76,7 @@ export default function SourcePanel({
   onAudioLoad,
   onRootNoteChange,
   onRootNoteModeChange,
+  onClear,
 }) {
   const fileInputRef = useRef(null);
 
@@ -182,9 +183,19 @@ export default function SourcePanel({
       <div className="waveform-container">
         <WaveformCanvas audioBuffer={audioBuffer} />
         {audioBuffer && (
-          <div className="audio-duration">
-            {(audioBuffer.duration).toFixed(2)}s &middot; {audioBuffer.sampleRate} Hz
-          </div>
+          <>
+            <div className="audio-duration">
+              {audioBuffer.duration.toFixed(2)}s &middot; {audioBuffer.sampleRate} Hz
+            </div>
+            <button
+              className="clear-audio-btn"
+              onClick={onClear}
+              aria-label="Clear audio"
+              title="Clear audio"
+            >
+              ✕
+            </button>
+          </>
         )}
       </div>
 
