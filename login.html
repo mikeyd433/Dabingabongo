@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DaBingaBongo — Authorized Access Only</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111;
+            --border: #1f1f1f;
+            --red: #cc0000;
+            --red-bright: #ff3333;
+            --red-glow: rgba(200, 0, 0, 0.35);
+            --green: #00cc00;
+            --green-dim: #006600;
+            --text: #dddddd;
+            --text-dim: #666;
+            --mono: 'Courier Prime', 'Courier New', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Roboto', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* ── Stamp overlay ── */
+        .stamp {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--red);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            border: 2px solid var(--red);
+            padding: 4px 12px;
+            border-radius: 2px;
+            opacity: 0.7;
+            margin-bottom: 32px;
+            transform: rotate(-2deg);
+            display: inline-block;
+        }
+
+        /* ── Login card ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--red);
+            border-radius: 6px;
+            padding: 36px 40px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 0 40px var(--red-glow);
+        }
+
+        .card-title {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--red-bright);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .card-subtitle {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        /* ── Form ── */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            background: #0d0d0d;
+            color: var(--green);
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            caret-color: var(--green);
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: var(--green-dim);
+        }
+
+        .error-msg {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--red-bright);
+            margin-top: 8px;
+            min-height: 16px;
+            letter-spacing: 0.05em;
+        }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 20px;
+            background: #1a0000;
+            color: var(--red-bright);
+            border: 1px solid var(--red);
+            border-radius: 3px;
+            padding: 11px;
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: #220000;
+            box-shadow: 0 0 10px var(--red-glow);
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+        }
+
+        .back-link:hover { color: var(--text); }
+
+        /* ── Tool picker (hidden until login) ── */
+        .tool-picker {
+            display: none;
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .tool-picker.visible { display: block; }
+
+        .picker-title {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--green);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .tool-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tool-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 4px;
+            padding: 14px 18px;
+            text-decoration: none;
+            color: var(--text);
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .tool-item:hover {
+            background: #181818;
+            border-color: var(--green-dim);
+        }
+
+        .tool-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .tool-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .tool-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--green);
+        }
+
+        .tool-desc {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--mono);
+        }
+
+        .logout-btn {
+            width: 100%;
+            margin-top: 20px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid #222;
+            border-radius: 3px;
+            padding: 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .logout-btn:hover {
+            color: var(--red-bright);
+            border-color: var(--red);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stamp">Restricted Access</div>
+
+    <!-- Login form -->
+    <div class="card" id="login-card">
+        <div class="card-title">🔒 Clearance Required</div>
+        <div class="card-subtitle">DaBingaBongo Internal Tools</div>
+
+        <form id="login-form" autocomplete="off">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="enter username" />
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="enter password" />
+            </div>
+            <div class="error-msg" id="error-msg"></div>
+            <button type="submit" class="submit-btn">Authenticate</button>
+        </form>
+
+        <a href="/" class="back-link">← back to dabingabongo.com</a>
+    </div>
+
+    <!-- Tool picker (shown after login) -->
+    <div class="tool-picker" id="tool-picker">
+        <div class="picker-title">✓ Access Granted — Select a Tool</div>
+        <div class="tool-grid">
+            <a href="/convert.html" class="tool-item">
+                <span class="tool-icon">🎙</span>
+                <div class="tool-info">
+                    <span class="tool-name">IVR Audio Converter</span>
+                    <span class="tool-desc">convert audio for IVR systems</span>
+                </div>
+            </a>
+            <a href="/adventure.html" class="tool-item">
+                <span class="tool-icon">🎮</span>
+                <div class="tool-info">
+                    <span class="tool-name">Adventure Audio</span>
+                    <span class="tool-desc">game audio tool</span>
+                </div>
+            </a>
+            <a href="/brainstorm/" class="tool-item">
+                <span class="tool-icon">🧠</span>
+                <div class="tool-info">
+                    <span class="tool-name">Brainstorm App</span>
+                    <span class="tool-desc">react flowchart + brainstorm tool</span>
+                </div>
+            </a>
+            <a href="/harmony/" class="tool-item">
+                <span class="tool-icon">🎵</span>
+                <div class="tool-info">
+                    <span class="tool-name">Harmony Helper</span>
+                    <span class="tool-desc">vocal harmony generator</span>
+                </div>
+            </a>
+        </div>
+        <button class="logout-btn" id="logout-btn">log out</button>
+    </div>
+
+    <script>
+        const USERS = { admin: 'password' };
+        const SESSION_KEY = 'dbb_tools_auth';
+
+        const loginCard = document.getElementById('login-card');
+        const toolPicker = document.getElementById('tool-picker');
+        const errorMsg = document.getElementById('error-msg');
+
+        function showTools() {
+            loginCard.style.display = 'none';
+            toolPicker.classList.add('visible');
+        }
+
+        function showLogin() {
+            sessionStorage.removeItem(SESSION_KEY);
+            toolPicker.classList.remove('visible');
+            loginCard.style.display = '';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            errorMsg.textContent = '';
+        }
+
+        // Persist login within the browser session
+        if (sessionStorage.getItem(SESSION_KEY)) {
+            showTools();
+        }
+
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+
+            if (USERS[user] && USERS[user] === pass) {
+                sessionStorage.setItem(SESSION_KEY, '1');
+                errorMsg.textContent = '';
+                showTools();
+            } else {
+                errorMsg.textContent = 'Invalid credentials. Access denied.';
+                document.getElementById('password').value = '';
+                document.getElementById('password').focus();
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', showLogin);
+    </script>
+
+</body>
+</html>

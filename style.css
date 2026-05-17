@@ -326,6 +326,35 @@ marquee {
     letter-spacing: 1px;
 }
 
+/* Confidential tools section */
+.confidential-section {
+    text-align: center;
+    margin: 40px auto 20px;
+    max-width: 500px;
+}
+
+.confidential-btn {
+    display: inline-block;
+    background-color: #1a0000;
+    color: #ff3333;
+    border: 2px solid #cc0000;
+    border-radius: 4px;
+    padding: 12px 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 8px rgba(200, 0, 0, 0.3);
+}
+
+.confidential-btn:hover {
+    background-color: #2a0000;
+    box-shadow: 0 0 16px rgba(200, 0, 0, 0.6);
+}
+
 /* Footer styles */
 .footer {
     text-align: center;
