@@ -1,24 +1,137 @@
-[
-  {"name": "Can't You Read", "file": "Cant_You_Read_ivr.wav", "type": "WAV"},
-  {"name": "Sax Bump", "file": "Sax_Bump_ivr.wav", "type": "WAV"},
-  {"name": "Sing Me a Song!", "file": "01_SingMeaSong_ivr.wav", "type": "WAV"},
-  {"name": "Please Don't Arrest My Friend Richie", "file": "02_DontArrestRichie_ivr.wav", "type": "WAV"},
-  {"name": "Froggum Duder", "file": "03_FroggumDuder_ivr.wav", "type": "WAV"},
-  {"name": "Borgification Pt.1", "file": "04_BorgificationPt1_ivr.wav", "type": "WAV"},
-  {"name": "Gorilla Greetings", "file": "05_GorillaGreetings_ivr.wav", "type": "WAV"},
-  {"name": "Mike's Been Borgified And Now All His Songs Sound Like This and I Think It's Fine", "file": "06_MikeBeenBorgified_ivr.wav", "type": "WAV"},
-  {"name": "Sitting In The Middle Of The Road On My Motorcycle Eating Chestnuts (Cause I'm A Sand Ghoul)", "file": "07_SandGhoul_ivr.wav", "type": "WAV"},
-  {"name": "Check In", "file": "08_CheckIn_ivr.wav", "type": "WAV"},
-  {"name": "Melancholy Beeping", "file": "09_MelancholyBeeping_ivr.wav", "type": "WAV"},
-  {"name": "Ugly Friends", "file": "10_UglyFriends_ivr.wav", "type": "WAV"},
-  {"name": "Friday Night at the Satin Wizard (feat.Chris Childs)", "file": "11_FridayNightSatinWizard_ivr.wav", "type": "WAV"},
-  {"name": "Lil Godzilla", "file": "12_LilGodzilla_ivr.wav", "type": "WAV"},
-  {"name": "Salazar Has My Boots", "file": "13_SalazarHasMyBoots_ivr.wav", "type": "WAV"},
-  {"name": "JCFC PSA #1", "file": "14_JCFCPSA1_ivr.wav", "type": "WAV"},
-  {"name": "Baby Smokin Cigs", "file": "15_BabySmokinCigs_ivr.wav", "type": "WAV"},
-  {"name": "Latenight Bobcat", "file": "16_LatenightBobcat_ivr.wav", "type": "WAV"},
-  {"name": "Robot Johnny", "file": "17_RobotJohnny_ivr.wav", "type": "WAV"},
-  {"name": "Only A Little", "file": "18_OnlyALittle_ivr.wav", "type": "WAV"},
-  {"name": "Dogs Eat Rocks", "file": "19_DogsEatRocks_ivr.wav", "type": "WAV"},
-  {"name": "Silk Jackie Chan Pajamas", "file": "20_SilkJackieChanPajamas_ivr.wav", "type": "WAV"}
-]
+{
+  "albums": [
+    {
+      "id": "head-phonics-vol-1",
+      "title": "HEAD PHONICS, VOL. 1",
+      "type": "Album",
+      "date": "April 23, 2026",
+      "duration": "20:27",
+      "streaming": {
+        "spotify": "https://open.spotify.com/album/5zjsDoeMyCP9j6G3Kk0JRA",
+        "appleMusic": "https://music.apple.com/us/album/head-phonics-vol-1/1895334924"
+      }
+    },
+    {
+      "id": "to-brenda-with-love",
+      "title": "TO BRENDA, WITH LOVE",
+      "type": "EP",
+      "date": "January 30, 2026",
+      "duration": "18:24",
+      "streaming": {
+        "spotify": "https://open.spotify.com/album/1ipmZt3lAta1z9Ck0qptSF",
+        "appleMusic": "https://music.apple.com/us/album/to-brenda-with-love-ep/1870839619"
+      }
+    },
+    {
+      "id": "chicken-soup",
+      "title": "CHICKEN SOUP FOR MY ASS",
+      "type": "Album",
+      "date": "June 22, 2025",
+      "duration": "41:55",
+      "streaming": {
+        "spotify": "https://open.spotify.com/album/53WVnuX58Anvf7ClJs1ZbK",
+        "appleMusic": "https://music.apple.com/us/album/chicken-soup-for-my-ass/1820444774"
+      }
+    },
+    {
+      "id": "fast-dolphin",
+      "title": "FAST DOLPHIN",
+      "type": "Album",
+      "date": "April 20, 2025",
+      "duration": "36:05",
+      "streaming": {
+        "spotify": "https://open.spotify.com/album/7CMKwdGS3X4BGmLZG8DPiG",
+        "appleMusic": "https://music.apple.com/us/album/fast-dolphin/1809598834"
+      }
+    },
+    {
+      "id": "gorgeous-dolphin",
+      "title": "GORGEOUS DOLPHIN",
+      "type": "Album",
+      "date": "April 7, 2025",
+      "duration": "48:43",
+      "streaming": {
+        "spotify": "https://open.spotify.com/album/3IDXa1ubUyJZVrXxROE5EU",
+        "appleMusic": "https://music.apple.com/us/album/gorgeous-dolphin/1804764654",
+        "youtubeMusic": "https://music.youtube.com/playlist?list=OLAK5uy_mRmWvq0yW27_5UerAWOZy1OgNhO0DbYIc"
+      }
+    }
+  ],
+  "tracks": [
+    {"trackNum": 1, "name": "General Hospital S01E00 (Pilot)", "duration": "1:15", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 2, "name": "Shaddy-O!", "duration": "1:51", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 3, "name": "My Day At Uncle Mike's", "duration": "1:18", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 4, "name": "Wheezard", "duration": "2:26", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 5, "name": "We Forgot", "duration": "2:37", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 6, "name": "boats", "duration": "1:04", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 7, "name": "Stories of the Future", "duration": "2:03", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 8, "name": "In An Octopus' Boyband", "duration": "2:00", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 9, "name": "Air May Tow", "duration": "3:14", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+    {"trackNum": 10, "name": "HIGHWAY HUNTERS", "duration": "2:36", "explicit": true, "file": null, "album": "head-phonics-vol-1"},
+
+    {"trackNum": 1, "name": "Shane's Song", "duration": "4:31", "explicit": false, "file": null, "album": "to-brenda-with-love"},
+    {"trackNum": 2, "name": "Susan Barusan", "duration": "3:17", "explicit": true, "file": null, "album": "to-brenda-with-love"},
+    {"trackNum": 3, "name": "Growing Boy", "duration": "3:20", "explicit": false, "file": null, "album": "to-brenda-with-love"},
+    {"trackNum": 4, "name": "Lizard Lady", "duration": "2:14", "explicit": true, "file": null, "album": "to-brenda-with-love"},
+    {"trackNum": 5, "name": "Rest Now, Brenda", "duration": "5:01", "explicit": false, "file": null, "album": "to-brenda-with-love"},
+
+    {"trackNum": 1, "name": "Curse of the Living Randy Jackson (Based on a True Story)", "duration": "4:18", "explicit": true, "file": null, "album": "chicken-soup"},
+    {"trackNum": 2, "name": "Wild Wild Triangles", "duration": "3:29", "explicit": true, "file": null, "album": "chicken-soup"},
+    {"trackNum": 3, "name": "Snail Sales", "duration": "3:13", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 4, "name": "Dink Van Doink", "duration": "1:56", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 5, "name": "Jackie Chan Van", "duration": "1:03", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 6, "name": "Saturday Evening at the Satin Wizard", "duration": "3:47", "explicit": true, "feat": "Chris Childs and the Downbeat Dads", "file": null, "album": "chicken-soup"},
+    {"trackNum": 7, "name": "Steering Wheel Spider", "duration": "1:12", "explicit": true, "file": null, "album": "chicken-soup"},
+    {"trackNum": 8, "name": "Can't You Read?!", "duration": "2:07", "explicit": false, "file": "Cant_You_Read_ivr.wav", "album": "chicken-soup"},
+    {"trackNum": 9, "name": "The November Suite (I. The Beast, II. Nicholas Oscar Tienerson, III. Decisions, IV. Futility)", "duration": "4:04", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 10, "name": "Bug in a Tub", "duration": "3:59", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 11, "name": "Seriously, It's Fine", "duration": "2:30", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 12, "name": "Little Asshole Bluejay", "duration": "3:31", "explicit": true, "feat": "King Chris", "file": null, "album": "chicken-soup"},
+    {"trackNum": 13, "name": "A Concerning Silhouette", "duration": "2:53", "explicit": false, "file": null, "album": "chicken-soup"},
+    {"trackNum": 14, "name": "Don't Have A Single Friend Named Derek (And Don't You Ever Say I Did)", "duration": "3:47", "explicit": true, "file": null, "album": "chicken-soup"},
+
+    {"trackNum": 1, "name": "Sing Me a Song! - Small", "duration": "1:48", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 2, "name": "Please Don't Arrest My Friend Richie - Little", "duration": "1:49", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 3, "name": "Froggum Duder - Mini", "duration": "1:51", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 4, "name": "Borgification Pt. 1 - Pico", "duration": "2:17", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 5, "name": "Gorilla Greetings - Baby", "duration": "1:27", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 6, "name": "Mike's Been Borgified... - Lite", "duration": "1:34", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 7, "name": "Sitting In The Middle Of The Road... - Teeny", "duration": "1:14", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 8, "name": "Check In - Quick", "duration": "0:25", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 9, "name": "Melancholy Beeping - Compact", "duration": "3:03", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 10, "name": "Ugly Friends - Puny", "duration": "1:38", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 11, "name": "Friday Night at the Satin Wizard - Paltry", "duration": "1:23", "explicit": false, "feat": "Chris Childs", "file": null, "album": "fast-dolphin"},
+    {"trackNum": 12, "name": "Lil Godzilla - More Lil", "duration": "2:43", "explicit": false, "feat": "Heebie Von Jeebie and the Creeps", "file": null, "album": "fast-dolphin"},
+    {"trackNum": 13, "name": "Salazar Has My Boots - Size 2", "duration": "1:09", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 14, "name": "JCFC PSA #1 - Brief", "duration": "0:10", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 15, "name": "Baby Smokin Cigs - Micro", "duration": "0:57", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 16, "name": "Latenight Bobcat - Diminutive", "duration": "2:06", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 17, "name": "Robot Johnny - Pint-Sized", "duration": "3:02", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 18, "name": "Only a Little - Barely", "duration": "0:45", "explicit": false, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 19, "name": "Dogs Eat Rocks - Miniscule", "duration": "3:24", "explicit": true, "file": null, "album": "fast-dolphin"},
+    {"trackNum": 20, "name": "Silk Jackie Chan Pajamas - Short", "duration": "3:10", "explicit": false, "file": null, "album": "fast-dolphin"},
+
+    {"trackNum": 1, "name": "Sing Me a Song!", "duration": "2:26", "explicit": false, "file": "01_SingMeaSong_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 2, "name": "Please Don't Arrest My Friend Richie", "duration": "2:27", "explicit": false, "file": "02_DontArrestRichie_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 3, "name": "Froggum Duder", "duration": "2:30", "explicit": false, "file": "03_FroggumDuder_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 4, "name": "Borgification Pt. 1", "duration": "3:06", "explicit": false, "file": "04_BorgificationPt1_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 5, "name": "Gorilla Greetings", "duration": "1:58", "explicit": true, "file": "05_GorillaGreetings_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 6, "name": "Mike's Been Borgified And Now All His Songs Sound Like This and I Think It's Fine", "duration": "2:07", "explicit": false, "file": "06_MikeBeenBorgified_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 7, "name": "Sitting In The Middle Of The Road On My Motorcycle Eating Chestnuts (Cause I'm A Sand Ghoul)", "duration": "1:40", "explicit": false, "file": "07_SandGhoul_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 8, "name": "Check In", "duration": "0:34", "explicit": true, "file": "08_CheckIn_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 9, "name": "Melancholy Beeping", "duration": "4:07", "explicit": true, "file": "09_MelancholyBeeping_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 10, "name": "Ugly Friends", "duration": "2:13", "explicit": false, "file": "10_UglyFriends_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 11, "name": "Friday Night at the Satin Wizard", "duration": "1:53", "explicit": false, "feat": "Chris Childs", "file": "11_FridayNightSatinWizard_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 12, "name": "Lil Godzilla", "duration": "3:41", "explicit": false, "feat": "Heebie Von Jeebie and the Creeps", "file": "12_LilGodzilla_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 13, "name": "Salazar Has My Boots", "duration": "1:33", "explicit": true, "file": "13_SalazarHasMyBoots_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 14, "name": "JCFC PSA #1", "duration": "0:14", "explicit": false, "file": "14_JCFCPSA1_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 15, "name": "Baby Smokin Cigs", "duration": "1:17", "explicit": true, "file": "15_BabySmokinCigs_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 16, "name": "Latenight Bobcat", "duration": "2:50", "explicit": true, "file": "16_LatenightBobcat_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 17, "name": "Robot Johnny", "duration": "4:06", "explicit": true, "file": "17_RobotJohnny_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 18, "name": "Only a Little", "duration": "1:01", "explicit": false, "file": "18_OnlyALittle_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 19, "name": "Dogs Eat Rocks", "duration": "4:36", "explicit": true, "file": "19_DogsEatRocks_ivr.wav", "album": "gorgeous-dolphin"},
+    {"trackNum": 20, "name": "Silk Jackie Chan Pajamas", "duration": "4:17", "explicit": false, "file": "20_SilkJackieChanPajamas_ivr.wav", "album": "gorgeous-dolphin"},
+
+    {"name": "Sax Bump", "duration": null, "explicit": false, "file": "Sax_Bump_ivr.wav", "album": null}
+  ]
+}
