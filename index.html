@@ -126,6 +126,7 @@
                 let playableTracks = [];
                 let currentPlayableIndex = -1;
                 let currentlyPlayingEl = null;
+                let availableFiles = new Set();
 
                 let audioContext;
                 let analyser;
@@ -234,10 +235,11 @@
                 });
 
                 function createTrackEl(track) {
+                    const isPlayable = !!(track.file && availableFiles.has(track.file));
                     const el = document.createElement('div');
-                    el.className = 'song-item' + (track.file ? '' : ' song-unavailable');
+                    el.className = 'song-item' + (isPlayable ? '' : ' song-unavailable');
 
-                    if (track.file) {
+                    if (isPlayable) {
                         el.dataset.src = `/songs/${track.file}`;
                         el.dataset.name = track.name;
                         el.dataset.playableIndex = playableTracks.indexOf(track);
@@ -250,7 +252,7 @@
                         el.appendChild(num);
                     }
 
-                    if (track.file) {
+                    if (isPlayable) {
                         const playBtn = document.createElement('button');
                         playBtn.className = 'play-btn';
                         playBtn.textContent = '▶';
@@ -507,6 +509,18 @@
                     }
                 });
 
+                async function checkFileAvailability(tracks) {
+                    const filenames = [...new Set(tracks.filter(t => t.file).map(t => t.file))];
+                    await Promise.allSettled(
+                        filenames.map(async filename => {
+                            try {
+                                const r = await fetch(`/songs/${filename}`, { method: 'HEAD' });
+                                if (r.ok) availableFiles.add(filename);
+                            } catch (_) {}
+                        })
+                    );
+                }
+
                 async function loadSongs() {
                     try {
                         const response = await fetch('/songs.json');
@@ -515,15 +529,18 @@
 
                         allTracks = data.tracks || [];
 
+                        // Check which audio files actually exist on the server
+                        await checkFileAvailability(allTracks);
+
                         // Build playable tracks in album order (newest first), then misc
                         playableTracks = [];
                         for (const album of (data.albums || [])) {
                             const ordered = allTracks
-                                .filter(t => t.album === album.id && t.file)
+                                .filter(t => t.album === album.id && t.file && availableFiles.has(t.file))
                                 .sort((a, b) => (a.trackNum || 0) - (b.trackNum || 0));
                             playableTracks.push(...ordered);
                         }
-                        playableTracks.push(...allTracks.filter(t => !t.album && t.file));
+                        playableTracks.push(...allTracks.filter(t => !t.album && t.file && availableFiles.has(t.file)));
 
                         loadingMessage.style.display = 'none';
                         displayByAlbum(data.albums || [], allTracks);
