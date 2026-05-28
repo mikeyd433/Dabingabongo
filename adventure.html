@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         .page { max-width: 800px; margin: 40px auto; }
+        body.editing .page { padding-bottom: 64px; }
 
         /* Main page */
         .page-header {
@@ -26,6 +27,7 @@
             text-shadow: 0 0 10px rgba(0,255,0,0.3);
             margin: 0;
         }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
         .back-to-tools {
             background-color: #333;
             color: var(--text-secondary);
@@ -68,9 +70,7 @@
         }
 
         /* Sections */
-        .section-block {
-            margin-bottom: 12px;
-        }
+        .section-block { margin-bottom: 12px; }
         .section-header {
             display: flex;
             align-items: center;
@@ -84,9 +84,7 @@
             transition: background-color 0.15s;
         }
         .section-header:hover { background-color: #252525; }
-        .section-block:not(.collapsed) > .section-header {
-            border-radius: 6px 6px 0 0;
-        }
+        .section-block:not(.collapsed) > .section-header { border-radius: 6px 6px 0 0; }
         .section-caret {
             display: inline-block;
             color: var(--accent-color);
@@ -94,9 +92,7 @@
             flex-shrink: 0;
             transition: transform 0.2s;
         }
-        .section-block.collapsed > .section-header .section-caret {
-            transform: rotate(-90deg);
-        }
+        .section-block.collapsed > .section-header .section-caret { transform: rotate(-90deg); }
         .section-title {
             font-size: 13px;
             font-weight: 500;
@@ -117,6 +113,18 @@
         }
         .section-block.collapsed > .section-body { display: none; }
 
+        /* Section checkbox (edit mode) */
+        .section-checkbox {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: var(--accent-color);
+            flex-shrink: 0;
+            display: none;
+        }
+        body.editing .section-checkbox { display: block; }
+        body.editing .section-count { display: none; }
+
         /* Clip list */
         .clip-entry {
             background-color: var(--surface-color);
@@ -124,6 +132,11 @@
             border-radius: 6px;
             padding: 14px 16px;
             margin-bottom: 12px;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .clip-entry.selected {
+            border-color: var(--accent-color);
+            background-color: rgba(0, 128, 0, 0.07);
         }
         .clip-top {
             display: flex;
@@ -131,6 +144,18 @@
             gap: 12px;
             flex-wrap: wrap;
         }
+        .clip-checkbox {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: var(--accent-color);
+            flex-shrink: 0;
+            display: none;
+        }
+        body.editing .clip-checkbox { display: block; }
+        body.editing .copy-btn { display: none; }
+        body.editing .clip-url { display: none; }
+        body.editing .clip-audio { display: none; }
         .clip-name {
             flex: 1;
             font-size: 15px;
@@ -159,7 +184,6 @@
         }
         .copy-btn:hover { background-color: #008800; }
         .copy-btn.copied { background-color: #004400; border-color: #006600; }
-
         .clip-url {
             margin-top: 8px;
             font-size: 11px;
@@ -167,10 +191,7 @@
             word-break: break-all;
             font-family: monospace;
         }
-        .clip-audio {
-            margin-top: 10px;
-            width: 100%;
-        }
+        .clip-audio { margin-top: 10px; width: 100%; }
 
         .empty-state {
             text-align: center;
@@ -194,11 +215,7 @@
             margin-bottom: 24px;
             gap: 16px;
         }
-        .brainstorm-banner p {
-            margin: 0;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
+        .brainstorm-banner p { margin: 0; font-size: 13px; color: var(--text-secondary); }
         .brainstorm-btn {
             display: inline-block;
             background-color: #006600;
@@ -213,6 +230,112 @@
             transition: background-color 0.2s;
         }
         .brainstorm-btn:hover { background-color: #008800; }
+
+        /* Action bar */
+        .action-bar {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background-color: #111;
+            border-top: 1px solid var(--border-color);
+            padding: 10px 20px;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .action-bar.visible { display: flex; }
+        .abar-count { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+        .abar-btn {
+            background-color: #2a2a2a;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s;
+        }
+        .abar-btn:hover:not(:disabled) { background-color: #3a3a3a; }
+        .abar-btn:disabled { opacity: 0.35; cursor: default; }
+        .abar-btn.green { background-color: #004d00; border-color: #006600; }
+        .abar-btn.green:hover:not(:disabled) { background-color: #006600; }
+        .abar-right { margin-left: auto; display: flex; gap: 8px; }
+
+        /* Dialogs */
+        .dialog-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .dialog-overlay.visible { display: flex; }
+        .dialog-box {
+            background-color: #1c1c1c;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 380px;
+            max-width: 92vw;
+            max-height: 75vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .dialog-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .dialog-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .dialog-close:hover { color: var(--text-color); }
+        .dialog-body { overflow-y: auto; padding: 12px; flex: 1; }
+        .dialog-footer { padding: 10px 12px; border-top: 1px solid var(--border-color); display: flex; gap: 8px; justify-content: flex-end; }
+
+        .section-pick-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .section-pick-btn:hover { background-color: #2e2e2e; }
+        .section-pick-top { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; padding: 0 12px; }
+
+        .group-input {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+            font-size: 14px;
+            padding: 8px 10px;
+            outline: none;
+        }
+        .group-input:focus { border-color: var(--accent-color); }
+
+        #btn-edit { display: none; }
     </style>
 </head>
 <body>
@@ -222,7 +345,10 @@
             <a href="/" class="back-link">← Back to DaBingaBongo</a>
             <div class="page-header">
                 <h1>Adventure Game Audio</h1>
-                <a href="/login.html" class="back-to-tools">← Tools</a>
+                <div class="header-actions">
+                    <button id="btn-edit" class="abar-btn" onclick="toggleEditMode()">Edit Layout</button>
+                    <a href="/login.html" class="back-to-tools">← Tools</a>
+                </div>
             </div>
 
             <div class="info-box">
@@ -240,87 +366,183 @@
         </div>
     </div>
 
+    <!-- Action bar -->
+    <div id="action-bar" class="action-bar">
+        <span id="abar-count" class="abar-count">No clips selected</span>
+        <button id="btn-group" class="abar-btn green" disabled onclick="openGroupDialog()">Group into section</button>
+        <button id="btn-move"  class="abar-btn" disabled onclick="openMoveDialog()">Move to section</button>
+        <div class="abar-right">
+            <button class="abar-btn" onclick="copyJson()">Copy JSON</button>
+            <button class="abar-btn green" onclick="toggleEditMode()">Done</button>
+        </div>
+    </div>
+
+    <!-- Group dialog -->
+    <div id="group-overlay" class="dialog-overlay">
+        <div class="dialog-box">
+            <div class="dialog-head">
+                <span>New section name</span>
+                <button class="dialog-close" onclick="closeGroupDialog()">×</button>
+            </div>
+            <div class="dialog-body" style="padding:16px 12px 8px;">
+                <input type="text" id="group-name-input" class="group-input" placeholder="e.g. Act 1, Gorgeous Dolphin…">
+            </div>
+            <div class="dialog-footer">
+                <button class="abar-btn" onclick="closeGroupDialog()">Cancel</button>
+                <button class="abar-btn green" onclick="confirmGroup()">Create section</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move dialog -->
+    <div id="move-overlay" class="dialog-overlay">
+        <div class="dialog-box">
+            <div class="dialog-head">
+                <span>Move to…</span>
+                <button class="dialog-close" onclick="closeMoveDialog()">×</button>
+            </div>
+            <div class="dialog-body" id="section-list"></div>
+        </div>
+    </div>
+
     <script>
         if (!sessionStorage.getItem('dbb_tools_auth')) {
             window.location.replace('/login.html');
         }
 
+        // ── State ──────────────────────────────────────────────
+        let data = [];
+        let nextId = 0;
+        let itemMap = new Map();  // _id → { item, parentItems }
+        let editMode = false;
+        const selected = new Set();
+
+        // ── Boot ───────────────────────────────────────────────
         loadClips();
 
         async function loadClips() {
             const listEl = document.getElementById('clip-list');
             try {
                 const res = await fetch('/adventure.json');
-                const items = await res.json();
-
-                if (items.length === 0) {
-                    listEl.innerHTML = `
-                        <div class="empty-state">
-                            <strong>No clips yet</strong>
-                            Upload WAV files to the <code>adventure/</code> folder in GitHub,
-                            then add entries to <code>adventure.json</code> to have them appear here.
-                        </div>`;
+                data = await res.json();
+                if (data.length === 0) {
+                    listEl.innerHTML = `<div class="empty-state">
+                        <strong>No clips yet</strong>
+                        Upload WAV files to the <code>adventure/</code> folder in GitHub,
+                        then add entries to <code>adventure.json</code> to have them appear here.
+                    </div>`;
                     return;
                 }
-
-                renderItems(items, listEl);
+                assignIds(data);
+                render();
+                document.getElementById('btn-edit').style.display = '';
             } catch (err) {
                 listEl.innerHTML = '<div class="empty-state">Error loading adventure.json.</div>';
             }
         }
 
+        // ── ID management ──────────────────────────────────────
+        function assignIds(items) {
+            items.forEach(item => {
+                if (item._id === undefined) item._id = nextId++;
+                if (item.items) assignIds(item.items);
+            });
+        }
+
+        function rebuildMap(items) {
+            items.forEach(item => {
+                itemMap.set(item._id, { item, parentItems: items });
+                if (item.items) rebuildMap(item.items);
+            });
+        }
+
+        // ── Render ─────────────────────────────────────────────
+        function render() {
+            itemMap.clear();
+            rebuildMap(data);
+            const listEl = document.getElementById('clip-list');
+            listEl.innerHTML = '';
+            renderItems(data, listEl);
+            syncActionBar();
+        }
+
         function renderItems(items, container) {
             items.forEach(item => {
-                if (item.section !== undefined) {
-                    renderSection(item, container);
-                } else {
-                    renderClip(item, container);
-                }
+                item.section !== undefined ? renderSection(item, container)
+                                           : renderClip(item, container);
             });
         }
 
         function renderSection(item, container) {
-            const block = document.createElement('div');
-            block.className = 'section-block' + (item.collapsed ? ' collapsed' : '');
-
+            const isCollapsed = item._collapsed ?? !!item.collapsed;
             const count = countClips(item.items || []);
+
+            const block = document.createElement('div');
+            block.className = 'section-block' + (isCollapsed ? ' collapsed' : '');
+            block.dataset.sectionId = item._id;
+
+            // Checkbox (edit mode only, via CSS)
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'section-checkbox';
+            cb.addEventListener('change', e => {
+                e.stopPropagation();
+                toggleSectionSelect(item._id, cb.checked);
+            });
+
+            const caret = document.createElement('span');
+            caret.className = 'section-caret';
+            caret.textContent = '▼';
+
+            const title = document.createElement('span');
+            title.className = 'section-title';
+            title.textContent = item.section;
+
+            const countEl = document.createElement('span');
+            countEl.className = 'section-count';
+            countEl.textContent = `${count} clip${count !== 1 ? 's' : ''}`;
 
             const header = document.createElement('div');
             header.className = 'section-header';
-            header.innerHTML = `
-                <span class="section-caret">▼</span>
-                <span class="section-title">${item.section}</span>
-                <span class="section-count">${count} clip${count !== 1 ? 's' : ''}</span>`;
+            header.append(cb, caret, title, countEl);
 
-            const body = document.createElement('div');
-            body.className = 'section-body';
-
-            header.addEventListener('click', () => {
+            header.addEventListener('click', e => {
+                if (e.target === cb) return;
                 if (!block.classList.contains('collapsed')) {
                     body.querySelectorAll('audio').forEach(a => a.pause());
                 }
                 block.classList.toggle('collapsed');
+                item._collapsed = block.classList.contains('collapsed');
             });
 
-            block.appendChild(header);
-            block.appendChild(body);
-            container.appendChild(block);
+            const body = document.createElement('div');
+            body.className = 'section-body';
 
+            block.append(header, body);
+            container.appendChild(block);
             renderItems(item.items || [], body);
         }
 
         function renderClip(clip, container) {
             const url = `${window.location.origin}/adventure/${clip.file}`;
-            const div = document.createElement('div');
-            div.className = 'clip-entry';
 
-            const top = document.createElement('div');
-            top.className = 'clip-top';
+            const div = document.createElement('div');
+            div.className = 'clip-entry' + (selected.has(clip._id) ? ' selected' : '');
+            div.dataset.clipId = clip._id;
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'clip-checkbox';
+            cb.checked = selected.has(clip._id);
+            cb.addEventListener('change', () => toggleClipSelect(clip._id));
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'clip-name';
             nameSpan.textContent = clip.name;
-            top.appendChild(nameSpan);
+
+            const top = document.createElement('div');
+            top.className = 'clip-top';
+            top.append(cb, nameSpan);
 
             if (clip.scene) {
                 const sceneSpan = document.createElement('span');
@@ -350,18 +572,210 @@
             audio.controls = true;
             audio.src = url;
 
-            div.appendChild(top);
-            div.appendChild(urlDiv);
-            div.appendChild(audio);
+            div.append(top, urlDiv, audio);
             container.appendChild(div);
         }
 
         function countClips(items) {
             let n = 0;
-            items.forEach(item => {
-                n += item.section !== undefined ? countClips(item.items || []) : 1;
-            });
+            items.forEach(i => { n += i.section !== undefined ? countClips(i.items || []) : 1; });
             return n;
+        }
+
+        // ── Edit mode ──────────────────────────────────────────
+        function toggleEditMode() {
+            editMode = !editMode;
+            selected.clear();
+            document.body.classList.toggle('editing', editMode);
+            document.getElementById('action-bar').classList.toggle('visible', editMode);
+            document.getElementById('btn-edit').textContent = editMode ? 'Cancel edit' : 'Edit Layout';
+            render();
+        }
+
+        // ── Selection ──────────────────────────────────────────
+        function toggleClipSelect(id) {
+            selected.has(id) ? selected.delete(id) : selected.add(id);
+            const el = document.querySelector(`[data-clip-id="${id}"]`);
+            if (el) el.classList.toggle('selected', selected.has(id));
+            updateSectionCheckboxes();
+            syncActionBar();
+        }
+
+        function toggleSectionSelect(sectionId, check) {
+            const { item } = itemMap.get(sectionId);
+            getClipsIn(item).forEach(c => check ? selected.add(c._id) : selected.delete(c._id));
+            // Update clip checkboxes
+            getClipsIn(item).forEach(c => {
+                const el = document.querySelector(`[data-clip-id="${c._id}"]`);
+                if (el) {
+                    el.classList.toggle('selected', check);
+                    const cb = el.querySelector('.clip-checkbox');
+                    if (cb) cb.checked = check;
+                }
+            });
+            updateSectionCheckboxes();
+            syncActionBar();
+        }
+
+        function updateSectionCheckboxes() {
+            document.querySelectorAll('[data-section-id]').forEach(blockEl => {
+                const id = parseInt(blockEl.dataset.sectionId);
+                const entry = itemMap.get(id);
+                if (!entry) return;
+                const clips = getClipsIn(entry.item);
+                const selCount = clips.filter(c => selected.has(c._id)).length;
+                const cb = blockEl.querySelector(':scope > .section-header .section-checkbox');
+                if (!cb) return;
+                cb.checked = selCount > 0 && selCount === clips.length;
+                cb.indeterminate = selCount > 0 && selCount < clips.length;
+            });
+        }
+
+        function getClipsIn(item) {
+            const result = [];
+            (function traverse(items) {
+                items.forEach(i => i.section !== undefined ? traverse(i.items || []) : result.push(i));
+            })(item.items || []);
+            return result;
+        }
+
+        function getSelectedClipsInOrder() {
+            const result = [];
+            (function traverse(items) {
+                items.forEach(i => i.section !== undefined ? traverse(i.items || []) : selected.has(i._id) && result.push(i));
+            })(data);
+            return result;
+        }
+
+        function syncActionBar() {
+            const n = selected.size;
+            document.getElementById('abar-count').textContent =
+                n === 0 ? 'No clips selected' : `${n} clip${n !== 1 ? 's' : ''} selected`;
+            document.getElementById('btn-group').disabled = n === 0;
+            document.getElementById('btn-move').disabled  = n === 0;
+        }
+
+        // ── Group into section ─────────────────────────────────
+        function openGroupDialog() {
+            document.getElementById('group-name-input').value = '';
+            document.getElementById('group-overlay').classList.add('visible');
+            setTimeout(() => document.getElementById('group-name-input').focus(), 50);
+        }
+        function closeGroupDialog() {
+            document.getElementById('group-overlay').classList.remove('visible');
+        }
+        document.getElementById('group-name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') confirmGroup();
+            if (e.key === 'Escape') closeGroupDialog();
+        });
+
+        function confirmGroup() {
+            const name = document.getElementById('group-name-input').value.trim();
+            if (!name) return;
+            closeGroupDialog();
+
+            const clips = getSelectedClipsInOrder();
+            if (clips.length === 0) return;
+
+            // Insert position: where the first selected clip sits in its parent
+            const { parentItems } = itemMap.get(clips[0]._id);
+            const insertAt = parentItems.indexOf(clips[0]);
+
+            // Remove selected clips from wherever they are
+            clips.forEach(clip => {
+                const { parentItems: p } = itemMap.get(clip._id);
+                const idx = p.indexOf(clip);
+                if (idx !== -1) p.splice(idx, 1);
+            });
+
+            const newSection = { _id: nextId++, section: name, items: clips };
+            parentItems.splice(Math.min(insertAt, parentItems.length), 0, newSection);
+
+            selected.clear();
+            assignIds([newSection]);
+            render();
+        }
+
+        // ── Move to section ────────────────────────────────────
+        function openMoveDialog() {
+            const list = document.getElementById('section-list');
+            list.innerHTML = '';
+
+            const topBtn = document.createElement('button');
+            topBtn.className = 'section-pick-btn';
+            topBtn.textContent = '⬆  Top level (no section)';
+            topBtn.addEventListener('click', () => { moveSelectedTo(data); closeMoveDialog(); });
+            list.appendChild(topBtn);
+
+            const sections = [];
+            (function collect(items, depth) {
+                items.forEach(item => {
+                    if (item.section !== undefined) {
+                        sections.push({ item, depth });
+                        collect(item.items || [], depth + 1);
+                    }
+                });
+            })(data, 0);
+
+            if (sections.length) {
+                const divider = document.createElement('div');
+                divider.className = 'section-pick-top';
+                divider.style.marginTop = '8px';
+                divider.textContent = 'Sections';
+                list.appendChild(divider);
+            }
+
+            sections.forEach(({ item, depth }) => {
+                const btn = document.createElement('button');
+                btn.className = 'section-pick-btn';
+                btn.style.paddingLeft = `${12 + depth * 16}px`;
+                btn.textContent = item.section;
+                btn.addEventListener('click', () => { moveSelectedTo(item.items); closeMoveDialog(); });
+                list.appendChild(btn);
+            });
+
+            document.getElementById('move-overlay').classList.add('visible');
+        }
+        function closeMoveDialog() {
+            document.getElementById('move-overlay').classList.remove('visible');
+        }
+
+        function moveSelectedTo(targetItems) {
+            const clips = getSelectedClipsInOrder();
+            clips.forEach(clip => {
+                const { parentItems } = itemMap.get(clip._id);
+                if (parentItems === targetItems) return;
+                const idx = parentItems.indexOf(clip);
+                if (idx !== -1) parentItems.splice(idx, 1);
+                targetItems.push(clip);
+            });
+            selected.clear();
+            render();
+        }
+
+        // ── Export ─────────────────────────────────────────────
+        function copyJson() {
+            function clean(items) {
+                return items.map(item => {
+                    if (item.section !== undefined) {
+                        const out = { section: item.section };
+                        if (item.collapsed) out.collapsed = true;
+                        out.items = clean(item.items || []);
+                        return out;
+                    }
+                    const out = { name: item.name, file: item.file };
+                    if (item.scene) out.scene = item.scene;
+                    return out;
+                });
+            }
+            const json = JSON.stringify(clean(data), null, 2);
+            navigator.clipboard.writeText(json).then(() => {
+                const btn = document.querySelector('.action-bar .abar-btn[onclick="copyJson()"]');
+                if (btn) {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => btn.textContent = 'Copy JSON', 2000);
+                }
+            });
         }
     </script>
 </body>
