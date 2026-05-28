@@ -1,1 +1,22 @@
-[]
+[
+  {"name": "Sing Me a Song!", "file": "01_SingMeaSong_ivr.wav"},
+  {"name": "Please Don't Arrest My Friend Richie", "file": "02_DontArrestRichie_ivr.wav"},
+  {"name": "Froggum Duder", "file": "03_FroggumDuder_ivr.wav"},
+  {"name": "Borgification Pt. 1", "file": "04_BorgificationPt1_ivr.wav"},
+  {"name": "Gorilla Greetings", "file": "05_GorillaGreetings_ivr.wav"},
+  {"name": "Mike's Been Borgified And Now All His Songs Sound Like This and I Think It's Fine", "file": "06_MikeBeenBorgified_ivr.wav"},
+  {"name": "Sitting In The Middle Of The Road On My Motorcycle Eating Chestnuts (Cause I'm A Sand Ghoul)", "file": "07_SandGhoul_ivr.wav"},
+  {"name": "Check In", "file": "08_CheckIn_ivr.wav"},
+  {"name": "Melancholy Beeping", "file": "09_MelancholyBeeping_ivr.wav"},
+  {"name": "Ugly Friends", "file": "10_UglyFriends_ivr.wav"},
+  {"name": "Friday Night at the Satin Wizard", "file": "11_FridayNightSatinWizard_ivr.wav"},
+  {"name": "Lil Godzilla", "file": "12_LilGodzilla_ivr.wav"},
+  {"name": "Salazar Has My Boots", "file": "13_SalazarHasMyBoots_ivr.wav"},
+  {"name": "JCFC PSA #1", "file": "14_JCFCPSA1_ivr.wav"},
+  {"name": "Baby Smokin Cigs", "file": "15_BabySmokinCigs_ivr.wav"},
+  {"name": "Latenight Bobcat", "file": "16_LatenightBobcat_ivr.wav"},
+  {"name": "Robot Johnny", "file": "17_RobotJohnny_ivr.wav"},
+  {"name": "Only a Little", "file": "18_OnlyALittle_ivr.wav"},
+  {"name": "Dogs Eat Rocks", "file": "19_DogsEatRocks_ivr.wav"},
+  {"name": "Silk Jackie Chan Pajamas", "file": "20_SilkJackieChanPajamas_ivr.wav"}
+]
