@@ -67,6 +67,56 @@
             color: var(--text-color);
         }
 
+        /* Sections */
+        .section-block {
+            margin-bottom: 12px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background-color: #1a1a1a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.15s;
+        }
+        .section-header:hover { background-color: #252525; }
+        .section-block:not(.collapsed) > .section-header {
+            border-radius: 6px 6px 0 0;
+        }
+        .section-caret {
+            display: inline-block;
+            color: var(--accent-color);
+            font-size: 10px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .section-block.collapsed > .section-header .section-caret {
+            transform: rotate(-90deg);
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-color);
+        }
+        .section-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+        .section-body {
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 12px 12px 0 12px;
+        }
+        .section-block.collapsed > .section-body { display: none; }
+
         /* Clip list */
         .clip-entry {
             background-color: var(--surface-color);
@@ -201,9 +251,9 @@
             const listEl = document.getElementById('clip-list');
             try {
                 const res = await fetch('/adventure.json');
-                const clips = await res.json();
+                const items = await res.json();
 
-                if (clips.length === 0) {
+                if (items.length === 0) {
                     listEl.innerHTML = `
                         <div class="empty-state">
                             <strong>No clips yet</strong>
@@ -213,34 +263,105 @@
                     return;
                 }
 
-                const origin = window.location.origin;
-                clips.forEach(clip => {
-                    const url = `${origin}/adventure/${clip.file}`;
-                    const div = document.createElement('div');
-                    div.className = 'clip-entry';
-                    div.innerHTML = `
-                        <div class="clip-top">
-                            <span class="clip-name">${clip.name}</span>
-                            ${clip.scene ? `<span class="clip-scene">${clip.scene}</span>` : ''}
-                            <button class="copy-btn" data-url="${url}">Copy URL</button>
-                        </div>
-                        <div class="clip-url">${url}</div>
-                        <audio class="clip-audio" controls src="${url}"></audio>`;
-                    listEl.appendChild(div);
-                });
-
-                listEl.querySelectorAll('.copy-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        navigator.clipboard.writeText(btn.dataset.url).then(() => {
-                            btn.textContent = 'Copied!';
-                            btn.classList.add('copied');
-                            setTimeout(() => { btn.textContent = 'Copy URL'; btn.classList.remove('copied'); }, 2000);
-                        });
-                    });
-                });
+                renderItems(items, listEl);
             } catch (err) {
                 listEl.innerHTML = '<div class="empty-state">Error loading adventure.json.</div>';
             }
+        }
+
+        function renderItems(items, container) {
+            items.forEach(item => {
+                if (item.section !== undefined) {
+                    renderSection(item, container);
+                } else {
+                    renderClip(item, container);
+                }
+            });
+        }
+
+        function renderSection(item, container) {
+            const block = document.createElement('div');
+            block.className = 'section-block' + (item.collapsed ? ' collapsed' : '');
+
+            const count = countClips(item.items || []);
+
+            const header = document.createElement('div');
+            header.className = 'section-header';
+            header.innerHTML = `
+                <span class="section-caret">▼</span>
+                <span class="section-title">${item.section}</span>
+                <span class="section-count">${count} clip${count !== 1 ? 's' : ''}</span>`;
+
+            const body = document.createElement('div');
+            body.className = 'section-body';
+
+            header.addEventListener('click', () => {
+                if (!block.classList.contains('collapsed')) {
+                    body.querySelectorAll('audio').forEach(a => a.pause());
+                }
+                block.classList.toggle('collapsed');
+            });
+
+            block.appendChild(header);
+            block.appendChild(body);
+            container.appendChild(block);
+
+            renderItems(item.items || [], body);
+        }
+
+        function renderClip(clip, container) {
+            const url = `${window.location.origin}/adventure/${clip.file}`;
+            const div = document.createElement('div');
+            div.className = 'clip-entry';
+
+            const top = document.createElement('div');
+            top.className = 'clip-top';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'clip-name';
+            nameSpan.textContent = clip.name;
+            top.appendChild(nameSpan);
+
+            if (clip.scene) {
+                const sceneSpan = document.createElement('span');
+                sceneSpan.className = 'clip-scene';
+                sceneSpan.textContent = clip.scene;
+                top.appendChild(sceneSpan);
+            }
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = 'Copy URL';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(url).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => { copyBtn.textContent = 'Copy URL'; copyBtn.classList.remove('copied'); }, 2000);
+                });
+            });
+            top.appendChild(copyBtn);
+
+            const urlDiv = document.createElement('div');
+            urlDiv.className = 'clip-url';
+            urlDiv.textContent = url;
+
+            const audio = document.createElement('audio');
+            audio.className = 'clip-audio';
+            audio.controls = true;
+            audio.src = url;
+
+            div.appendChild(top);
+            div.appendChild(urlDiv);
+            div.appendChild(audio);
+            container.appendChild(div);
+        }
+
+        function countClips(items) {
+            let n = 0;
+            items.forEach(item => {
+                n += item.section !== undefined ? countClips(item.items || []) : 1;
+            });
+            return n;
         }
     </script>
 </body>
