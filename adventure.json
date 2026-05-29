@@ -25,6 +25,31 @@
     ]
   },
   {
+    "section": "Fast Dolphin",
+    "items": [
+      {"name": "Sing Me a Song!", "file": "01_SingMeASongFast_ivr.wav"},
+      {"name": "Please Don't Arrest My Friend Richie", "file": "02_DontArrestRichieFast_ivr.wav"},
+      {"name": "Froggum Duder", "file": "03_FroggumDuderFast_ivr.wav"},
+      {"name": "Borgification Pt. 1", "file": "04_BorgificationFast_ivr.wav"},
+      {"name": "Gorilla Greetings", "file": "05_GorillaGreetingsFast_ivr.wav"},
+      {"name": "Mike's Been Borgified And Now All His Songs Sound Like This and I Think It's Fine", "file": "06_MikeBeenBorgifiedFast_ivr.wav"},
+      {"name": "Sitting In The Middle Of The Road On My Motorcycle Eating Chestnuts (Cause I'm A Sand Ghoul)", "file": "07_SandGhoulFast_ivr.wav"},
+      {"name": "Check In", "file": "08_CheckInFast_ivr.wav"},
+      {"name": "Melancholy Beeping", "file": "09_MelancholyBeepingFast_ivr.wav"},
+      {"name": "Ugly Friends", "file": "10_UglyFriendsFast_ivr.wav"},
+      {"name": "Friday Night at the Satin Wizard", "file": "11_FridayNightSatinWizardFast_ivr.wav"},
+      {"name": "Lil Godzilla", "file": "12_LilGodzillaFast_ivr.wav"},
+      {"name": "Salazar Has My Boots", "file": "13_SalazarHasMyBootsFast_ivr.wav"},
+      {"name": "JCFC PSA #1", "file": "14_JCFCPSA1Fast_ivr.wav"},
+      {"name": "Baby Smokin Cigs", "file": "15_BabySmokinCigsFast_ivr.wav"},
+      {"name": "Latenight Bobcat", "file": "16_LatenightBobcatFast_ivr.wav"},
+      {"name": "Robot Johnny", "file": "17_RobotJohnnyFast_ivr.wav"},
+      {"name": "Only a Little", "file": "18_OnlyALittleFast_ivr.wav"},
+      {"name": "Dogs Eat Rocks", "file": "19_DogsEatRocksFast_ivr.wav"},
+      {"name": "Silk Jackie Chan Pajamas", "file": "20_SilkJackieChanPajamasFast_ivr.wav"}
+    ]
+  },
+  {
     "section": "Hotline Tests",
     "items": [
       {"name": "Intro", "file": "hotline_Intro_test_ivr.wav"},
