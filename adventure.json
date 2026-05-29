@@ -23,5 +23,15 @@
       {"name": "Dogs Eat Rocks", "file": "19_DogsEatRocks_ivr.wav"},
       {"name": "Silk Jackie Chan Pajamas", "file": "20_SilkJackieChanPajamas_ivr.wav"}
     ]
+  },
+  {
+    "section": "Hotline Tests",
+    "items": [
+      {"name": "Intro", "file": "hotline_Intro_test_ivr.wav"},
+      {"name": "Albums", "file": "hotline_albums_test_ivr.wav"},
+      {"name": "Streaming", "file": "hotline_streaming_test_ivr.wav"},
+      {"name": "Streaming Redirect", "file": "hotline_streaming_redirect_test_ivr.wav"},
+      {"name": "GD Tracklist", "file": "Hotline_GD_Tracklist_test_ivr.wav"}
+    ]
   }
 ]
