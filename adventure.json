@@ -1,5 +1,30 @@
 [
   {
+    "section": "Head Phonics, Vol. 1",
+    "items": [
+      {"name": "General Hospital S01E00(Pilot)", "file": "00_GenHospitalS01E00_Final_ivr.wav"},
+      {"name": "Shaddy-O!", "file": "01_Shaddy-O_Final_ivr.wav"},
+      {"name": "My Day At Uncle Mike's", "file": "02_MyDayAtUncleMikes_Final_ivr.wav"},
+      {"name": "Wheezard", "file": "03_Wheezard_Final_ivr.wav"},
+      {"name": "We Forgot", "file": "04_WeForgot_Final_ivr.wav"},
+      {"name": "boats", "file": "05_boats_Final_ivr.wav"},
+      {"name": "Stories of the Future", "file": "06_StoriesoftheFuture_Final_ivr.wav"},
+      {"name": "In An Octopus' Boyband", "file": "07_InAnOctopusBoyband_Final_ivr.wav"},
+      {"name": "Air May Tow", "file": "08_AirMayTow_Final_ivr.wav"},
+      {"name": "HIGHWAY HUNTERS", "file": "09_HIGHWAYHUNTERS_Final_ivr.wav"}
+    ]
+  },
+  {
+    "section": "To Brenda, With Love",
+    "items": [
+      {"name": "Shane's Song", "file": "1_ShanesSongMaster_ivr.wav"},
+      {"name": "Susan Barusan", "file": "2_SusanBarusanMaster_ivr.wav"},
+      {"name": "Growing Boy", "file": "3_GrowingBoyMaster_ivr.wav"},
+      {"name": "Lizard Lady", "file": "4_LizardLadyMaster_ivr.wav"},
+      {"name": "Rest Now, Brenda", "file": "5_RestNowBrenda_ivr.wav"}
+    ]
+  },
+  {
     "section": "Gorgeous Dolphin",
     "items": [
       {"name": "Sing Me a Song!", "file": "01_SingMeaSong_ivr.wav"},
