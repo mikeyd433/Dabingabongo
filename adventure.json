@@ -25,6 +25,25 @@
     ]
   },
   {
+    "section": "Chicken Soup for My Ass",
+    "items": [
+      {"name": "Curse of the Living Randy Jackson (Based on a True Story)", "file": "1_RandyJacksonMaster_ivr.wav"},
+      {"name": "Wild Wild Triangles", "file": "2_WildWildTrianglesMaster_ivr.wav"},
+      {"name": "Snail Sales", "file": "3_SnailSalesMaster_ivr.wav"},
+      {"name": "Dink Van Doink", "file": "4_DinkVanDoinkMaster_ivr.wav"},
+      {"name": "Jackie Chan Van", "file": "5_JackieChanVanMaster_ivr.wav"},
+      {"name": "Saturday Evening at the Satin Wizard", "file": "6_SaturdayEveningSatinWizardMaster_ivr.wav"},
+      {"name": "Steering Wheel Spider", "file": "7_SteeringWheelSpiderMaster_ivr.wav"},
+      {"name": "Can't You Read?!", "file": "8_CantYouReadMaster_ivr.wav"},
+      {"name": "The November Suite (I. The Beast, II. Nicholas Oscar Tienerson, III. Decisions, IV. Futility)", "file": "9_NicholasOscarTienersonMaster_ivr.wav"},
+      {"name": "Bug in a Tub", "file": "10_BuginaTubMaster_ivr.wav"},
+      {"name": "Seriously, It's Fine", "file": "11_SeriouslyItsFineMaster_ivr.wav"},
+      {"name": "Little Asshole Bluejay", "file": "12_LittleAssholeBluejayMaster_ivr.wav"},
+      {"name": "A Concerning Silhouette", "file": "13_AConceringSilhouetteMaster_ivr.wav"},
+      {"name": "Don't Have A Single Friend Named Derek (And Don't You Ever Say I Did)", "file": "14_DontGotASingleFriendNamedDerekMaster_ivr.wav"}
+    ]
+  },
+  {
     "section": "Fast Dolphin",
     "items": [
       {"name": "Sing Me a Song! - Small", "file": "01_SingMeASongFast_ivr.wav"},
