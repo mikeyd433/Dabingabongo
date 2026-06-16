@@ -117,6 +117,21 @@
   }
   .card .footer .dot { opacity: 0.5; padding: 0 4px; }
 
+  .card .note {
+    margin: 10px 0 0;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .card .note strong { color: var(--ink); font-weight: 600; }
+
+  .updated {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .updated:empty { display: none; }
+
   /* QR */
   .qr-box {
     background: var(--bg);
@@ -278,8 +293,12 @@
         <span class="label">desktop plugin</span>
         <h2>VST3</h2>
         <p class="meta">Windows &amp; macOS · any VST3 DAW</p>
-        <a class="btn" href="/touchsynth/TouchSynth.vst3" download>Download TouchSynth.vst3</a>
-        <div class="footer">v1.1<span class="dot">·</span>83 tests passing</div>
+        <a class="btn" href="/touchsynth/TouchSynth.zip" download>Download TouchSynth.zip</a>
+        <p class="note">Unzip, then drop <strong>TouchSynth.vst3</strong> into your VST3 folder.</p>
+        <div class="footer">
+          v1.1<span class="dot">·</span>83 tests passing
+          <span class="updated" id="vst-updated"></span>
+        </div>
       </div>
 
       <!-- APK card -->
@@ -318,7 +337,10 @@
           </ol>
         </div>
 
-        <div class="footer">v1.1 · release build</div>
+        <div class="footer">
+          v1.1 · release build
+          <span class="updated" id="apk-updated"></span>
+        </div>
       </div>
 
     </section>
@@ -389,6 +411,27 @@
           }, 2000);
         });
       });
+
+      // "Last updated" — read the file's Last-Modified header so the page
+      // always reflects the build Netlify is actually serving (Dropbox sync
+      // lag and all). Hidden gracefully if the header isn't exposed.
+      function showLastModified(fileUrl, elId) {
+        var el = document.getElementById(elId);
+        fetch(fileUrl, { method: "HEAD" })
+          .then(function (res) {
+            if (!res.ok) return;
+            var lm = res.headers.get("Last-Modified");
+            if (!lm) return;
+            var d = new Date(lm);
+            if (isNaN(d)) return;
+            el.textContent = "updated " + d.toLocaleDateString(undefined, {
+              year: "numeric", month: "short", day: "numeric"
+            });
+          })
+          .catch(function () { /* leave blank */ });
+      }
+      showLastModified("/touchsynth/TouchSynth.zip", "vst-updated");
+      showLastModified("/touchsynth/TouchSynth.apk", "apk-updated");
 
       // Tab switcher
       var tabs = document.querySelectorAll(".tab");
