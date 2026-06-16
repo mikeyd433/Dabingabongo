@@ -7,6 +7,13 @@
   [headers.values]
   Access-Control-Allow-Origin = "*"
 
+# Short, typeable link for the TouchSynth APK
+[[redirects]]
+  from = "/touchsynth/apk"
+  to   = "/touchsynth/TouchSynth.apk"
+  status = 301
+  force = true
+
 # SPA fallback for brainstorm app
 [[redirects]]
   from = "/brainstorm"
