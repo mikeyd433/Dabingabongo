@@ -144,6 +144,12 @@
     margin-bottom: 12px;
   }
   .qr-box canvas { display: block; }
+  .qr-fallback {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.4;
+  }
 
   /* copy row */
   .copy-row {
@@ -385,15 +391,24 @@
 
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       // QR code → full APK download URL
       var apkUrl = "https://dabingabongo.com/touchsynth/TouchSynth.apk";
-      if (window.QRCode) {
-        QRCode.toCanvas(document.getElementById("qr"), apkUrl, { width: 100, margin: 1 }, function (err) {
-          if (err) console.error(err);
+      var qrCanvas = document.getElementById("qr");
+      function qrFallback() {
+        // If the QR library can't load, don't leave a blank box —
+        // point people at the copyable link instead.
+        var box = qrCanvas.parentNode;
+        box.innerHTML = '<span class="qr-fallback">QR unavailable —<br>use the link below</span>';
+      }
+      if (window.QRCode && typeof QRCode.toCanvas === "function") {
+        QRCode.toCanvas(qrCanvas, apkUrl, { width: 100, margin: 1 }, function (err) {
+          if (err) { console.error(err); qrFallback(); }
         });
+      } else {
+        qrFallback();
       }
 
       // Copyable link row
