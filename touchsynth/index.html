@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TouchSynth</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --ink: #1c1f23;
+    --muted: #6b7280;
+    --line: #e3e6ea;
+    --accent: #4f46e5;
+    --accent-soft: #eef0fb;
+    --green: #16a34a;
+    --green-soft: #e7f6ec;
+    --blue: #2563eb;
+    --blue-soft: #e6eefb;
+    --amber: #b45309;
+    --amber-soft: #fbf0dd;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 56px 20px 80px;
+  }
+
+  /* Section 1 — title */
+  .hero h1 {
+    margin: 0 0 12px;
+    font-size: 38px;
+    letter-spacing: -0.02em;
+  }
+
+  .hero p.desc {
+    margin: 0 0 14px;
+    font-size: 17px;
+    color: var(--ink);
+  }
+
+  .hero p.subline {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Section 2 — cards */
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 36px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .card h2 {
+    margin: 6px 0 4px;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+  }
+
+  .card .meta {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .btn {
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 11px 16px;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+  }
+  .btn:hover { background: #4338ca; }
+
+  .card .footer {
+    margin-top: auto;
+    padding-top: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .card .footer .dot { opacity: 0.5; padding: 0 4px; }
+
+  /* QR */
+  .qr-box {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    height: 116px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .qr-box canvas { display: block; }
+
+  /* copy row */
+  .copy-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .copy-row input {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .copy-row button {
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .copy-row button:hover { background: var(--bg); }
+  .copy-row button.copied { color: var(--green); border-color: var(--green); }
+
+  /* tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .tab {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent-soft);
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  ol.steps {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  ol.steps li { margin-bottom: 6px; }
+  ol.steps strong { font-weight: 700; }
+
+  /* Section 3 — changelog */
+  .changelog { margin-top: 52px; }
+  .changelog > h2 {
+    font-size: 14px;
+    text-transform: lowercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+
+  .entry {
+    border-left: 3px solid var(--line);
+    padding: 0 0 4px 18px;
+    margin-bottom: 28px;
+  }
+  .entry.latest { border-left-width: 5px; border-left-color: var(--accent); }
+
+  .entry .head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .entry .ver { font-size: 17px; font-weight: 700; }
+  .entry .date { font-size: 12.5px; color: var(--muted); }
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  .entry ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13.5px;
+  }
+  .entry li { margin-bottom: 6px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 5px;
+    margin-right: 4px;
+    vertical-align: 1px;
+  }
+  .tag.new { color: var(--green); background: var(--green-soft); }
+  .tag.fix { color: var(--blue); background: var(--blue-soft); }
+  .tag.change { color: var(--amber); background: var(--amber-soft); }
+
+  @media (max-width: 480px) {
+    .cards { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- Section 1 — Title + description -->
+    <section class="hero">
+      <h1>TouchSynth</h1>
+      <p class="desc">A multitouch XY-pad MPE synthesizer. The VST3 runs in your DAW; the APK turns your Android tablet into the controller. Connect them with a USB-C cable.</p>
+      <p class="subline">Protocol v1.1 · MPE Lower Zone · 15 voices · ±48 semitone pitch bend · CC74 Y axis</p>
+    </section>
+
+    <!-- Section 2 — Download cards -->
+    <section class="cards">
+
+      <!-- VST3 card -->
+      <div class="card">
+        <span class="label">desktop plugin</span>
+        <h2>VST3</h2>
+        <p class="meta">Windows &amp; macOS · any VST3 DAW</p>
+        <a class="btn" href="/touchsynth/TouchSynth.vst3" download>Download TouchSynth.vst3</a>
+        <div class="footer">v1.1<span class="dot">·</span>83 tests passing</div>
+      </div>
+
+      <!-- APK card -->
+      <div class="card">
+        <span class="label">android controller</span>
+        <h2>APK</h2>
+        <p class="meta">Android 10+ · ~1.7 MB</p>
+
+        <div class="qr-box">
+          <canvas id="qr"></canvas>
+        </div>
+
+        <div class="copy-row">
+          <input id="apk-link" type="text" value="dabingabongo.com/touchsynth/apk" readonly />
+          <button id="copy-btn" type="button">copy</button>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="samsung">Samsung</button>
+          <button class="tab" data-tab="other">Other Android</button>
+        </div>
+
+        <div class="panel active" data-panel="samsung">
+          <ol class="steps">
+            <li>Download and install the APK — allow installs from your browser when prompted</li>
+            <li>Connect via USB-C, tap the notification, and choose <strong>MIDI</strong></li>
+            <li>To make MIDI stick across reboots: Developer options → Default USB Configuration → MIDI</li>
+          </ol>
+        </div>
+
+        <div class="panel" data-panel="other">
+          <ol class="steps">
+            <li>Download and install the APK — allow installs from your browser when prompted</li>
+            <li>Connect via USB-C; if no prompt appears go to Settings → USB and select MIDI</li>
+            <li>TouchSynth will auto-connect once the device shows as a MIDI input in your DAW</li>
+          </ol>
+        </div>
+
+        <div class="footer">v1.1 · release build</div>
+      </div>
+
+    </section>
+
+    <!-- Section 3 — Changelog -->
+    <section class="changelog">
+      <h2>changelog</h2>
+
+      <div class="entry latest">
+        <div class="head">
+          <span class="ver">v1.1</span>
+          <span class="date">June 15, 2026</span>
+          <span class="badge">latest</span>
+        </div>
+        <ul>
+          <li><span class="tag new">new</span>50-preset library across 10 categories (lead, pad, bass, keys, pluck, bell, brass, strings, organ, FX)</li>
+          <li><span class="tag new">new</span>Categorized preset browser on the tablet + top-bar preset chip</li>
+          <li><span class="tag new">new</span>VST3 octave shift (−3…+3) — bass presets now audible on standard monitors</li>
+          <li><span class="tag new">new</span>Sub Bass preset at −1 oct (~65 Hz); Deep Sub at −2 oct (~33 Hz) for subwoofer rigs</li>
+          <li><span class="tag fix">fix</span>VST3 editor window was too short — Delay FB/Wet, Tremolo Depth, Stereo Spread were off-screen</li>
+          <li><span class="tag change">change</span>Preset selection sends <code>0x08</code> first, then changed params — preset-first ordering required</li>
+        </ul>
+      </div>
+
+      <div class="entry">
+        <div class="head">
+          <span class="ver">v1.0</span>
+          <span class="date">June 14, 2026</span>
+        </div>
+        <ul>
+          <li><span class="tag new">new</span>Initial release — verified end-to-end on Galaxy Tab A9+ with 5 simultaneous MPE voices</li>
+          <li><span class="tag new">new</span>Full-screen XY pad: X = pitch (Chromatic / Scale-Locked / Microtonal), Y = CC74 expression</li>
+          <li><span class="tag new">new</span>MPE Lower Zone, 15 voices, ±48 semitone pitch bend, velocity fixed 100</li>
+          <li><span class="tag new">new</span>Live + drone voices, Lock / Delete / Clear All</li>
+          <li><span class="tag new">new</span>SysEx settings sync — osc type, pulse width, X mode, root key, scale, octave range, Y target</li>
+          <li><span class="tag new">new</span>USB MIDI auto-connect + hot-plug reconnect; "No MIDI device" overlay with USB-mode guide</li>
+          <li><span class="tag new">new</span>ADSR, reverb, delay, tremolo, stereo spread in VST3</li>
+        </ul>
+      </div>
+
+    </section>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // QR code → full APK download URL
+      var apkUrl = "https://dabingabongo.com/touchsynth/TouchSynth.apk";
+      if (window.QRCode) {
+        QRCode.toCanvas(document.getElementById("qr"), apkUrl, { width: 100, margin: 1 }, function (err) {
+          if (err) console.error(err);
+        });
+      }
+
+      // Copyable link row
+      var copyBtn = document.getElementById("copy-btn");
+      var apkLink = document.getElementById("apk-link");
+      var resetTimer;
+      copyBtn.addEventListener("click", function () {
+        navigator.clipboard.writeText(apkLink.value).then(function () {
+          copyBtn.textContent = "copied";
+          copyBtn.classList.add("copied");
+          clearTimeout(resetTimer);
+          resetTimer = setTimeout(function () {
+            copyBtn.textContent = "copy";
+            copyBtn.classList.remove("copied");
+          }, 2000);
+        });
+      });
+
+      // Tab switcher
+      var tabs = document.querySelectorAll(".tab");
+      var panels = document.querySelectorAll(".panel");
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          var target = tab.getAttribute("data-tab");
+          tabs.forEach(function (t) { t.classList.toggle("active", t === tab); });
+          panels.forEach(function (p) {
+            p.classList.toggle("active", p.getAttribute("data-panel") === target);
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
