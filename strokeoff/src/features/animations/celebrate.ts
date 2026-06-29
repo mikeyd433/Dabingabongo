@@ -31,6 +31,11 @@ export function celebrate(raw: unknown): void {
     runCustomAnimation(anim, anim.assetUrl)
     return
   }
+  // Tier 3 sprite sheet: step through frames of one image on a canvas.
+  if (anim.preset === 'sprite-animation' && anim.assetUrl && anim.sprite) {
+    runSprite(anim, anim.assetUrl, anim.sprite)
+    return
+  }
   // Tier 2 custom image: preload the particle, then burst it. If it fails to
   // load, fall back to confetti so a celebration still fires.
   if (anim.preset === 'image-burst' && anim.imageUrl) {
@@ -122,6 +127,68 @@ function runCustomAnimation(anim: ResolvedAnimation, url: string) {
   }
   img.src = url
   host.appendChild(img)
+}
+
+/**
+ * Tier 3 — play a sprite sheet (a grid of `cols × rows` frames in one image) by
+ * stepping frames on a centred canvas at the configured fps, looping for the
+ * (capped) duration. Falls back to confetti if the sheet can't load.
+ */
+function runSprite(
+  anim: ResolvedAnimation,
+  url: string,
+  sprite: { cols: number; rows: number; fps: number },
+) {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onerror = () => fallbackConfetti(anim)
+  img.onload = () => {
+    const host = document.createElement('div')
+    overlayStyle(host)
+    Object.assign(host.style, {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    })
+    const canvas = document.createElement('canvas')
+    const display = Math.round(
+      Math.min(window.innerWidth, window.innerHeight) * 0.6,
+    )
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    canvas.width = display * dpr
+    canvas.height = display * dpr
+    canvas.style.width = `${display}px`
+    canvas.style.height = `${display}px`
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.scale(dpr, dpr)
+    host.appendChild(canvas)
+    document.body.appendChild(host)
+
+    const frameW = img.width / sprite.cols
+    const frameH = img.height / sprite.rows
+    const totalFrames = sprite.cols * sprite.rows
+    const frameMs = 1000 / Math.max(1, sprite.fps)
+    const start = performance.now()
+    let raf = 0
+
+    function frame(now: number) {
+      const elapsed = now - start
+      if (elapsed >= anim.durationMs || document.hidden) {
+        cancelAnimationFrame(raf)
+        host.remove()
+        return
+      }
+      const idx = Math.floor(elapsed / frameMs) % totalFrames
+      const sx = (idx % sprite.cols) * frameW
+      const sy = Math.floor(idx / sprite.cols) * frameH
+      ctx!.clearRect(0, 0, display, display)
+      ctx!.drawImage(img, sx, sy, frameW, frameH, 0, 0, display, display)
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+  }
+  img.src = url
 }
 
 function overlayStyle(el: HTMLElement) {

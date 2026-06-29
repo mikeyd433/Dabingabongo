@@ -74,6 +74,24 @@ describe('resolveAnimation', () => {
     expect(withImage.imageUrl).toBe('https://x/p.png')
   })
 
+  it('resolves a sprite animation with layout (defaults applied), else confetti', () => {
+    expect(resolveAnimation({ preset: 'sprite-animation' }, theme).preset).toBe(
+      'confetti',
+    )
+    const r = resolveAnimation(
+      {
+        preset: 'sprite-animation',
+        tier: 3,
+        assetUrl: 'https://x/sheet.png',
+        spriteCols: 6,
+      },
+      theme,
+    )
+    expect(r.preset).toBe('sprite-animation')
+    expect(r.sprite).toEqual({ cols: 6, rows: 4, fps: 12 })
+    expect(r.assetUrl).toBe('https://x/sheet.png')
+  })
+
   it('falls back to confetti for an unknown preset', () => {
     expect(resolveAnimation({ preset: 'lottie-thing' }, theme).preset).toBe(
       'confetti',

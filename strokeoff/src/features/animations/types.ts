@@ -17,6 +17,8 @@ export type AnimationPreset =
   // Tier 3 — a full custom animation: a Lottie JSON or an animated image
   // (GIF/WebP/APNG) played as a centred overlay (spec §12).
   | 'custom-animation'
+  // Tier 3 — a sprite sheet (grid of frames in one image) stepped on a canvas.
+  | 'sprite-animation'
 
 /** Where the effect's colors come from: a named source or a literal hex string. */
 export type AnimationColor = 'theme' | 'rainbow' | string
@@ -32,8 +34,15 @@ export type AnimationConfig = {
   emoji?: string
   /** Public URL of the uploaded particle image for `image-burst` (tier 2). */
   imageUrl?: string
-  /** Public URL of the Lottie JSON / animated image for `custom-animation` (tier 3). */
+  /**
+   * Public URL of the tier-3 asset — a Lottie JSON / animated image for
+   * `custom-animation`, or the sprite sheet image for `sprite-animation`.
+   */
   assetUrl?: string
+  /** Sprite-sheet layout for `sprite-animation`. */
+  spriteCols?: number
+  spriteRows?: number
+  spriteFps?: number
 }
 
 export const TIER1_PRESETS: AnimationPreset[] = [
@@ -49,6 +58,7 @@ export const ALL_PRESETS: AnimationPreset[] = [
   ...TIER1_PRESETS,
   'image-burst',
   'custom-animation',
+  'sprite-animation',
 ]
 
 export const PRESET_LABELS: Record<AnimationPreset, string> = {
@@ -59,7 +69,11 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   'emoji-burst': 'Emoji burst',
   'image-burst': 'Custom image',
   'custom-animation': 'Custom animation (Lottie/GIF)',
+  'sprite-animation': 'Custom sprite sheet',
 }
+
+/** Default sprite-sheet layout when fields are unset. */
+export const DEFAULT_SPRITE = { cols: 4, rows: 4, fps: 12 }
 
 /** A Lottie asset is JSON; everything else is treated as an animated image. */
 export function isLottieAsset(url: string): boolean {
@@ -101,7 +115,24 @@ export function normalizeAnimation(raw: unknown): AnimationConfig {
   const emoji = typeof r.emoji === 'string' ? r.emoji : undefined
   const imageUrl = typeof r.imageUrl === 'string' ? r.imageUrl : undefined
   const assetUrl = typeof r.assetUrl === 'string' ? r.assetUrl : undefined
-  return { tier, preset, color, emoji, imageUrl, assetUrl }
+  const posInt = (v: unknown) =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 1
+      ? Math.floor(v)
+      : undefined
+  const spriteCols = posInt(r.spriteCols)
+  const spriteRows = posInt(r.spriteRows)
+  const spriteFps = posInt(r.spriteFps)
+  return {
+    tier,
+    preset,
+    color,
+    emoji,
+    imageUrl,
+    assetUrl,
+    spriteCols,
+    spriteRows,
+    spriteFps,
+  }
 }
 
 export interface ResolvedAnimation {
@@ -109,8 +140,10 @@ export interface ResolvedAnimation {
   colors: string[]
   emoji: string | null
   imageUrl: string | null
-  /** Lottie/animated-image URL for `custom-animation`, else null. */
+  /** Asset URL for `custom-animation` / `sprite-animation`, else null. */
   assetUrl: string | null
+  /** Sprite-sheet layout for `sprite-animation`, else null. */
+  sprite: { cols: number; rows: number; fps: number } | null
   durationMs: number
   particleCount: number
 }
@@ -142,6 +175,7 @@ export function resolveAnimation(
   // Custom effects need their uploaded asset; without one, fall back.
   if (preset === 'image-burst' && !cfg.imageUrl) preset = 'confetti'
   if (preset === 'custom-animation' && !cfg.assetUrl) preset = 'confetti'
+  if (preset === 'sprite-animation' && !cfg.assetUrl) preset = 'confetti'
 
   const emoji =
     preset === 'emoji-burst'
@@ -150,26 +184,35 @@ export function resolveAnimation(
         ? cfg.emoji || '🥏'
         : null
 
-  // A full overlay animation (Lottie/GIF) gets a little longer than a particle
-  // burst, but still capped so it can't linger over the round.
-  const durationMs =
-    preset === 'custom-animation'
-      ? MAX_OVERLAY_MS
-      : Math.min(preset === 'screen-flash' ? 450 : 1200, MAX_DURATION_MS)
-  const particleCount =
-    preset === 'custom-animation'
-      ? 0
-      : Math.min(
-          preset === 'screen-flash' ? 0 : preset === 'fireworks' ? 90 : 120,
-          MAX_PARTICLES,
-        )
+  const isOverlay = preset === 'custom-animation' || preset === 'sprite-animation'
+  // A full overlay animation (Lottie/GIF/sprite) gets a little longer than a
+  // particle burst, but still capped so it can't linger over the round.
+  const durationMs = isOverlay
+    ? MAX_OVERLAY_MS
+    : Math.min(preset === 'screen-flash' ? 450 : 1200, MAX_DURATION_MS)
+  const particleCount = isOverlay
+    ? 0
+    : Math.min(
+        preset === 'screen-flash' ? 0 : preset === 'fireworks' ? 90 : 120,
+        MAX_PARTICLES,
+      )
+
+  const sprite =
+    preset === 'sprite-animation'
+      ? {
+          cols: cfg.spriteCols ?? DEFAULT_SPRITE.cols,
+          rows: cfg.spriteRows ?? DEFAULT_SPRITE.rows,
+          fps: cfg.spriteFps ?? DEFAULT_SPRITE.fps,
+        }
+      : null
 
   return {
     preset,
     colors: resolveColors(cfg.color, theme),
     emoji,
     imageUrl: preset === 'image-burst' ? (cfg.imageUrl ?? null) : null,
-    assetUrl: preset === 'custom-animation' ? (cfg.assetUrl ?? null) : null,
+    assetUrl: isOverlay ? (cfg.assetUrl ?? null) : null,
+    sprite,
     durationMs,
     particleCount,
   }

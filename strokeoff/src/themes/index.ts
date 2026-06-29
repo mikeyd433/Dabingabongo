@@ -1,4 +1,5 @@
-export type { Theme, ThemeTokens, ThemeMode } from './types'
+export type { Theme, ThemeTokens, ThemeMode, WinnerTreatment } from './types'
+export { winnerTreatment } from './types'
 export { themes, themesById, getTheme, DEFAULT_THEME_ID } from './registry'
 export { ThemeProvider } from './ThemeProvider'
 export { useTheme } from './useTheme'

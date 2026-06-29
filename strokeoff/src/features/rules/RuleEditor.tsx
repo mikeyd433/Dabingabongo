@@ -10,6 +10,7 @@ import type { Rule } from '@/types'
 import {
   ALL_PRESETS,
   DEFAULT_ANIMATION,
+  DEFAULT_SPRITE,
   PRESET_LABELS,
   normalizeAnimation,
   type AnimationConfig,
@@ -230,6 +231,32 @@ function Field({
   )
 }
 
+/** A small labelled positive-integer input for sprite-sheet layout fields. */
+function SpriteNum({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (n: number) => void
+}) {
+  return (
+    <label className="flex flex-1 flex-col gap-1">
+      <span className="font-label text-xs text-muted">{label}</span>
+      <TextInput
+        value={String(value)}
+        inputMode="numeric"
+        aria-label={label}
+        onChange={(e) => {
+          const n = parseInt(e.target.value, 10)
+          if (Number.isFinite(n) && n >= 1) onChange(n)
+        }}
+      />
+    </label>
+  )
+}
+
 /** Per-rule celebration config (spec §12): preset + color, custom emoji/image. */
 function AnimationField({
   value,
@@ -245,7 +272,11 @@ function AnimationField({
 
   function choosePreset(preset: AnimationPreset) {
     const tier =
-      preset === 'image-burst' ? 2 : preset === 'custom-animation' ? 3 : 1
+      preset === 'image-burst'
+        ? 2
+        : preset === 'custom-animation' || preset === 'sprite-animation'
+          ? 3
+          : 1
     set({ preset, tier })
   }
 
@@ -266,6 +297,17 @@ function AnimationField({
     upload.mutate(file, {
       onSuccess: (url) =>
         set({ preset: 'custom-animation', tier: 3, assetUrl: url }),
+      onError: (err) => setUploadError(errorMessage(err)),
+    })
+  }
+
+  function handleSprite(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    upload.mutate(file, {
+      onSuccess: (url) =>
+        set({ preset: 'sprite-animation', tier: 3, assetUrl: url }),
       onError: (err) => setUploadError(errorMessage(err)),
     })
   }
@@ -365,6 +407,44 @@ function AnimationField({
             {cfg.assetUrl
               ? 'Uploaded. Use Preview to see it play.'
               : 'A Lottie JSON or an animated GIF/WebP — plays once when a point lands.'}
+          </span>
+        </div>
+      ) : null}
+      {cfg.preset === 'sprite-animation' ? (
+        <div className="flex flex-col gap-2">
+          <label className="inline-flex min-h-[44px] cursor-pointer items-center self-start rounded-card border border-border bg-surface px-4 font-label text-sm font-semibold text-text">
+            {upload.isPending
+              ? 'Uploading…'
+              : cfg.assetUrl
+                ? 'Replace sprite sheet'
+                : 'Upload sprite sheet'}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handleSprite}
+              disabled={upload.isPending}
+            />
+          </label>
+          <div className="flex gap-2">
+            <SpriteNum
+              label="Columns"
+              value={cfg.spriteCols ?? DEFAULT_SPRITE.cols}
+              onChange={(n) => set({ spriteCols: n })}
+            />
+            <SpriteNum
+              label="Rows"
+              value={cfg.spriteRows ?? DEFAULT_SPRITE.rows}
+              onChange={(n) => set({ spriteRows: n })}
+            />
+            <SpriteNum
+              label="FPS"
+              value={cfg.spriteFps ?? DEFAULT_SPRITE.fps}
+              onChange={(n) => set({ spriteFps: n })}
+            />
+          </div>
+          <span className="font-label text-xs text-muted">
+            One image with frames in a grid — set how many columns/rows it has.
           </span>
         </div>
       ) : null}

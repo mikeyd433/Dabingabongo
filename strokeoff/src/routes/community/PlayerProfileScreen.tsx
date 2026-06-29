@@ -9,6 +9,7 @@ import { useMyGroups } from '@/lib/profile'
 import {
   usePerson,
   usePlayerRounds,
+  usePlayerRuleStats,
   usePlayerStats,
   useQuickAddToGroup,
 } from '@/lib/people'
@@ -90,6 +91,8 @@ export function PlayerProfileScreen() {
       <QuickAddCard person={person} />
 
       <PlayerRoundsCard profileId={person.profile_id} />
+
+      <RuleBreakdownCard profileId={person.profile_id} />
     </div>
   )
 }
@@ -218,6 +221,33 @@ function PlayerRoundsCard({ profileId }: { profileId: string }) {
                     : 'Multi phone'}
                 </span>
               </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function RuleBreakdownCard({ profileId }: { profileId: string }) {
+  const { data: rules = [], isLoading } = usePlayerRuleStats(profileId)
+  if (!isLoading && rules.length === 0) return null
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <h2 className="font-display text-base font-semibold text-text">
+        Rules scored
+      </h2>
+      {isLoading ? (
+        <p className="mt-2 font-label text-sm text-muted">Loading…</p>
+      ) : (
+        <ul className="mt-2 flex flex-col gap-1">
+          {rules.map((r) => (
+            <li
+              key={r.rule_name}
+              className="flex items-center justify-between font-label text-sm text-text"
+            >
+              <span className="min-w-0 truncate">{r.rule_name}</span>
+              <span className="font-numeral text-muted">×{r.total}</span>
             </li>
           ))}
         </ul>

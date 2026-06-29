@@ -25,6 +25,7 @@ import {
   type ScoreConfirmation,
 } from '@/features/round/results'
 import { errorMessage } from '@/lib/validation'
+import { useTheme, winnerTreatment, type WinnerTreatment } from '@/themes'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
 
 /**
@@ -38,6 +39,8 @@ export function ResultsScreen({ round }: { round: Round }) {
   const { data: rules = [] } = useRoundRules(round.id)
 
   const gate = useMemo(() => scoreConfirmation(players), [players])
+  const { theme } = useTheme()
+  const treatment = winnerTreatment(theme)
 
   const results = useMemo(
     () =>
@@ -113,7 +116,7 @@ export function ResultsScreen({ round }: { round: Round }) {
         <TiebreakTool roundId={round.id} tied={results.tiedForWin} />
       ) : null}
 
-      <ResultsBoard results={results} />
+      <ResultsBoard results={results} treatment={treatment} />
 
       {results.finalsReady ? (
         <ScorecardGallery
@@ -122,6 +125,7 @@ export function ResultsScreen({ round }: { round: Round }) {
           events={events}
           rules={rules}
           winnerId={results.winner?.player.id}
+          treatment={treatment}
         />
       ) : (
         <p className="rounded-card border border-border bg-surface-alt p-4 font-label text-xs text-muted">
@@ -801,7 +805,13 @@ function TiebreakTool({
   )
 }
 
-function ResultsBoard({ results }: { results: ReturnType<typeof computeResults> }) {
+function ResultsBoard({
+  results,
+  treatment,
+}: {
+  results: ReturnType<typeof computeResults>
+  treatment: WinnerTreatment
+}) {
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-label text-sm font-semibold text-text">
@@ -828,7 +838,9 @@ function ResultsBoard({ results }: { results: ReturnType<typeof computeResults> 
                   className="font-label text-xs font-semibold"
                   style={{ color: 'var(--color-winner)' }}
                 >
-                  Winner{row.byTiebreak ? ' · by tie-break' : ''}
+                  {treatment.emoji ? `${treatment.emoji} ` : ''}
+                  {treatment.label}
+                  {row.byTiebreak ? ' · by tie-break' : ''}
                 </span>
               ) : null}
             </span>
@@ -894,12 +906,14 @@ function ScorecardGallery({
   events,
   rules,
   winnerId,
+  treatment,
 }: {
   round: Round
   rows: ResultRow[]
   events: PointEvent[]
   rules: RoundRule[]
   winnerId: string | undefined
+  treatment: WinnerTreatment
 }) {
   const matrix = useMatrix(events, rules)
 
@@ -917,6 +931,7 @@ function ScorecardGallery({
             ruleOrder={matrix.ruleOrder}
             countFor={matrix.countFor}
             winnerId={winnerId}
+            treatment={treatment}
           />
         </ExportCard>
         {rows.map((row) => (
@@ -929,6 +944,7 @@ function ScorecardGallery({
               row={row}
               ruleOrder={matrix.ruleOrder}
               countFor={matrix.countFor}
+              treatment={treatment}
             />
           </ExportCard>
         ))}
@@ -983,23 +999,36 @@ function MatrixCard({
   ruleOrder,
   countFor,
   winnerId,
+  treatment,
 }: {
   round: Round
   rows: ResultRow[]
   ruleOrder: { key: string; display: string }[]
   countFor: (playerId: string, key: string) => number
   winnerId: string | undefined
+  treatment: WinnerTreatment
 }) {
   const winStyle = (id: string) =>
     id === winnerId
       ? { backgroundColor: 'var(--color-surface-alt)' }
       : undefined
+  const winnerName = rows.find((r) => r.player.id === winnerId)?.player
+    .display_name
   return (
     <div className="rounded-card border border-border bg-surface p-3">
       <p className="font-display text-sm font-bold text-text">
         {round.course_name || 'Round'}
       </p>
       <p className="font-label text-[10px] text-muted">{round.played_on}</p>
+      {winnerName ? (
+        <p
+          className="mt-0.5 font-label text-[10px] font-semibold"
+          style={{ color: 'var(--color-winner)' }}
+        >
+          {treatment.emoji ? `${treatment.emoji} ` : ''}
+          {treatment.label}: {winnerName}
+        </p>
+      ) : null}
       <table className="mt-2 w-full border-collapse">
         <thead>
           <tr>
@@ -1094,11 +1123,13 @@ function PlayerCard({
   row,
   ruleOrder,
   countFor,
+  treatment,
 }: {
   round: Round
   row: ResultRow
   ruleOrder: { key: string; display: string }[]
   countFor: (playerId: string, key: string) => number
+  treatment: WinnerTreatment
 }) {
   const scored = ruleOrder
     .map((rule) => ({ ...rule, count: countFor(row.player.id, rule.key) }))
@@ -1114,7 +1145,9 @@ function PlayerCard({
             className="font-label text-[10px] font-semibold"
             style={{ color: 'var(--color-winner)' }}
           >
-            Winner{row.byTiebreak ? ' · tie-break' : ''}
+            {treatment.emoji ? `${treatment.emoji} ` : ''}
+            {treatment.label}
+            {row.byTiebreak ? ' · tie-break' : ''}
           </span>
         ) : row.rank !== null ? (
           <span className="font-numeral text-[10px] text-muted">

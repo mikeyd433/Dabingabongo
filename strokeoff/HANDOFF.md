@@ -7,9 +7,11 @@ _Last updated mid-session: all 12 phases (0–11) done, app **deployed to produc
 Shipped to `main`: course par (0011), score-confirmation gate (0012), and a feature
 batch (haptics, email-redirect fix, Settings, share-app QR, camera QR, owner group
 mgmt (0013), profile stats); a polish batch (coach marks, animation **Tier 2**
-image-burst, win/loss stats — 0014 + 0015); and now animation **Tier 3** (custom
-Lottie / animated-image overlay) — **no migration, merged to `main`, deploying**. See
-"✅ Animation Tier 3 — SHIPPED" below._
+image-burst, win/loss stats — 0014 + 0015); and animation **Tier 3** (custom
+Lottie / animated-image overlay). The latest batch — **sprite-sheet animations**,
+**per-theme winner treatments**, and **per-rule stat breakdowns** — is **built +
+tested on branch `claude/stroke-off-app-n7nnqo`**; its migration `0016` (per-rule
+stats RPC) is **NOT yet applied / not on `main`** — see "⏳ PENDING" below; do it first._
 
 ## Where things stand
 
@@ -29,9 +31,31 @@ Lottie / animated-image overlay) — **no migration, merged to `main`, deploying
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**84 tests**, now on `main`)
-  and `pnpm build` are all green. Dev server boots and serves; the build emits a
-  Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**85 tests** at branch HEAD;
+  `main` is at 84) and `pnpm build` are all green. Dev server boots and serves; the
+  build emits a Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) offline.
+
+### ⏳ PENDING — sprites + winner treatments + per-rule stats (apply 0016, then merge)
+Built, tested (85 tests), committed on `claude/stroke-off-app-n7nnqo`. Only the
+per-rule stats need a migration; the other two are client-only.
+
+- **Sprite-sheet animations** (Tier 3, no migration): new `sprite-animation` preset
+  — upload one sheet image + set columns/rows/fps; `celebrate.ts` steps frames on a
+  centred canvas (capped duration, confetti fallback). Reuses the `animation-assets`
+  bucket. Types: `sprite-animation` + `spriteCols/Rows/Fps` + `DEFAULT_SPRITE`
+  (resolve test added). Editor gains the upload + layout inputs.
+- **Per-theme winner treatments** (spec §13, no migration): `Theme.winner`
+  (`WinnerTreatment` = label + optional emoji) + `winnerTreatment(theme)` helper.
+  Treatments attached centrally in `registry.ts` (`WINNER_TREATMENTS` by id — arcade
+  "High score" 🕹️, casino "House wins" 🪙, pinball "Jackpot" 🎯, etc.; unlisted →
+  plain "Winner"). The results board + both scorecards render `{emoji} {label}`.
+  (Identity preserved for treatment-less themes so the theme tests stay green.)
+- **Per-rule stat breakdowns** (migration `0016`): `player_rule_stats(p_other)` RPC
+  tallies a player's points by `rule_name_snapshot` across the rounds the caller can
+  see (mirrors `rounds_with_player` visibility). New `usePlayerRuleStats` hook +
+  a "Rules scored" card on the profile.
+- **ORDER:** apply `0016` to the live project before merging (the profile calls the
+  new RPC). The other two have no DB dependency.
 
 ### ✅ Animation Tier 3 — SHIPPED
 A **fully custom celebration** (spec §12, Tier 3): a new `custom-animation` preset
@@ -193,8 +217,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0015` all applied to the live DB (`0014` round finish +
-`0015` animation-assets bucket applied this session — see "✅ Polish batch — SHIPPED").
+**Migrations status:** `0001…0015` applied to the live DB; **`0016` (per-rule stats
+RPC) is written but NOT applied** (see "⏳ PENDING" near the top).
 
 <!-- prior note retained below -->
 **Earlier:** `0001…0013` all applied to the live DB (`0013` owner group
@@ -351,11 +375,11 @@ doesn't work — verify via the MCP logs or the real app.
 - **One-time coach marks** on the live screen (spec §3) → ✅ built (`CoachMark` +
   `lib/coachmarks.ts`, pending batch) — shown once per device on the live + confirm
   screens.
-- **Per-theme winner *treatments*** (rubber stamp, crown, "JACKPOT", etc.) and
-  **per-format matrix-vs-solo pairing** (spec §13) are **not** built: themes drive
-  color / type / card chrome via tokens, and scorecards read those, but the bespoke
-  winner art per theme is component-level polish left for later. The 21-theme
-  registry and live-preview gallery *are* done (Phase 7).
+- **Per-theme winner *treatments*** → ✅ built (`Theme.winner` + `WINNER_TREATMENTS`
+  in `registry.ts`): the results board + scorecards stamp the theme's badge (e.g.
+  arcade "High score" 🕹️, pinball "Jackpot" 🎯). **Per-format matrix-vs-solo
+  pairing** (spec §13 — a different treatment for the matrix vs the solo card) is
+  still a future add; both currently use the same badge.
 - **Custom / seasonal themes in the DB** (`themes` table) → not used; the launch set
   is code-defined bundles in `src/themes/`. Group default theme is an id string.
 - **Camera QR scanning** → ✅ built (`components/QrScanner.tsx`, pending batch) —
@@ -363,16 +387,15 @@ doesn't work — verify via the MCP logs or the real app.
 - **Owner-only group management** (remove member, rename, hand-off, delete) → ✅ built
   (migration 0013 + `GroupCard.tsx`, pending batch). Owner-gated, hidden for the
   personal group.
-- **Optional player stats** on the profile → ✅ win/loss built (migration 0014 +
-  `player_round_stats`): Played / Wins / Best finish. Per-rule stats are still a
-  future add.
+- **Optional player stats** on the profile → ✅ built: win/loss (migration 0014 —
+  Played / Wins / Best finish) **and per-rule breakdown** (migration 0016 —
+  `player_rule_stats`, a "Rules scored" card).
 - **Settings contents** (spec §11 "Me → Settings") → ✅ built (haptics toggle +
   new-round defaults).
-- **Animations Tier 2 & 3** → ✅ built. Tier 2: emoji burst + **image-burst** custom
-  particle (0015). Tier 3: **custom-animation** — a Lottie JSON or animated image
-  (GIF/WebP) overlay (`lottie-web`, lazy-loaded; preview in the editor). Only
-  **sprite-sheet** effects remain a future add; assetless/unknown configs still
-  **fall back to confetti**.
+- **Animations Tier 2 & 3** → ✅ fully built. Tier 2: emoji + **image-burst** (0015).
+  Tier 3: **custom-animation** (Lottie / animated image, `lottie-web` lazy-loaded)
+  **and sprite-sheet** (`sprite-animation` — canvas frame-stepping). Assetless/unknown
+  configs **fall back to confetti**. Nothing animation-related is deferred now.
 - **Full offline / local-only mode** (a round with no connection at all) → out of
   scope for v1 by design (spec §4); Phase 10 covers *intermittent* signal only.
 

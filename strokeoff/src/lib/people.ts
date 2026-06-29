@@ -71,6 +71,26 @@ export function usePlayerStats(profileId: string | undefined) {
   })
 }
 
+export interface PlayerRuleStat {
+  rule_name: string
+  total: number
+}
+
+/** How often a player scored each rule, across the rounds you can see. */
+export function usePlayerRuleStats(profileId: string | undefined) {
+  return useQuery({
+    queryKey: ['player-rule-stats', profileId],
+    enabled: Boolean(profileId),
+    queryFn: async (): Promise<PlayerRuleStat[]> => {
+      const { data, error } = await supabase.rpc('player_rule_stats', {
+        p_other: profileId!,
+      })
+      if (error) throw error
+      return (data ?? []) as PlayerRuleStat[]
+    },
+  })
+}
+
 /** Quick-add a player you've played with to one of your groups (spec §11). */
 export function useQuickAddToGroup() {
   const { user } = useAuth()

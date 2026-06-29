@@ -48,4 +48,24 @@ export interface Theme {
   description: string
   mode: ThemeMode
   tokens: ThemeTokens
+  /** Bespoke winner badge (spec §13); defaults to a plain "Winner" when absent. */
+  winner?: WinnerTreatment
+}
+
+/**
+ * Per-theme winner treatment (spec §13) — the badge a theme stamps on the winner
+ * (e.g. arcade "JACKPOT", casino "HOUSE WINS"). Data, not code: a theme declares
+ * it and the results board / scorecards render it; themes without one fall back
+ * to a plain "Winner".
+ */
+export interface WinnerTreatment {
+  /** Badge text in the theme's voice. */
+  label: string
+  /** Optional glyph shown before the label (e.g. "👑", "🪙"). */
+  emoji?: string
+}
+
+/** A theme's winner treatment, or the plain default. */
+export function winnerTreatment(theme: Theme): WinnerTreatment {
+  return theme.winner ?? { label: 'Winner' }
 }
