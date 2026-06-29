@@ -49,6 +49,34 @@ export function useSetRegularStrokes(roundId: string | undefined) {
   })
 }
 
+/**
+ * Confirm (or reopen) a player's regular score in the end-of-round flow. A player
+ * confirms their own slot; the single-phone controller confirms anyone; a guest's
+ * score may be confirmed by any participant (server-gated in migration 0012). A
+ * confirmed score is locked from edits until unconfirmed.
+ */
+export function useSetScoreConfirmed(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      playerId,
+      confirmed,
+    }: {
+      playerId: string
+      confirmed: boolean
+    }) => {
+      const { error } = await supabase.rpc('set_score_confirmed', {
+        p_player_id: playerId,
+        p_confirmed: confirmed,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['round-players', roundId] })
+    },
+  })
+}
+
 /** Set or correct the course par (any participant; spec — over/under-par finals). */
 export function useSetRoundPar(roundId: string | undefined) {
   const qc = useQueryClient()

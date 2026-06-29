@@ -5,6 +5,7 @@ import {
   formatToPar,
   parseConversion,
   randomPick,
+  scoreConfirmation,
 } from './results'
 import type { PointEvent, RoundPlayer } from '@/types'
 
@@ -20,6 +21,7 @@ function player(
     roster_status: 'active',
     joined_at: '2026-06-29T00:00:00Z',
     regular_strokes: null,
+    score_confirmed: false,
     claim_token: null,
     claim_token_expires_at: null,
     claimed: false,
@@ -167,5 +169,43 @@ describe('tie-break helpers', () => {
     expect(randomPick(['a', 'b', 'c'], 0)).toBe('a')
     expect(randomPick(['a', 'b', 'c'], 0.99)).toBe('c')
     expect(randomPick([], 0.5)).toBeNull()
+  })
+})
+
+describe('scoreConfirmation', () => {
+  it('is not all-confirmed while a score is missing or unconfirmed', () => {
+    const players = [
+      player({ id: 'a', regular_strokes: 54, score_confirmed: true }),
+      player({ id: 'b', regular_strokes: 50, score_confirmed: false }), // entered, not confirmed
+      player({ id: 'c' }), // no score yet
+    ]
+    const gate = scoreConfirmation(players)
+    expect(gate.allConfirmed).toBe(false)
+    expect(gate.confirmedCount).toBe(1)
+    expect(gate.total).toBe(3)
+    expect(gate.awaiting.map((p) => p.id)).toEqual(['b'])
+    expect(gate.missingScore.map((p) => p.id)).toEqual(['c'])
+  })
+
+  it('is all-confirmed once every active player has confirmed', () => {
+    const players = [
+      player({ id: 'a', regular_strokes: 54, score_confirmed: true }),
+      player({ id: 'b', regular_strokes: 50, score_confirmed: true }),
+    ]
+    expect(scoreConfirmation(players).allConfirmed).toBe(true)
+  })
+
+  it('ignores players who left and never gates an empty roster', () => {
+    const players = [
+      player({ id: 'a', regular_strokes: 54, score_confirmed: true }),
+      player({
+        id: 'gone',
+        regular_strokes: null,
+        score_confirmed: false,
+        roster_status: 'left',
+      }),
+    ]
+    expect(scoreConfirmation(players).allConfirmed).toBe(true)
+    expect(scoreConfirmation([]).allConfirmed).toBe(false)
   })
 })

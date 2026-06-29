@@ -3,10 +3,12 @@ import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
 import { useRoundPlayers } from '@/lib/rounds'
+import { useAuth } from '@/lib/auth'
 import { usePointEvents, useRoundRules } from '@/lib/scoring'
 import {
   useSetRegularStrokes,
   useSetRoundPar,
+  useSetScoreConfirmed,
   useSetTiebreak,
 } from '@/lib/endRound'
 import { useSendClaimEmail } from '@/lib/claim'
@@ -16,7 +18,9 @@ import {
   computeResults,
   formatToPar,
   randomPick,
+  scoreConfirmation,
   type ResultRow,
+  type ScoreConfirmation,
 } from '@/features/round/results'
 import { errorMessage } from '@/lib/validation'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
@@ -30,6 +34,8 @@ export function ResultsScreen({ round }: { round: Round }) {
   const { data: players = [] } = useRoundPlayers(round.id)
   const { data: events = [] } = usePointEvents(round.id)
   const { data: rules = [] } = useRoundRules(round.id)
+
+  const gate = useMemo(() => scoreConfirmation(players), [players])
 
   const results = useMemo(
     () =>
@@ -54,6 +60,13 @@ export function ResultsScreen({ round }: { round: Round }) {
     results.tiedForWin.length > 1 &&
     !round.tiebreak_winner_id
 
+  // End-of-round step 2 (spec §10): a dedicated enter-&-confirm-scores screen
+  // sits before the final standings. In Multi Phone the finals stay locked until
+  // every active player has confirmed their own regular score.
+  if (!gate.allConfirmed) {
+    return <ScoreConfirmScreen round={round} players={players} gate={gate} />
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <div>
@@ -65,7 +78,7 @@ export function ResultsScreen({ round }: { round: Round }) {
         </p>
       </div>
 
-      <ScoreEntry roundId={round.id} players={results.rows} />
+      <ReopenScores round={round} players={players} />
 
       <ParEditor roundId={round.id} par={round.par} />
 
@@ -266,31 +279,144 @@ function ParEditor({ roundId, par }: { roundId: string; par: number | null }) {
   )
 }
 
-function ScoreEntry({
-  roundId,
+/**
+ * End-of-round step 2 (spec §10): enter & confirm regular scores before the final
+ * standings. Each active player confirms their own score; in Multi Phone the
+ * final screen waits until everyone has. In Single Phone the controller enters
+ * everyone's and confirms in one tap. A confirmed score is locked until reopened.
+ */
+function ScoreConfirmScreen({
+  round,
   players,
+  gate,
 }: {
-  roundId: string
-  players: ResultRow[]
+  round: Round
+  players: RoundPlayer[]
+  gate: ScoreConfirmation
 }) {
+  const { user } = useAuth()
+  const isController = round.created_by === user?.id
+  const isSinglePhone = round.scoring_mode === 'single_phone'
+  const singlePhoneController = isSinglePhone && isController
+  const active = players.filter((p) => p.roster_status === 'active')
+
+  // Who the caller may enter/confirm. Single Phone is controller-driven: the
+  // controller manages everyone, spectators nothing. Multi Phone: your own slot,
+  // plus any guest (guests have no device of their own). Mirrors migration 0012.
+  const canManage = (p: RoundPlayer): boolean => {
+    if (isSinglePhone) return singlePhoneController
+    if (p.is_guest) return true
+    return p.profile_id === user?.id
+  }
+
+  const intro = singlePhoneController
+    ? "Enter everyone's total strokes, then confirm to see the final standings."
+    : isSinglePhone
+      ? 'The host is entering and confirming scores. Standings unlock once they do.'
+      : 'Enter your total strokes and confirm. Final standings unlock once everyone confirms.'
+
+  const waiting = active.filter((p) => !p.score_confirmed)
+
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <h2 className="font-label text-sm font-semibold text-text">
-        Regular scores
-      </h2>
-      <p className="mt-1 font-label text-xs text-muted">
-        Enter each player's total strokes for the round.
-      </p>
-      <ul className="mt-2 flex flex-col gap-2">
-        {players.map((row) => (
-          <ScoreRow key={row.player.id} roundId={roundId} player={row.player} />
-        ))}
-      </ul>
-    </section>
+    <div className="flex flex-col gap-4 p-4">
+      <div>
+        <h1 className="font-display text-xl font-bold text-text">
+          {round.course_name || 'Round'} — scores
+        </h1>
+        <p className="font-label text-xs text-muted">
+          {round.played_on} · Scoring locked
+        </p>
+      </div>
+
+      <section className="rounded-card border border-border bg-surface p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-label text-sm font-semibold text-text">
+            Enter &amp; confirm scores
+          </h2>
+          <span className="font-numeral text-xs text-muted">
+            {gate.confirmedCount}/{gate.total} confirmed
+          </span>
+        </div>
+        <p className="mt-1 font-label text-xs text-muted">{intro}</p>
+
+        <ul className="mt-3 flex flex-col gap-2">
+          {active.map((player) =>
+            singlePhoneController ? (
+              <StrokeInputRow
+                key={player.id}
+                roundId={round.id}
+                player={player}
+              />
+            ) : (
+              <ConfirmRow
+                key={player.id}
+                roundId={round.id}
+                player={player}
+                canManage={canManage(player)}
+              />
+            ),
+          )}
+        </ul>
+
+        {singlePhoneController ? (
+          <ConfirmAllButton roundId={round.id} players={active} gate={gate} />
+        ) : waiting.length > 0 ? (
+          <p className="mt-3 font-label text-xs text-muted">
+            Waiting on {waiting.map((p) => p.display_name).join(', ')}.
+          </p>
+        ) : null}
+      </section>
+    </div>
   )
 }
 
-function ScoreRow({
+/** One confirm button for Single Phone: confirm every player's score at once. */
+function ConfirmAllButton({
+  roundId,
+  players,
+  gate,
+}: {
+  roundId: string
+  players: RoundPlayer[]
+  gate: ScoreConfirmation
+}) {
+  const setConfirmed = useSetScoreConfirmed(roundId)
+  const [error, setError] = useState<string | null>(null)
+  const ready = gate.missingScore.length === 0 && gate.total > 0
+
+  function confirmAll() {
+    setError(null)
+    for (const p of players) {
+      if (p.score_confirmed) continue
+      setConfirmed.mutate(
+        { playerId: p.id, confirmed: true },
+        { onError: (e) => setError(errorMessage(e)) },
+      )
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <Button
+        type="button"
+        disabled={!ready || setConfirmed.isPending}
+        onClick={confirmAll}
+      >
+        Confirm scores &amp; view results
+      </Button>
+      {!ready ? (
+        <p className="mt-1 font-label text-xs text-muted">
+          Enter every player's score first.
+        </p>
+      ) : null}
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+    </div>
+  )
+}
+
+/** A bare strokes input (Single Phone controller fills these, confirms via the
+ * single button below). Commits on blur / Enter, kept in sync across devices. */
+function StrokeInputRow({
   roundId,
   player,
 }: {
@@ -301,7 +427,6 @@ function ScoreRow({
   const [value, setValue] = useState(player.regular_strokes?.toString() ?? '')
   const [error, setError] = useState<string | null>(null)
 
-  // Keep the field in sync when another device enters this player's score.
   useEffect(() => {
     setValue(player.regular_strokes?.toString() ?? '')
   }, [player.regular_strokes])
@@ -344,6 +469,190 @@ function ScoreRow({
         {error ? <FormMessage tone="error">{error}</FormMessage> : null}
       </div>
     </li>
+  )
+}
+
+/**
+ * A score row in the per-player confirm flow (Multi Phone, and Single Phone
+ * spectators). If the caller manages this slot they can enter + confirm it, and
+ * a confirmed score shows locked with an Edit (reopen) button; otherwise it's a
+ * read-only live status (confirmed / waiting).
+ */
+function ConfirmRow({
+  roundId,
+  player,
+  canManage,
+}: {
+  roundId: string
+  player: RoundPlayer
+  canManage: boolean
+}) {
+  const setStrokes = useSetRegularStrokes(roundId)
+  const setConfirmed = useSetScoreConfirmed(roundId)
+  const [value, setValue] = useState(player.regular_strokes?.toString() ?? '')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setValue(player.regular_strokes?.toString() ?? '')
+  }, [player.regular_strokes])
+
+  const busy = setStrokes.isPending || setConfirmed.isPending
+
+  function confirm() {
+    const trimmed = value.trim()
+    if (trimmed === '') {
+      setError('Enter a score before confirming.')
+      return
+    }
+    const next = Number(trimmed)
+    if (!Number.isInteger(next) || next < 0) {
+      setError('Enter a whole number of strokes.')
+      return
+    }
+    setError(null)
+    const doConfirm = () =>
+      setConfirmed.mutate(
+        { playerId: player.id, confirmed: true },
+        { onError: (e) => setError(errorMessage(e)) },
+      )
+    // Persist a freshly typed value before locking it in.
+    if (next !== player.regular_strokes) {
+      setStrokes.mutate(
+        { playerId: player.id, strokes: next },
+        { onSuccess: doConfirm, onError: (e) => setError(errorMessage(e)) },
+      )
+    } else {
+      doConfirm()
+    }
+  }
+
+  function reopen() {
+    setError(null)
+    setConfirmed.mutate(
+      { playerId: player.id, confirmed: false },
+      { onError: (e) => setError(errorMessage(e)) },
+    )
+  }
+
+  const name = (
+    <span className="font-label text-sm text-text">
+      {player.display_name}
+      {player.is_guest ? (
+        <span className="ml-1 font-label text-xs text-muted">Guest</span>
+      ) : null}
+    </span>
+  )
+
+  if (!canManage) {
+    return (
+      <li className="flex items-center justify-between gap-2">
+        {name}
+        <span className="font-label text-xs">
+          {player.score_confirmed ? (
+            <span style={{ color: 'var(--color-winner)' }}>
+              Confirmed · {player.regular_strokes}
+            </span>
+          ) : player.regular_strokes != null ? (
+            <span className="text-muted">Entered, not confirmed</span>
+          ) : (
+            <span className="text-muted">Waiting</span>
+          )}
+        </span>
+      </li>
+    )
+  }
+
+  if (player.score_confirmed) {
+    return (
+      <li className="flex items-center justify-between gap-2">
+        {name}
+        <span className="flex items-center gap-2">
+          <span
+            className="font-numeral text-sm font-bold"
+            style={{ color: 'var(--color-winner)' }}
+          >
+            {player.regular_strokes} ✓
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={reopen}
+          >
+            Edit
+          </Button>
+        </span>
+      </li>
+    )
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-2">
+      {name}
+      <div className="flex items-start gap-2">
+        <div className="w-20">
+          <TextInput
+            value={value}
+            inputMode="numeric"
+            placeholder="—"
+            aria-label={`${player.display_name} total strokes`}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') confirm()
+            }}
+          />
+          {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+        </div>
+        <Button type="button" disabled={busy} onClick={confirm}>
+          Confirm
+        </Button>
+      </div>
+    </li>
+  )
+}
+
+/**
+ * On the final screen, reopen the (locked) scores for correction — unconfirms the
+ * slots the caller manages, which sends the round back to the confirm step. In
+ * Multi Phone that's your own slot (everyone then waits on you again); the
+ * single-phone controller reopens all.
+ */
+function ReopenScores({
+  round,
+  players,
+}: {
+  round: Round
+  players: RoundPlayer[]
+}) {
+  const { user } = useAuth()
+  const setConfirmed = useSetScoreConfirmed(round.id)
+  const isController = round.created_by === user?.id
+  const singlePhoneController =
+    round.scoring_mode === 'single_phone' && isController
+
+  const mine = players.filter((p) => {
+    if (p.roster_status !== 'active') return false
+    if (singlePhoneController) return true
+    return p.profile_id === user?.id
+  })
+  if (mine.length === 0) return null
+
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-card border border-border bg-surface-alt px-4 py-2">
+      <span className="font-label text-xs text-muted">Scores confirmed.</span>
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={setConfirmed.isPending}
+        onClick={() => {
+          for (const p of mine) {
+            setConfirmed.mutate({ playerId: p.id, confirmed: false })
+          }
+        }}
+      >
+        Edit scores
+      </Button>
+    </div>
   )
 }
 

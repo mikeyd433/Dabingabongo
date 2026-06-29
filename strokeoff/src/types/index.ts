@@ -126,6 +126,8 @@ export interface RoundPlayer {
   roster_status: RosterStatus
   joined_at: string
   regular_strokes: number | null
+  /** Player has confirmed their regular score in the end-of-round flow (spec §10). */
+  score_confirmed: boolean
   claim_token: string | null
   claim_token_expires_at: string | null
   claimed: boolean

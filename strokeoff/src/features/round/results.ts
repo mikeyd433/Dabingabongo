@@ -116,6 +116,39 @@ export function computeResults(
   return { rows, finalsReady, tiedForWin, winner }
 }
 
+/**
+ * The end-of-round confirmation gate (spec §10 step 2). Each active player enters
+ * and confirms their own regular score; the final standings stay locked until all
+ * have confirmed. Pure so the screen and tests share one definition; only active
+ * (non-left) players gate, matching `computeResults`.
+ */
+export interface ScoreConfirmation {
+  /** Active players still missing a regular score. */
+  missingScore: RoundPlayer[]
+  /** Active players with a score entered but not yet confirmed. */
+  awaiting: RoundPlayer[]
+  confirmedCount: number
+  total: number
+  /** Every active player has entered and confirmed their score. */
+  allConfirmed: boolean
+}
+
+export function scoreConfirmation(players: RoundPlayer[]): ScoreConfirmation {
+  const active = players.filter((p) => p.roster_status === 'active')
+  const missingScore = active.filter((p) => p.regular_strokes == null)
+  const awaiting = active.filter(
+    (p) => p.regular_strokes != null && !p.score_confirmed,
+  )
+  const confirmedCount = active.filter((p) => p.score_confirmed).length
+  return {
+    missingScore,
+    awaiting,
+    confirmedCount,
+    total: active.length,
+    allConfirmed: active.length > 0 && active.every((p) => p.score_confirmed),
+  }
+}
+
 /** Golf-style over/under-par label: 0 → "E", −2 → "−2", +3 → "+3". */
 export function formatToPar(toPar: number): string {
   if (toPar === 0) return 'E'

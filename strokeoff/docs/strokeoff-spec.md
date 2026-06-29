@@ -204,9 +204,10 @@ On confirm, **scoring locks** and the round moves to the end-of-round flow.
 ## 10. End-of-Round Flow
 
 1. **End Round** (any participant, §9) → scoring locks.
-2. **Enter regular scores** (final-entry mode):
-   - **Multi Phone:** each player enters their own total strokes; anyone can fill gaps.
-   - **Single Phone:** the controller enters everyone's.
+2. **Enter & confirm regular scores** (a dedicated step *before* the final standings):
+   - **Multi Phone:** each player enters and **confirms** their own total strokes; a guest's score may be entered/confirmed by any participant. The **final standings stay locked until every active player has confirmed**.
+   - **Single Phone:** the controller enters everyone's, then confirms in one tap to reveal the standings.
+   - A **confirmed score is locked**; correcting it requires reopening (unconfirm), which sends the round back to this step for everyone in Multi Phone.
 3. **Tie-break (if needed)** — if two or more players share the lowest adjusted final, a **tie-breaker** runs to pick a single winner (see below). The chosen winner is flagged **"by tie-breaker"** on the scorecard.
 4. **Results leaderboard** — players ranked with **side-game points**, **stroke deduction**, **regular score**, and **adjusted final score**.
 5. **Auto-saved to History** — every completed round is saved automatically; a **delete** option exists in History.
