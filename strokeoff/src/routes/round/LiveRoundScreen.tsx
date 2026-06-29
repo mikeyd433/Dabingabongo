@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from 'react'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
+import { Avatar } from '@/components/Avatar'
 import { useAuth } from '@/lib/auth'
 import { useAddGuest, useRoundPlayers } from '@/lib/rounds'
 import { useEndRound } from '@/lib/endRound'
@@ -22,6 +30,8 @@ import {
 import { buildLeaderboard } from '@/features/round/leaderboard'
 import { groupLiveEvents, type FeedGroup } from '@/features/round/feed'
 import { controllablePlayers } from '@/features/round/permissions'
+import { parseConversion } from '@/features/round/results'
+import { strokesForPoints } from '@/features/conversion/convert'
 import { celebrate } from '@/features/animations/celebrate'
 import { CoachMark } from '@/components/CoachMark'
 import { haptic } from '@/lib/haptics'
@@ -34,6 +44,10 @@ import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
  * read-only spectators. Guests work in both modes (managed by a player, with
  * reassignment). The leaderboard + feed derive from the point-event ledger;
  * what a caller may log/edit/undo mirrors the server permission check.
+ *
+ * A rule scores its subject (`single`), the subject plus hand-picked players
+ * (`multi`), or every active player at once (`everyone`); a scalable rule prompts
+ * for a quantity that multiplies its points (e.g. one point per tree bounce).
  */
 export function LiveRoundScreen({ round }: { round: Round }) {
   const { user } = useAuth()
@@ -63,9 +77,24 @@ export function LiveRoundScreen({ round }: { round: Round }) {
     () => buildLeaderboard(players, events),
     [players, events],
   )
+
+  // Live preview of how each player's points currently convert to strokes off
+  // (spec §8) — against the round's frozen conversion snapshot.
+  const conversion = useMemo(
+    () => parseConversion(round.conversion_snapshot),
+    [round.conversion_snapshot],
+  )
+  const strokesOffFor = (points: number) =>
+    conversion ? strokesForPoints(conversion.mode, conversion.config, points) : 0
+
   const playerName = useMemo(() => {
     const map = new Map<string, string>()
     for (const p of players) map.set(p.id, p.display_name)
+    return map
+  }, [players])
+  const playerAvatar = useMemo(() => {
+    const map = new Map<string, string | null>()
+    for (const p of players) map.set(p.id, p.avatar_url)
     return map
   }, [players])
 
@@ -93,7 +122,7 @@ export function LiveRoundScreen({ round }: { round: Round }) {
         </p>
       ) : null}
 
-      <Leaderboard rows={leaderboard} meId={me?.id} />
+      <Leaderboard rows={leaderboard} meId={me?.id} strokesOffFor={strokesOffFor} />
 
       {canScore ? (
         <CoachMark id="live-scoring">
@@ -108,6 +137,7 @@ export function LiveRoundScreen({ round }: { round: Round }) {
           subjects={controllable}
           players={players}
           rules={rules}
+          events={events}
           animationsEnabled={round.animations_enabled}
         />
       ) : null}
@@ -125,6 +155,7 @@ export function LiveRoundScreen({ round }: { round: Round }) {
         roundId={round.id}
         events={events}
         playerName={playerName}
+        playerAvatar={playerAvatar}
         controllableIds={controllableIds}
         canScore={canScore}
       />
@@ -132,6 +163,42 @@ export function LiveRoundScreen({ round }: { round: Round }) {
       {me && !hasLeft ? <EndRoundControl roundId={round.id} /> : null}
     </div>
   )
+}
+
+/**
+ * FLIP animation for a keyed list: when rows reorder (a player overtakes
+ * another), each row slides from its old position to its new one instead of
+ * snapping (spec §13 polish). Pure DOM transforms — no animation library.
+ */
+function useFlipList() {
+  const refs = useRef(new Map<string, HTMLElement>())
+  const prevRects = useRef(new Map<string, DOMRect>())
+
+  useLayoutEffect(() => {
+    const next = new Map<string, DOMRect>()
+    refs.current.forEach((el, id) => {
+      const rect = el.getBoundingClientRect()
+      next.set(id, rect)
+      const prev = prevRects.current.get(id)
+      if (prev) {
+        const dy = prev.top - rect.top
+        if (dy) {
+          el.style.transform = `translateY(${dy}px)`
+          el.style.transition = 'transform 0s'
+          requestAnimationFrame(() => {
+            el.style.transform = ''
+            el.style.transition = 'transform 250ms ease'
+          })
+        }
+      }
+    })
+    prevRects.current = next
+  })
+
+  return (id: string) => (el: HTMLElement | null) => {
+    if (el) refs.current.set(id, el)
+    else refs.current.delete(id)
+  }
 }
 
 /**
@@ -148,7 +215,7 @@ function EndRoundControl({ roundId }: { roundId: string }) {
       <div className="pt-2 text-center">
         <button
           type="button"
-          className="font-label text-xs text-muted underline"
+          className="inline-flex min-h-[44px] items-center px-4 font-label text-xs text-muted underline"
           onClick={() => setOpen(true)}
         >
           End round…
@@ -274,7 +341,7 @@ function Header({
       {me && !hasLeft ? (
         <button
           type="button"
-          className="font-label text-xs text-muted underline disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center px-2 font-label text-xs text-muted underline disabled:opacity-50"
           disabled={leave.isPending}
           onClick={() => leave.mutate('left')}
         >
@@ -307,10 +374,13 @@ function LeftBanner({ roundId }: { roundId: string }) {
 function Leaderboard({
   rows,
   meId,
+  strokesOffFor,
 }: {
   rows: ReturnType<typeof buildLeaderboard>
   meId: string | undefined
+  strokesOffFor: (points: number) => number
 }) {
+  const setRef = useFlipList()
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-label text-sm font-semibold text-text">Leaderboard</h2>
@@ -320,9 +390,11 @@ function Leaderboard({
         <ol className="mt-2 flex flex-col gap-1">
           {rows.map((row) => {
             const isMe = row.player.id === meId
+            const off = strokesOffFor(row.points)
             return (
               <li
                 key={row.player.id}
+                ref={setRef(row.player.id)}
                 className="flex items-center justify-between gap-2 rounded-card px-2 py-1.5"
                 style={
                   isMe
@@ -330,15 +402,31 @@ function Leaderboard({
                     : undefined
                 }
               >
-                <span className="flex items-center gap-2 font-label text-sm text-text">
-                  <span className="w-5 font-numeral text-muted">{row.rank}</span>
-                  <span>{row.player.display_name}</span>
+                <span className="flex min-w-0 items-center gap-2 font-label text-sm text-text">
+                  <span className="w-5 shrink-0 font-numeral text-muted">
+                    {row.rank}
+                  </span>
+                  <Avatar
+                    name={row.player.display_name}
+                    url={row.player.avatar_url}
+                    sizeClass="h-7 w-7 text-sm"
+                  />
+                  <span className="truncate">{row.player.display_name}</span>
                   {row.player.is_guest ? (
-                    <span className="font-label text-xs text-muted">Guest</span>
+                    <span className="shrink-0 font-label text-xs text-muted">
+                      Guest
+                    </span>
                   ) : null}
                 </span>
-                <span className="font-numeral text-base font-bold text-text">
-                  {row.points}
+                <span className="flex shrink-0 items-center gap-2">
+                  {off > 0 ? (
+                    <span className="font-numeral text-xs text-muted">
+                      −{off} off
+                    </span>
+                  ) : null}
+                  <span className="font-numeral text-base font-bold text-text">
+                    {row.points}
+                  </span>
                 </span>
               </li>
             )
@@ -349,27 +437,58 @@ function Leaderboard({
   )
 }
 
+/** A live log entry the user can immediately undo (spec §6, mis-tap recovery). */
+interface UndoEntry {
+  id: string
+  label: string
+}
+
 function RulePalette({
   roundId,
   subjects,
   players,
   rules,
+  events,
   animationsEnabled,
 }: {
   roundId: string
   subjects: RoundPlayer[]
   players: RoundPlayer[]
   rules: RoundRule[]
+  events: PointEvent[]
   animationsEnabled: boolean
 }) {
   const logPoint = useLogPoint(roundId)
+  const voidEvent = useVoidPointEvent(roundId)
   const [subjectId, setSubjectId] = useState<string | undefined>(undefined)
-  const [multiRule, setMultiRule] = useState<RoundRule | null>(null)
+  const [modalRule, setModalRule] = useState<RoundRule | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [undo, setUndo] = useState<UndoEntry | null>(null)
+  const undoTimer = useRef<number | null>(null)
 
   // Keep a valid subject even as the roster changes (guest added, player left).
   const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0]
   const choosesSubject = subjects.length > 1
+
+  // Per-rule running tally for the current subject (#3) — the count already on
+  // the board, shown on each rule so the scorer sees state without the feed.
+  const subjectCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!subject) return m
+    for (const ev of events) {
+      if (ev.voided || !ev.rule_id) continue
+      if (ev.subject_player_id !== subject.id) continue
+      m.set(ev.rule_id, (m.get(ev.rule_id) ?? 0) + ev.count)
+    }
+    return m
+  }, [events, subject])
+
+  useEffect(
+    () => () => {
+      if (undoTimer.current) window.clearTimeout(undoTimer.current)
+    },
+    [],
+  )
 
   // Mark a landed point: a success haptic (always, separate from the visual
   // toggle) plus the rule's celebration (spec §12) when animations are enabled.
@@ -378,16 +497,51 @@ function RulePalette({
     if (animationsEnabled) celebrate(rule.animation_config)
   }
 
-  function logSingle(rule: RoundRule) {
+  // Offer a brief undo, but only for single-subject logs — reversing a
+  // multi/everyone award would leave the others' points dangling, so those
+  // stay on the feed's +/− controls instead.
+  function offerUndo(rule: RoundRule, eventId: string, count: number) {
+    if (rule.player_scope !== 'single') return
+    if (undoTimer.current) window.clearTimeout(undoTimer.current)
+    setUndo({
+      id: eventId,
+      label: `${rule.name_snapshot} +${count * rule.points_snapshot}`,
+    })
+    undoTimer.current = window.setTimeout(() => setUndo(null), 5000)
+  }
+
+  function doUndo() {
+    if (!undo) return
+    voidEvent.mutate({ eventId: undo.id })
+    if (undoTimer.current) window.clearTimeout(undoTimer.current)
+    setUndo(null)
+  }
+
+  function log(rule: RoundRule, count: number, involvedPlayerIds?: string[]) {
     if (!subject) return
     setError(null)
+    const eventId = crypto.randomUUID()
     logPoint.mutate(
-      { eventId: crypto.randomUUID(), subjectPlayerId: subject.id, rule },
+      { eventId, subjectPlayerId: subject.id, rule, count, involvedPlayerIds },
       {
-        onSuccess: () => celebrateFor(rule),
+        onSuccess: () => {
+          setModalRule(null)
+          celebrateFor(rule)
+          offerUndo(rule, eventId, count)
+        },
         onError: (e) => setError(errorMessage(e)),
       },
     )
+  }
+
+  function onTapRule(rule: RoundRule) {
+    // A modal is only needed to collect a quantity (scalable) or pick the other
+    // players (multi). Single + everyone log straight away.
+    if (rule.is_scalable || rule.player_scope === 'multi') {
+      setModalRule(rule)
+      return
+    }
+    log(rule, 1)
   }
 
   if (rules.length === 0) {
@@ -429,83 +583,102 @@ function RulePalette({
       )}
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {rules.map((rule) => (
-          <button
-            key={rule.rule_id}
-            type="button"
-            disabled={logPoint.isPending}
-            onClick={() =>
-              rule.player_scope === 'multi'
-                ? setMultiRule(rule)
-                : logSingle(rule)
-            }
-            className="flex min-h-[44px] flex-col items-start rounded-card border border-border bg-surface-alt px-3 py-2 text-left transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <span className="font-label text-sm font-semibold text-text">
-              {rule.name_snapshot}
-            </span>
-            <span className="font-numeral text-xs text-muted">
-              +{rule.points_snapshot}
-              {rule.player_scope === 'multi' ? ' · group' : ''}
-            </span>
-          </button>
-        ))}
+        {rules.map((rule) => {
+          const scored = subjectCounts.get(rule.rule_id) ?? 0
+          return (
+            <button
+              key={rule.rule_id}
+              type="button"
+              disabled={logPoint.isPending}
+              onClick={() => onTapRule(rule)}
+              className="flex min-h-[44px] flex-col items-start rounded-card border border-border bg-surface-alt px-3 py-2 text-left transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <span className="font-label text-sm font-semibold text-text">
+                {rule.name_snapshot}
+              </span>
+              <span className="font-numeral text-xs text-muted">
+                +{rule.points_snapshot}
+                {rule.is_scalable
+                  ? `/${rule.quantity_label || 'unit'}`
+                  : ''}
+                {rule.player_scope === 'everyone'
+                  ? ' · everyone'
+                  : rule.player_scope === 'multi'
+                    ? ' · group'
+                    : ''}
+                {scored > 0 ? ` · ×${scored}` : ''}
+              </span>
+            </button>
+          )
+        })}
       </div>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
 
-      {multiRule && subject ? (
-        <MultiPlayerPicker
-          rule={multiRule}
-          subjectId={subject.id}
-          subjectName={subject.display_name}
+      {modalRule && subject ? (
+        <LogModal
+          rule={modalRule}
+          subject={subject}
           players={players}
           pending={logPoint.isPending}
-          onCancel={() => setMultiRule(null)}
-          onConfirm={(involvedPlayerIds) => {
-            setError(null)
-            logPoint.mutate(
-              {
-                eventId: crypto.randomUUID(),
-                subjectPlayerId: subject.id,
-                rule: multiRule,
-                involvedPlayerIds,
-              },
-              {
-                onSuccess: () => {
-                  setMultiRule(null)
-                  celebrateFor(multiRule)
-                },
-                onError: (e) => setError(errorMessage(e)),
-              },
-            )
-          }}
+          onCancel={() => setModalRule(null)}
+          onConfirm={({ count, involvedPlayerIds }) =>
+            log(modalRule, count, involvedPlayerIds)
+          }
         />
+      ) : null}
+
+      {undo ? (
+        <div className="fixed inset-x-0 bottom-20 z-40 px-4">
+          <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 rounded-card border border-border bg-surface px-4 py-2 shadow-lg">
+            <span className="font-label text-sm text-text">
+              Logged {undo.label}
+            </span>
+            <button
+              type="button"
+              className="min-h-[44px] font-label text-sm font-semibold text-accent underline"
+              onClick={doUndo}
+            >
+              Undo
+            </button>
+          </div>
+        </div>
       ) : null}
     </section>
   )
 }
 
-function MultiPlayerPicker({
+/**
+ * Collects whatever a rule needs before logging: a quantity for a scalable rule
+ * (its points multiply by this), and/or the other involved players for a
+ * multi-player rule. Single non-scalable + everyone rules never open this.
+ */
+function LogModal({
   rule,
-  subjectId,
-  subjectName,
+  subject,
   players,
   pending,
   onCancel,
   onConfirm,
 }: {
   rule: RoundRule
-  subjectId: string
-  subjectName: string
+  subject: RoundPlayer
   players: RoundPlayer[]
   pending: boolean
   onCancel: () => void
-  onConfirm: (involvedPlayerIds: string[]) => void
+  onConfirm: (input: { count: number; involvedPlayerIds?: string[] }) => void
 }) {
+  const isMulti = rule.player_scope === 'multi'
   const others = players.filter(
-    (p) => p.id !== subjectId && p.roster_status === 'active',
+    (p) => p.id !== subject.id && p.roster_status === 'active',
   )
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [qty, setQty] = useState('1')
+
+  const unit = rule.quantity_label || 'points'
+  const count = rule.is_scalable ? Number(qty) : 1
+  const qtyValid = Number.isInteger(count) && count >= 1
+  const canConfirm =
+    qtyValid && (!isMulti || selected.size > 0) && !pending
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -519,47 +692,108 @@ function MultiPlayerPicker({
   return (
     <div className="mt-3 rounded-card border border-border bg-surface-alt p-3">
       <p className="font-label text-sm font-semibold text-text">
-        {rule.name_snapshot} — who else was involved with {subjectName}?
+        {rule.name_snapshot}
+        {isMulti ? ` — who else was involved with ${subject.display_name}?` : ''}
       </p>
-      <p className="mt-1 font-label text-xs text-muted">
-        Everyone selected also gets +{rule.points_snapshot}.
-      </p>
-      {others.length === 0 ? (
-        <p className="mt-2 font-label text-xs text-muted">
-          No other active players to involve.
-        </p>
-      ) : (
-        <ul className="mt-2 flex flex-col gap-1">
-          {others.map((p) => (
-            <li key={p.id}>
-              <label className="flex min-h-[44px] items-center gap-2 font-label text-sm text-text">
-                <input
-                  type="checkbox"
-                  checked={selected.has(p.id)}
-                  onChange={() => toggle(p.id)}
-                />
-                {p.display_name}
-                {p.is_guest ? (
-                  <span className="font-label text-xs text-muted">Guest</span>
-                ) : null}
-              </label>
-            </li>
-          ))}
-        </ul>
-      )}
+
+      {rule.is_scalable ? (
+        <div className="mt-2">
+          <label className="font-label text-xs text-muted" htmlFor="log-qty">
+            How many {unit}? Each is +{rule.points_snapshot}.
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <Stepper
+              label="−"
+              onClick={() =>
+                setQty((q) => String(Math.max(1, (Number(q) || 1) - 1)))
+              }
+            />
+            <div className="w-20">
+              <TextInput
+                id="log-qty"
+                value={qty}
+                inputMode="numeric"
+                aria-label={`How many ${unit}`}
+                onChange={(e) => setQty(e.target.value)}
+              />
+            </div>
+            <Stepper
+              label="+"
+              onClick={() => setQty((q) => String((Number(q) || 0) + 1))}
+            />
+            {qtyValid ? (
+              <span className="font-numeral text-xs text-muted">
+                = +{count * rule.points_snapshot}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {isMulti ? (
+        <div className="mt-3">
+          <p className="font-label text-xs text-muted">
+            Everyone selected also gets the same.
+          </p>
+          {others.length === 0 ? (
+            <p className="mt-2 font-label text-xs text-muted">
+              No other active players to involve.
+            </p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {others.map((p) => (
+                <li key={p.id}>
+                  <label className="flex min-h-[44px] items-center gap-2 font-label text-sm text-text">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggle(p.id)}
+                    />
+                    {p.display_name}
+                    {p.is_guest ? (
+                      <span className="font-label text-xs text-muted">
+                        Guest
+                      </span>
+                    ) : null}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
       <div className="mt-3 flex gap-2">
         <Button
           type="button"
-          disabled={pending || selected.size === 0}
-          onClick={() => onConfirm([...selected])}
+          disabled={!canConfirm}
+          onClick={() =>
+            onConfirm({
+              count,
+              involvedPlayerIds: isMulti ? [...selected] : undefined,
+            })
+          }
         >
-          {pending ? 'Logging…' : 'Log for all'}
+          {pending ? 'Logging…' : isMulti ? 'Log for all' : 'Log'}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>
     </div>
+  )
+}
+
+function Stepper({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label === '−' ? 'Decrease' : 'Increase'}
+      className="flex h-11 w-11 items-center justify-center rounded-card border border-border bg-surface font-numeral text-text"
+    >
+      {label}
+    </button>
   )
 }
 
@@ -710,12 +944,14 @@ function EventFeed({
   roundId,
   events,
   playerName,
+  playerAvatar,
   controllableIds,
   canScore,
 }: {
   roundId: string
   events: PointEvent[]
   playerName: Map<string, string>
+  playerAvatar: Map<string, string | null>
   controllableIds: Set<string>
   canScore: boolean
 }) {
@@ -735,6 +971,7 @@ function EventFeed({
               roundId={roundId}
               group={group}
               subjectName={playerName.get(group.subjectId) ?? 'Player'}
+              subjectAvatar={playerAvatar.get(group.subjectId) ?? null}
               // You manage points for any subject you control (spec §6): in Multi
               // Phone that's yourself + your guests; in Single Phone, everyone.
               canManage={canScore && controllableIds.has(group.subjectId)}
@@ -750,11 +987,13 @@ function FeedRow({
   roundId,
   group,
   subjectName,
+  subjectAvatar,
   canManage,
 }: {
   roundId: string
   group: FeedGroup
   subjectName: string
+  subjectAvatar: string | null
   canManage: boolean
 }) {
   const voidEvent = useVoidPointEvent(roundId)
@@ -779,14 +1018,17 @@ function FeedRow({
 
   return (
     <li className="flex items-center justify-between gap-2">
-      <div>
-        <p className="font-label text-sm text-text">
-          <span className="font-semibold">{subjectName}</span> {group.ruleName}
-        </p>
-        <p className="font-numeral text-xs text-muted">
-          ×{group.count} · +{total}
-          {group.edited ? ' · edited' : ''} · {time}
-        </p>
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar name={subjectName} url={subjectAvatar} sizeClass="h-7 w-7 text-sm" />
+        <div className="min-w-0">
+          <p className="truncate font-label text-sm text-text">
+            <span className="font-semibold">{subjectName}</span> {group.ruleName}
+          </p>
+          <p className="font-numeral text-xs text-muted">
+            ×{group.count} · +{total}
+            {group.edited ? ' · edited' : ''} · {time}
+          </p>
+        </div>
       </div>
       {canManage ? (
         <div className="flex shrink-0 items-center gap-1">

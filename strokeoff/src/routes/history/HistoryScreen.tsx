@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
 import { FormMessage } from '@/components/FormMessage'
+import { Skeleton } from '@/components/Skeleton'
 import { useHideRound, useHistoryRounds } from '@/lib/endRound'
 import { errorMessage } from '@/lib/validation'
 
@@ -17,8 +18,19 @@ export function HistoryScreen() {
 
   if (isLoading) {
     return (
-      <div className="px-6 py-12 text-center font-label text-sm text-muted">
-        Loading history…
+      <div className="flex flex-col gap-3 p-4">
+        <Skeleton className="h-7 w-32" />
+        <ul className="flex flex-col gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <li
+              key={i}
+              className="flex flex-col gap-2 rounded-card border border-border bg-surface p-4"
+            >
+              <Skeleton className="h-4 w-2/5" />
+              <Skeleton className="h-3 w-3/5" />
+            </li>
+          ))}
+        </ul>
       </div>
     )
   }

@@ -20,7 +20,9 @@ import { getRoundDefaults } from '@/lib/preferences'
 import type { ScoringMode } from '@/types'
 
 function today() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /** Round setup — Screen 1 (spec §5). Defines the round; players join in Screen 2. */
@@ -131,8 +133,9 @@ export function RoundSetupScreen() {
     <div className="flex flex-col gap-5 p-4">
       <h1 className="font-display text-xl font-bold text-text">New round</h1>
 
-      <Field label="Group">
+      <Field label="Group" htmlFor="round-group">
         <Select
+          id="round-group"
           value={activeGroup?.id ?? ''}
           onChange={(e) => setGroupId(e.target.value)}
           className="w-full"
@@ -145,24 +148,27 @@ export function RoundSetupScreen() {
         </Select>
       </Field>
 
-      <Field label="Course">
+      <Field label="Course" htmlFor="round-course">
         <TextInput
+          id="round-course"
           value={course}
           onChange={(e) => setCourse(e.target.value)}
           placeholder="Where are you playing?"
         />
       </Field>
 
-      <Field label="Date">
+      <Field label="Date" htmlFor="round-date">
         <TextInput
+          id="round-date"
           type="date"
           value={playedOn}
           onChange={(e) => setPlayedOn(e.target.value)}
         />
       </Field>
 
-      <Field label="Course par (optional)">
+      <Field label="Course par (optional)" htmlFor="round-par">
         <TextInput
+          id="round-par"
           value={par}
           inputMode="numeric"
           placeholder="e.g. 54 — leave blank to skip"
@@ -171,8 +177,9 @@ export function RoundSetupScreen() {
         />
       </Field>
 
-      <Field label="Scoring mode">
+      <Field label="Scoring mode" htmlFor="round-scoring-mode">
         <Select
+          id="round-scoring-mode"
           value={scoringMode}
           onChange={(e) => setScoringMode(e.target.value as ScoringMode)}
           className="w-full"
@@ -236,16 +243,23 @@ export function RoundSetupScreen() {
 
 function Field({
   label,
+  htmlFor,
   children,
 }: {
   label: string
+  htmlFor?: string
   children: React.ReactNode
 }) {
+  const labelClass = 'font-label text-sm font-semibold text-text'
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-label text-sm font-semibold text-text">
-        {label}
-      </span>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={labelClass}>
+          {label}
+        </label>
+      ) : (
+        <span className={labelClass}>{label}</span>
+      )}
       {children}
     </div>
   )

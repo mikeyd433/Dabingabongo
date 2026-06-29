@@ -44,9 +44,9 @@ describe('strokesForPoints — input hygiene', () => {
   it('does not crash on a malformed/mismatched config (returns 0)', () => {
     // A `tier` snapshot whose config has no `tiers` array, or a mode/config
     // mismatch, must degrade to no deduction rather than throwing.
-    // @ts-expect-error — deliberately malformed config
+    // @ts-expect-error — deliberately malformed config (no tiers array)
     expect(strokesForPoints('tier', {}, 20)).toBe(0)
-    // @ts-expect-error — ratio-shaped config under tier mode
+    // A ratio-shaped config under tier mode is type-valid but has no tiers.
     expect(strokesForPoints('tier', { pointsPerStroke: 5 }, 20)).toBe(0)
   })
 })

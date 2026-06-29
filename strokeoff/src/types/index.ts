@@ -60,7 +60,14 @@ export interface ThemeRecord {
   is_builtin: boolean
 }
 
-export type PlayerScope = 'single' | 'multi'
+/**
+ * Who a rule scores when logged:
+ * - `single`   — the subject only.
+ * - `multi`    — the subject plus hand-picked involved players (best-effort, with
+ *                per-player confirmations; spec §6).
+ * - `everyone` — every active player in the round at once (a group-wide award).
+ */
+export type PlayerScope = 'single' | 'multi' | 'everyone'
 
 export interface Rule {
   id: UUID
@@ -68,11 +75,16 @@ export interface Rule {
   name: string
   display_name: string
   description: string | null
+  /** Flat points, or — when `is_scalable` — points per counted unit. */
   points: number
   player_scope: PlayerScope
   min_players: number | null
   max_players: number | null
   per_role_points: Record<string, number> | null
+  /** When true, logging prompts for a quantity; value = quantity × points. */
+  is_scalable: boolean
+  /** The unit being counted for a scalable rule (e.g. "bounces"); null otherwise. */
+  quantity_label: string | null
   is_repeatable: boolean
   active: boolean
   animation_config: Record<string, unknown> | null
@@ -125,6 +137,8 @@ export interface RoundPlayer {
   managed_by: UUID | null
   roster_status: RosterStatus
   joined_at: string
+  /** The player's profile avatar, joined in for display (null for guests). */
+  avatar_url: string | null
   regular_strokes: number | null
   /** Player has confirmed their regular score in the end-of-round flow (spec §10). */
   score_confirmed: boolean
@@ -146,6 +160,9 @@ export interface RoundRule {
   description_snapshot: string | null
   points_snapshot: number
   player_scope: PlayerScope
+  /** Frozen scalable flag + unit label (spec §7 extension). */
+  is_scalable: boolean
+  quantity_label: string | null
   is_repeatable: boolean
   /** Frozen celebration config for this rule in this round (spec §12). */
   animation_config: Record<string, unknown> | null

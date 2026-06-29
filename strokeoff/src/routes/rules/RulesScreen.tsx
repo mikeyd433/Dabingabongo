@@ -15,7 +15,7 @@ import {
 } from '@/lib/rules'
 import type { Rule } from '@/types'
 
-type ScopeFilter = 'all' | 'single' | 'multi'
+type ScopeFilter = 'all' | 'single' | 'multi' | 'everyone'
 type ActiveFilter = 'all' | 'active' | 'inactive'
 
 /** Rules tab (spec §3, §7): the group's shared, fully-editable rule library. */
@@ -131,6 +131,7 @@ function RuleLibrary({ groupId }: { groupId: string | undefined }) {
           <option value="all">All scopes</option>
           <option value="single">Single player</option>
           <option value="multi">Multi-player</option>
+          <option value="everyone">Everyone</option>
         </Select>
         <Select
           value={activeFilter}
@@ -215,8 +216,9 @@ function RuleRow({
             </p>
           ) : null}
           <p className="mt-1 font-numeral text-xs text-muted">
-            +{rule.points} pt{rule.points === 1 ? '' : 's'} ·{' '}
-            {rule.player_scope === 'multi' ? 'Multi-player' : 'Single'} ·{' '}
+            +{rule.points} pt{rule.points === 1 ? '' : 's'}
+            {rule.is_scalable ? ` / ${rule.quantity_label || 'unit'}` : ''} ·{' '}
+            {scopeLabel(rule.player_scope)} ·{' '}
             {rule.is_repeatable ? 'Repeatable' : 'Once per round'}
           </p>
         </div>
@@ -241,6 +243,12 @@ function RuleRow({
       </div>
     </div>
   )
+}
+
+function scopeLabel(scope: Rule['player_scope']): string {
+  if (scope === 'multi') return 'Multi-player'
+  if (scope === 'everyone') return 'Everyone'
+  return 'Single'
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

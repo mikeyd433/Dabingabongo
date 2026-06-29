@@ -4,6 +4,7 @@ import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { FormMessage } from '@/components/FormMessage'
+import { Skeleton } from '@/components/Skeleton'
 import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
 import {
@@ -38,8 +39,16 @@ export function PlayerProfileScreen() {
 
   if (isLoading) {
     return (
-      <div className="px-6 py-12 text-center font-label text-sm text-muted">
-        Loading profile…
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex items-center gap-4 rounded-card border border-border bg-surface p-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-5 w-2/5" />
+            <Skeleton className="h-3 w-3/5" />
+          </div>
+        </div>
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-32 w-full" />
       </div>
     )
   }

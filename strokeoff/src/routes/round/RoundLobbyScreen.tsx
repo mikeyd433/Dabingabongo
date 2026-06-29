@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
@@ -82,20 +83,34 @@ function Header({
 function Roster({
   players,
 }: {
-  players: { id: string; display_name: string; is_guest: boolean }[] | undefined
+  players:
+    | {
+        id: string
+        display_name: string
+        is_guest: boolean
+        avatar_url: string | null
+      }[]
+    | undefined
 }) {
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-label text-sm font-semibold text-text">
         Players ({players?.length ?? 0})
       </h2>
-      <ul className="mt-2 flex flex-col gap-1">
+      <ul className="mt-2 flex flex-col gap-2">
         {(players ?? []).map((p) => (
           <li
             key={p.id}
-            className="flex items-center justify-between font-label text-sm text-text"
+            className="flex items-center justify-between gap-2 font-label text-sm text-text"
           >
-            <span>{p.display_name}</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <Avatar
+                name={p.display_name}
+                url={p.avatar_url}
+                sizeClass="h-8 w-8"
+              />
+              <span className="truncate">{p.display_name}</span>
+            </span>
             {p.is_guest ? (
               <span className="font-label text-xs text-muted">Guest</span>
             ) : null}

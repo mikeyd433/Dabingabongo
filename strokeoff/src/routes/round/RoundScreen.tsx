@@ -5,6 +5,7 @@ import { TextInput } from '@/components/TextInput'
 import { EmptyState } from '@/components/EmptyState'
 import { FormMessage } from '@/components/FormMessage'
 import { QrScanner } from '@/components/QrScanner'
+import { Skeleton } from '@/components/Skeleton'
 import { joinCodeFromScan } from '@/lib/qr'
 import { sendMagicLink, useAuth } from '@/lib/auth'
 import { useCurrentRound, useJoinRound } from '@/lib/rounds'
@@ -22,7 +23,7 @@ export function RoundScreen() {
   const joinCode = searchParams.get('join')
   const claimToken = searchParams.get('claim')
 
-  if (loading) return <Centered>Loading…</Centered>
+  if (loading) return <RoundLoadingSkeleton />
 
   // Claim comes first and tolerates a signed-out visitor (the guest from the email).
   if (claimToken) return <ClaimHandler token={claimToken} />
@@ -140,7 +141,7 @@ function RoundEntry() {
   const { data: currentRound, isLoading } = useCurrentRound()
   const navigate = useNavigate()
 
-  if (isLoading) return <Centered>Checking for a live round…</Centered>
+  if (isLoading) return <RoundLoadingSkeleton />
   if (currentRound) {
     return <Navigate to={`/round/${currentRound.id}`} replace />
   }
@@ -265,6 +266,16 @@ function JoinHandler({ code }: { code: string }) {
   }
 
   return <Centered>Joining round {code}…</Centered>
+}
+
+/** Modest placeholder while we resolve auth / look for a live round. */
+function RoundLoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  )
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

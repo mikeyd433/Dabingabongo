@@ -73,13 +73,20 @@ export function useRoundPlayers(roundId: string | undefined) {
     queryKey: ['round-players', roundId],
     enabled: Boolean(roundId),
     queryFn: async (): Promise<RoundPlayer[]> => {
+      // Join each player's profile avatar (readable for round co-participants via
+      // the profiles_select_visible RLS policy); guests have no profile, so null.
       const { data, error } = await supabase
         .from('round_players')
-        .select('*')
+        .select('*, profiles(avatar_url)')
         .eq('round_id', roundId!)
         .order('joined_at', { ascending: true })
       if (error) throw error
-      return data ?? []
+      return ((data ?? []) as (RoundPlayer & {
+        profiles: { avatar_url: string | null } | null
+      })[]).map(({ profiles, ...rest }) => ({
+        ...rest,
+        avatar_url: profiles?.avatar_url ?? null,
+      }))
     },
   })
 }

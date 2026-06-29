@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { Skeleton } from '@/components/Skeleton'
 import { useRound, useRoundRealtime } from '@/lib/rounds'
 import { useTheme } from '@/themes'
 import { LobbyView } from './RoundLobbyScreen'
@@ -18,7 +19,7 @@ export function RoundDetailScreen() {
   useRoundRealtime(roundId)
   useRoundTheme(round)
 
-  if (isLoading) return <Centered>Loading round…</Centered>
+  if (isLoading) return <RoundLoadingSkeleton />
   if (!round) return <Centered>Round not found.</Centered>
 
   if (round.status === 'lobby') return <LobbyView round={round} />
@@ -48,6 +49,20 @@ function useRoundTheme(round: Round | null | undefined) {
     setThemeId(snapshotThemeId)
     return () => setThemeId(restoreTo)
   }, [snapshotThemeId, setThemeId])
+}
+
+/** Loading placeholder echoing the round header + a couple of card blocks. */
+function RoundLoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-3 w-28" />
+      </div>
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-24 w-full" />
+    </div>
+  )
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

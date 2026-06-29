@@ -14,7 +14,7 @@ import {
   useSetTiebreak,
 } from '@/lib/endRound'
 import { useSendClaimEmail } from '@/lib/claim'
-import { exportNodeToPng } from '@/lib/exportImage'
+import { canShareFiles, exportNodeToPng, shareNodeAsPng } from '@/lib/exportImage'
 import {
   closestToTarget,
   computeResults,
@@ -938,6 +938,24 @@ function ScorecardGallery({
   treatment: WinnerTreatment
 }) {
   const matrix = useMatrix(events, rules)
+  // One dot per card: the matrix card plus one per player row.
+  const cardCount = rows.length + 1
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      const first = el.firstElementChild as HTMLElement | null
+      // Step = card width + the flex gap; fall back to the container width.
+      const step = first ? first.offsetWidth + 12 : el.clientWidth || 1
+      setActive(Math.round(el.scrollLeft / step))
+    }
+    onScroll()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [cardCount])
 
   return (
     <section className="flex flex-col gap-2">
@@ -945,7 +963,10 @@ function ScorecardGallery({
       <p className="font-label text-xs text-muted">
         Swipe between the full card and each player's. Export any as an image.
       </p>
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
+      <div
+        ref={scrollRef}
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2"
+      >
         <ExportCard filename={fileName(round, 'scorecard')}>
           <MatrixCard
             round={round}
@@ -971,6 +992,23 @@ function ScorecardGallery({
           </ExportCard>
         ))}
       </div>
+      {cardCount > 1 ? (
+        <div
+          aria-hidden
+          className="flex justify-center gap-1.5 pt-1"
+        >
+          {Array.from({ length: cardCount }, (_, i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full transition-colors"
+              style={{
+                backgroundColor:
+                  i === active ? 'var(--color-accent)' : 'var(--color-border)',
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -985,6 +1023,9 @@ function ExportCard({
   const ref = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Feature-detect once on mount so the Share button only appears where the OS
+  // share sheet can take a file (mainly mobile / installed PWA).
+  const [canShare] = useState(canShareFiles)
 
   async function exportPng() {
     if (!ref.current) return
@@ -999,17 +1040,47 @@ function ExportCard({
     }
   }
 
+  async function share() {
+    if (!ref.current) return
+    setBusy(true)
+    setError(null)
+    try {
+      await shareNodeAsPng(ref.current, filename)
+    } catch (e) {
+      // A dismissed share sheet isn't an error — only surface real failures.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setError(errorMessage(e))
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="flex w-[18rem] shrink-0 snap-start flex-col gap-2">
       <div ref={ref}>{children}</div>
-      <Button
-        type="button"
-        variant="secondary"
-        disabled={busy}
-        onClick={exportPng}
-      >
-        {busy ? 'Exporting…' : 'Export PNG'}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="flex-1"
+          disabled={busy}
+          onClick={exportPng}
+        >
+          {busy ? 'Exporting…' : 'Export PNG'}
+        </Button>
+        {canShare ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            disabled={busy}
+            onClick={share}
+          >
+            Share
+          </Button>
+        ) : null}
+      </div>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
     </div>
   )

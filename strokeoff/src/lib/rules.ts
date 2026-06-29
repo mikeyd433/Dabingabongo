@@ -13,6 +13,8 @@ export type RuleDraft = Pick<
   | 'player_scope'
   | 'min_players'
   | 'max_players'
+  | 'is_scalable'
+  | 'quantity_label'
   | 'is_repeatable'
   | 'active'
   | 'animation_config'

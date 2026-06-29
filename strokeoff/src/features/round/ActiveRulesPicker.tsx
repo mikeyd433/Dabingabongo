@@ -77,7 +77,15 @@ export function ActiveRulesPicker({
                 </span>
                 <span className="ml-2 font-numeral text-xs text-muted">
                   +{rule.points}
+                  {rule.is_scalable ? `/${rule.quantity_label || 'unit'}` : ''}
                 </span>
+                {rule.player_scope === 'everyone' ? (
+                  <span className="ml-2 font-label text-xs text-accent">
+                    everyone
+                  </span>
+                ) : rule.player_scope === 'multi' ? (
+                  <span className="ml-2 font-label text-xs text-muted">group</span>
+                ) : null}
               </span>
               <input
                 type="checkbox"

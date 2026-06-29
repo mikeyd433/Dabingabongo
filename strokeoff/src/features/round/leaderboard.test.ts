@@ -11,6 +11,7 @@ function player(partial: Partial<RoundPlayer> & { id: string }): RoundPlayer {
     managed_by: null,
     roster_status: 'active',
     joined_at: '2026-06-29T00:00:00Z',
+    avatar_url: null,
     regular_strokes: null,
     score_confirmed: false,
     final_adjusted: null,

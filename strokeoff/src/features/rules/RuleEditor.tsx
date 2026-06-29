@@ -37,6 +37,8 @@ function toDraft(rule?: Rule): RuleDraft {
     player_scope: rule?.player_scope ?? 'single',
     min_players: rule?.min_players ?? null,
     max_players: rule?.max_players ?? null,
+    is_scalable: rule?.is_scalable ?? false,
+    quantity_label: rule?.quantity_label ?? '',
     is_repeatable: rule?.is_repeatable ?? true,
     active: rule?.active ?? true,
     animation_config: rule?.animation_config ?? { ...DEFAULT_ANIMATION },
@@ -67,6 +69,10 @@ export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
         name: draft.name.trim(),
         display_name: draft.display_name.trim(),
         description: draft.description?.trim() || null,
+        // Only carry a unit label for scalable rules; clear it otherwise.
+        quantity_label: draft.is_scalable
+          ? draft.quantity_label?.trim() || 'points'
+          : null,
       })
     } catch (err) {
       setError(errorMessage(err))
@@ -113,7 +119,11 @@ export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
       </Field>
 
       <div className="flex gap-3">
-        <Field label="Points" htmlFor="rule-points" className="flex-1">
+        <Field
+          label={draft.is_scalable ? 'Points per unit' : 'Points'}
+          htmlFor="rule-points"
+          className="flex-1"
+        >
           <TextInput
             id="rule-points"
             type="number"
@@ -133,8 +143,38 @@ export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
           >
             <option value="single">Single player</option>
             <option value="multi">Multi-player</option>
+            <option value="everyone">Everyone in the round</option>
           </Select>
         </Field>
+      </div>
+
+      {draft.player_scope === 'everyone' ? (
+        <p className="font-label text-xs text-muted">
+          Logging this scores every active player in the round at once.
+        </p>
+      ) : null}
+
+      <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
+        <Toggle
+          label="Scales by a quantity"
+          checked={draft.is_scalable}
+          onChange={(v) => set('is_scalable', v)}
+        />
+        {draft.is_scalable ? (
+          <Field
+            label="Unit counted"
+            htmlFor="rule-unit"
+            hint="Logging prompts for how many; points = quantity × points per unit. E.g. “bounces”."
+          >
+            <TextInput
+              id="rule-unit"
+              value={draft.quantity_label ?? ''}
+              maxLength={20}
+              onChange={(e) => set('quantity_label', e.target.value)}
+              placeholder="e.g. bounces"
+            />
+          </Field>
+        ) : null}
       </div>
 
       {draft.player_scope === 'multi' ? (
