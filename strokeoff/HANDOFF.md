@@ -49,10 +49,22 @@ secrets** set in the dashboard to actually send — `RESEND_API_KEY`, `CLAIM_FRO
 (a Resend-verified sender), `APP_URL` — and a verified Resend sender domain.
 (`SUPABASE_URL`/`ANON`/`SERVICE_ROLE_KEY` are auto-injected.)
 
+**Deployed to production:** merged to `main`; Netlify (site `brilliant-kelpie-d4cfe2`,
+`dabingabongo.com`) builds the whole repo via `build.sh` and serves the app at
+**`https://dabingabongo.com/strokeoff`**. The two `VITE_` vars are set as Netlify
+site env vars (context `all`), plus **`SECRETS_SCAN_OMIT_KEYS=VITE_SUPABASE_URL,
+VITE_SUPABASE_ANON_KEY`** so Netlify's secret-scanning doesn't fail the build on the
+(intentionally client-public) Supabase values.
+
+⚠️ **Gotcha learned:** Vite inlines `VITE_*` at **build time**, so the env vars must
+exist on Netlify *before* the build runs. The first build shipped without them →
+the client fell back to its `http://localhost:54321` placeholder → "failed to fetch"
+on the phone. If you ever see that again, check Netlify env vars are set and
+**redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
+
 **Still owner-only (dashboard, no MCP tool for it):** auth providers (**Anonymous**
-+ **Email**) and redirect URLs are reportedly enabled; the edge-function secrets
-above; and the same `VITE_` vars on the Netlify site for prod. The app has **not yet
-been click-tested end-to-end** against this DB — that's the next thing to do.
++ **Email**) and redirect URLs (enabled); the edge-function Resend secrets. The app
+is being click-tested end-to-end against this DB now.
 
 ## What each phase delivered
 
