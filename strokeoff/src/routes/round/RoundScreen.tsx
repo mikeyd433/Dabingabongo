@@ -4,6 +4,8 @@ import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { EmptyState } from '@/components/EmptyState'
 import { FormMessage } from '@/components/FormMessage'
+import { QrScanner } from '@/components/QrScanner'
+import { joinCodeFromScan } from '@/lib/qr'
 import { sendMagicLink, useAuth } from '@/lib/auth'
 import { useCurrentRound, useJoinRound } from '@/lib/rounds'
 import { useRedeemClaim } from '@/lib/claim'
@@ -164,15 +166,17 @@ function JoinForm() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
 
-  async function handleJoin() {
-    if (code.trim().length === 0) {
+  async function join(raw: string) {
+    const value = raw.trim()
+    if (value.length === 0) {
       setError('Enter a round code.')
       return
     }
     setError(null)
     try {
-      const round = await joinRound.mutateAsync(code.trim())
+      const round = await joinRound.mutateAsync(value)
       navigate(`/round/${round.id}`)
     } catch (err) {
       setError(errorMessage(err))
@@ -185,7 +189,7 @@ function JoinForm() {
         Join a round
       </h2>
       <p className="mt-1 font-label text-xs text-muted">
-        Enter a round code, or scan a QR code from the host's lobby.
+        Scan the host's QR code, or enter a round code.
       </p>
       <div className="mt-2 flex gap-2">
         <TextInput
@@ -197,13 +201,35 @@ function JoinForm() {
         <Button
           type="button"
           variant="secondary"
-          onClick={handleJoin}
+          onClick={() => void join(code)}
           disabled={joinRound.isPending}
         >
           {joinRound.isPending ? 'Joining…' : 'Join'}
         </Button>
       </div>
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-2 w-full"
+        onClick={() => setScanning(true)}
+        disabled={joinRound.isPending}
+      >
+        Scan QR code
+      </Button>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+
+      {scanning ? (
+        <QrScanner
+          label="Scan the round's QR code"
+          onClose={() => setScanning(false)}
+          onResult={(text) => {
+            setScanning(false)
+            const next = joinCodeFromScan(text)
+            setCode(next.toUpperCase())
+            void join(next)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

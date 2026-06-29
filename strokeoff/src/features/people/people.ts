@@ -1,4 +1,4 @@
-import type { Group, PersonSummary } from '@/types'
+import type { Group, PersonSummary, Round } from '@/types'
 
 /**
  * Phase 11 — Community → People (Option B). Pure presentation helpers for the
@@ -22,6 +22,28 @@ export function personSubtitle(person: PersonSummary): string {
   return [sharedRoundsLabel(person.shared_rounds), lastPlayedLabel(person.last_played_on)]
     .filter(Boolean)
     .join(' · ')
+}
+
+/** A few light stats for a player's profile, derived from the rounds you can see. */
+export interface PlayerStats {
+  visibleRounds: number
+  multiPhone: number
+  singlePhone: number
+  lastPlayedOn: string | null
+}
+
+export function playerStats(rounds: Round[]): PlayerStats {
+  let multiPhone = 0
+  let singlePhone = 0
+  let lastPlayedOn: string | null = null
+  for (const r of rounds) {
+    if (r.scoring_mode === 'single_phone') singlePhone += 1
+    else multiPhone += 1
+    if (r.played_on && (!lastPlayedOn || r.played_on > lastPlayedOn)) {
+      lastPlayedOn = r.played_on
+    }
+  }
+  return { visibleRounds: rounds.length, multiPhone, singlePhone, lastPlayedOn }
 }
 
 /**

@@ -35,7 +35,13 @@ export async function sendMagicLink(email: string, redirectTo?: string) {
  * sends a confirmation link to complete it.
  */
 export async function setEmail(email: string) {
-  const { error } = await supabase.auth.updateUser({ email: email.trim() })
+  // Send the confirmation link back into the app (/strokeoff/), not the site
+  // root — without an explicit redirect Supabase falls back to the Site URL,
+  // which would drop the user on dabingabongo.com instead of the app.
+  const { error } = await supabase.auth.updateUser(
+    { email: email.trim() },
+    { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+  )
   if (error) throw error
 }
 

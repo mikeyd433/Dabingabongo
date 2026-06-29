@@ -3,10 +3,13 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**
-and **end-to-end verified against the live DB**. Course par (0011) and the new
-**score-entry & confirmation gate** (0012) are both **migrated, merged to `main`, and
-deploying** — see "✅ Score-entry & confirmation gate — SHIPPED" below._
+_Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**.
+Course par (0011) and the **score-entry & confirmation gate** (0012) are shipped to
+`main`. A **feature batch** — haptics, an email-redirect fix, a Settings screen,
+share-app QR, camera QR scanning, owner group management, and profile stats — is
+**built + tested on branch `claude/stroke-off-app-n7nnqo`**; its migration `0013`
+(owner group management) is **NOT yet applied / not on `main`** — see "⏳ PENDING"
+below; do it first._
 
 ## Where things stand
 
@@ -26,9 +29,45 @@ deploying** — see "✅ Score-entry & confirmation gate — SHIPPED" below._
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**79 tests**, now on `main`)
-  and `pnpm build` are all green. Dev server boots and serves; the build emits a Workbox SW
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**81 tests** at branch HEAD;
+  `main` is at 79 — the +2 are the profile-stats helper) and `pnpm build` are all
+  green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
+
+### ⏳ PENDING — feature batch (apply migration 0013, then merge)
+A batch of requested features is **built, tested (81 tests), and committed on
+`claude/stroke-off-app-n7nnqo`**, but only **migration `0013` (owner group
+management)** needs applying before merge — everything else is client-only.
+
+- **Haptic feedback** (`lib/haptics.ts`): Vibration-API pulses behind a persisted
+  on/off preference. `Button` fires a light tap on primary presses by default
+  (`haptic` prop to override/mute); success pulses on a point landing, the
+  end-round hold completing, and confirming scores. iOS Safari silently ignores it.
+- **Email redirect fix** (`lib/auth/actions.ts`): `setEmail` (anonymous→email
+  upgrade + change-email) now passes `emailRedirectTo` = the app under `/strokeoff/`,
+  so the confirmation link no longer drops users on the `dabingabongo.com` root.
+  (Magic-link sign-in already redirected correctly; claim links return to their URL.)
+- **Settings screen** (`Me → Settings`, `MeSection.tsx`): haptics toggle + new-round
+  defaults (scoring mode, preferred theme, animations) stored in `lib/preferences.ts`
+  and used to pre-fill `RoundSetupScreen`.
+- **Share-app QR** (`MeSection.tsx`): a QR + copyable link to the installable app.
+- **Camera QR scanning** (`components/QrScanner.tsx` + `lib/qr.ts`): scan a round's
+  QR to join, wired into the Round tab's join form. Decoder is `@zxing/browser`,
+  **dynamically imported** and split into a `zxing-*.js` chunk that's **excluded from
+  the Workbox precache** (`vite.config.ts` `manualChunks` + `globIgnores`) so the
+  offline install stays lean (~450 KB only fetched when scanning).
+- **Owner group management** (`migration 0013`, `lib/groups.ts`, `GroupCard.tsx`):
+  owner-only rename / remove member / hand-off ownership / delete group, all via new
+  SECURITY DEFINER RPCs (`rename_group`, `remove_group_member`,
+  `transfer_group_ownership`, `delete_group`, `is_group_owner`). UI is owner-gated and
+  hidden for the personal group.
+- **Profile stats** (`features/people/people.ts#playerStats` +2 tests,
+  `PlayerProfileScreen.tsx`): a visible-rounds / multi-vs-single strip on a player's
+  profile; the header now shows shared-rounds + last-played (`personSubtitle`).
+- **Migration `0013` (`supabase/migrations/0013_owner_group_management.sql`) is NOT
+  applied.** Apply it to the live project (`mtcfiwjqciqlegdfoxyt`) **before** merging,
+  then fast-forward `main` and push. Only owner-management actions need it; the rest
+  of the batch is safe without it.
 
 ### ✅ Score-entry & confirmation gate — SHIPPED
 A dedicated **enter-&-confirm-scores step** now sits **before** the final standings
@@ -109,9 +148,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0012` all applied to the live DB (`0012` score-entry &
-confirmation gate applied this session — see "✅ Score-entry & confirmation gate —
-SHIPPED" above).
+**Migrations status:** `0001…0012` applied to the live DB; **`0013` (owner group
+management) is written but NOT applied** (see "⏳ PENDING" above).
 
 **✅ End-to-end verified against the live DB** (real phone, production URL): anonymous
 sign-in → the signup trigger provisioned profile + personal group + 4 seeded rules +
@@ -270,18 +308,19 @@ doesn't work — verify via the MCP logs or the real app.
   registry and live-preview gallery *are* done (Phase 7).
 - **Custom / seasonal themes in the DB** (`themes` table) → not used; the launch set
   is code-defined bundles in `src/themes/`. Group default theme is an id string.
-- **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
-- **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
-  allows owner updates/deletes; UI only has create/join/leave + invite. (The People
-  quick-add inserts member rows, but there's still no remove/rename/hand-off UI.)
-- **Optional player stats** on the profile (spec §11 "optional stats") → only the
-  shared-round count + last-played are shown; richer stats are a future add.
-- **One-time coach marks** + **Settings contents** (spec §11 "Me → Settings") → still
-  the only unbuilt UI polish; Settings is a placeholder, coach marks are deferred.
+- **Camera QR scanning** → ✅ built (`components/QrScanner.tsx`, pending batch) —
+  scan-to-join a round; QR *display* and manual-code join still exist alongside it.
+- **Owner-only group management** (remove member, rename, hand-off, delete) → ✅ built
+  (migration 0013 + `GroupCard.tsx`, pending batch). Owner-gated, hidden for the
+  personal group.
+- **Optional player stats** on the profile → partially built: a visible-rounds /
+  multi-vs-single strip + shared-rounds & last-played subtitle. Win/loss and per-rule
+  stats are still a future add (would need per-round results computation).
+- **Settings contents** (spec §11 "Me → Settings") → ✅ built (haptics toggle +
+  new-round defaults, pending batch). **One-time coach marks** are still deferred.
 - **Animations Tier 2/3** (custom particle = emoji/uploaded image; Lottie/GIF/sprite
   with preview-before-save) → not built; Tier 1 presets are done and higher tiers
   **fall back to confetti**. Needs a Supabase Storage bucket + RLS + upload UI.
-- **Camera QR scanning** → still display-only (carried; spec §3 "Scan QR").
 - **Full offline / local-only mode** (a round with no connection at all) → out of
   scope for v1 by design (spec §4); Phase 10 covers *intermittent* signal only.
 

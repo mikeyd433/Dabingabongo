@@ -58,6 +58,90 @@ export function useLeaveGroup() {
   })
 }
 
+/** Owner-only: rename a group (spec §11). */
+export function useRenameGroup() {
+  const invalidate = useInvalidateGroups()
+  return useMutation({
+    mutationFn: async ({
+      groupId,
+      name,
+    }: {
+      groupId: string
+      name: string
+    }): Promise<Group> => {
+      const { data, error } = await supabase.rpc('rename_group', {
+        p_group_id: groupId,
+        p_name: name,
+      })
+      if (error) throw error
+      return data as Group
+    },
+    onSuccess: () => void invalidate(),
+  })
+}
+
+/** Owner-only: remove a member from a group (spec §11). */
+export function useRemoveMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      groupId,
+      profileId,
+    }: {
+      groupId: string
+      profileId: string
+    }): Promise<void> => {
+      const { error } = await supabase.rpc('remove_group_member', {
+        p_group_id: groupId,
+        p_profile_id: profileId,
+      })
+      if (error) throw error
+    },
+    onSuccess: (_data, { groupId }) =>
+      void qc.invalidateQueries({ queryKey: ['group-members', groupId] }),
+  })
+}
+
+/** Owner-only: hand off ownership to another member (spec §11). */
+export function useTransferOwnership() {
+  const invalidate = useInvalidateGroups()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      groupId,
+      newOwnerId,
+    }: {
+      groupId: string
+      newOwnerId: string
+    }): Promise<Group> => {
+      const { data, error } = await supabase.rpc('transfer_group_ownership', {
+        p_group_id: groupId,
+        p_new_owner_id: newOwnerId,
+      })
+      if (error) throw error
+      return data as Group
+    },
+    onSuccess: (_data, { groupId }) => {
+      void invalidate()
+      void qc.invalidateQueries({ queryKey: ['group-members', groupId] })
+    },
+  })
+}
+
+/** Owner-only: delete a group (spec §11). */
+export function useDeleteGroup() {
+  const invalidate = useInvalidateGroups()
+  return useMutation({
+    mutationFn: async (groupId: string): Promise<void> => {
+      const { error } = await supabase.rpc('delete_group', {
+        p_group_id: groupId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => void invalidate(),
+  })
+}
+
 export function useCreateInvite() {
   return useMutation({
     mutationFn: async (groupId: string): Promise<string> => {

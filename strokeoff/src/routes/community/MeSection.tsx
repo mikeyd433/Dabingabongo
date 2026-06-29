@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/Button'
 import { FormMessage } from '@/components/FormMessage'
+import { Select } from '@/components/Select'
 import { DisplayNameForm } from '@/features/identity/DisplayNameForm'
 import { EmailForm } from '@/features/identity/EmailForm'
 import {
@@ -13,11 +15,15 @@ import {
   useAuth,
 } from '@/lib/auth'
 import { useProfile, useUpdateProfile, useUploadAvatar } from '@/lib/profile'
+import { haptic, hapticsEnabled, setHapticsEnabled } from '@/lib/haptics'
+import { getRoundDefaults, setRoundDefaults } from '@/lib/preferences'
+import { themes } from '@/themes'
 import {
   CUSTOM_MESSAGE_MAX,
   errorMessage,
   validateCustomMessage,
 } from '@/lib/validation'
+import type { ScoringMode } from '@/types'
 
 /** Community → Me (spec §11): identity, profile, and account management. */
 export function MeSection() {
@@ -34,8 +40,154 @@ export function MeSection() {
   return (
     <div className="flex flex-col gap-4">
       <ProfileCard isAnonymous={isAnonymous} />
+      <SettingsCard />
+      <ShareAppCard />
       <AccountCard isAnonymous={isAnonymous} />
     </div>
+  )
+}
+
+/* ----------------------------------------------------------------- settings */
+
+/** Me → Settings (spec §11): device + new-round defaults. */
+function SettingsCard() {
+  const [haptics, setHaptics] = useState(hapticsEnabled)
+  const [defaults, setDefaults] = useState(getRoundDefaults)
+
+  function update(next: Parameters<typeof setRoundDefaults>[0]) {
+    setDefaults(setRoundDefaults(next))
+  }
+
+  return (
+    <Card title="Settings">
+      <ToggleRow
+        label="Haptic feedback"
+        hint="A short buzz on key taps (where your device supports it)."
+        checked={haptics}
+        onChange={(next) => {
+          setHapticsEnabled(next)
+          setHaptics(next)
+          if (next) haptic('success')
+        }}
+      />
+
+      <hr className="my-4 border-border" />
+
+      <p className="font-label text-sm font-medium text-text">New round defaults</p>
+      <Muted>Starting points when you set up a round — change them per round any time.</Muted>
+
+      <div className="mt-3 flex flex-col gap-3">
+        <label className="flex items-center justify-between gap-3">
+          <span className="font-label text-sm text-text">Scoring mode</span>
+          <div className="w-40">
+            <Select
+              value={defaults.scoringMode}
+              onChange={(e) =>
+                update({ scoringMode: e.target.value as ScoringMode })
+              }
+            >
+              <option value="multi_phone">Multi phone</option>
+              <option value="single_phone">Single phone</option>
+            </Select>
+          </div>
+        </label>
+
+        <label className="flex items-center justify-between gap-3">
+          <span className="font-label text-sm text-text">Preferred theme</span>
+          <div className="w-40">
+            <Select
+              value={defaults.themeId}
+              onChange={(e) => update({ themeId: e.target.value })}
+            >
+              {themes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </label>
+
+        <ToggleRow
+          label="Animations on by default"
+          checked={defaults.animations}
+          onChange={(next) => update({ animations: next })}
+        />
+      </div>
+    </Card>
+  )
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="min-w-0">
+        <span className="font-label text-sm text-text">{label}</span>
+        {hint ? (
+          <span className="mt-0.5 block font-label text-xs text-muted">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-6 w-6 shrink-0 accent-[var(--color-accent)]"
+      />
+    </label>
+  )
+}
+
+/* -------------------------------------------------------------- share / get */
+
+/** A QR + link that takes anyone straight to the installable app (spec §16). */
+function ShareAppCard() {
+  const appUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${import.meta.env.BASE_URL}`
+      : ''
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(appUrl)
+      setCopied(true)
+      haptic('light')
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard blocked — the link is shown below to copy by hand.
+    }
+  }
+
+  return (
+    <Card title="Share Stroke Off">
+      <Muted>
+        Point a phone camera at this code to open the app — then add it to the
+        home screen to install.
+      </Muted>
+      <div className="mt-3 flex flex-col items-center gap-3">
+        <div className="rounded-card bg-white p-3">
+          <QRCodeSVG value={appUrl} size={160} />
+        </div>
+        <p className="break-all text-center font-label text-xs text-muted">
+          {appUrl}
+        </p>
+        <Button type="button" variant="secondary" onClick={copy}>
+          {copied ? 'Copied' : 'Copy link'}
+        </Button>
+      </div>
+    </Card>
   )
 }
 

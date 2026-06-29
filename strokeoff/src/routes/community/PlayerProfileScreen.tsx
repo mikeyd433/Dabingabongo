@@ -7,7 +7,11 @@ import { FormMessage } from '@/components/FormMessage'
 import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
 import { usePerson, usePlayerRounds, useQuickAddToGroup } from '@/lib/people'
-import { addableGroups, sharedRoundsLabel } from '@/features/people/people'
+import {
+  addableGroups,
+  personSubtitle,
+  playerStats,
+} from '@/features/people/people'
 import { errorMessage } from '@/lib/validation'
 import type { PersonSummary } from '@/types'
 
@@ -77,7 +81,7 @@ export function PlayerProfileScreen() {
             </p>
           ) : null}
           <p className="mt-0.5 font-label text-xs text-muted">
-            {sharedRoundsLabel(person.shared_rounds)}
+            {personSubtitle(person)}
           </p>
         </div>
       </header>
@@ -170,12 +174,20 @@ function QuickAddCard({ person }: { person: PersonSummary }) {
 function PlayerRoundsCard({ profileId }: { profileId: string }) {
   const navigate = useNavigate()
   const { data: rounds = [], isLoading } = usePlayerRounds(profileId)
+  const stats = playerStats(rounds)
 
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-display text-base font-semibold text-text">
         Rounds you can see
       </h2>
+      {!isLoading && rounds.length > 0 ? (
+        <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <Stat label="Visible" value={stats.visibleRounds} />
+          <Stat label="Multi phone" value={stats.multiPhone} />
+          <Stat label="Single phone" value={stats.singlePhone} />
+        </dl>
+      ) : null}
       {isLoading ? (
         <p className="mt-2 font-label text-sm text-muted">Loading rounds…</p>
       ) : rounds.length === 0 ? (
@@ -207,5 +219,14 @@ function PlayerRoundsCard({ profileId }: { profileId: string }) {
         </ul>
       )}
     </section>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-card bg-surface-alt px-2 py-2">
+      <dt className="font-label text-xs text-muted">{label}</dt>
+      <dd className="font-numeral text-lg font-bold text-text">{value}</dd>
+    </div>
   )
 }

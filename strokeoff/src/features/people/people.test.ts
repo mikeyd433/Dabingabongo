@@ -3,9 +3,10 @@ import {
   addableGroups,
   lastPlayedLabel,
   personSubtitle,
+  playerStats,
   sharedRoundsLabel,
 } from './people'
-import type { Group, PersonSummary } from '@/types'
+import type { Group, PersonSummary, Round } from '@/types'
 
 function person(overrides: Partial<PersonSummary> = {}): PersonSummary {
   return {
@@ -77,5 +78,31 @@ describe('addableGroups', () => {
       'g1',
       'g2',
     ])
+  })
+})
+
+describe('playerStats', () => {
+  const round = (id: string, mode: string, played_on: string): Round =>
+    ({ id, scoring_mode: mode, played_on }) as unknown as Round
+
+  it('counts visible rounds, mode split, and the latest date', () => {
+    const stats = playerStats([
+      round('a', 'multi_phone', '2026-06-01'),
+      round('b', 'single_phone', '2026-06-20'),
+      round('c', 'multi_phone', '2026-06-10'),
+    ])
+    expect(stats.visibleRounds).toBe(3)
+    expect(stats.multiPhone).toBe(2)
+    expect(stats.singlePhone).toBe(1)
+    expect(stats.lastPlayedOn).toBe('2026-06-20')
+  })
+
+  it('is all-zero with no rounds', () => {
+    expect(playerStats([])).toEqual({
+      visibleRounds: 0,
+      multiPhone: 0,
+      singlePhone: 0,
+      lastPlayedOn: null,
+    })
   })
 })

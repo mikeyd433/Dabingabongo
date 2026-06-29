@@ -20,6 +20,15 @@ export default defineConfig({
     // Emit into the website's shared dist/ so build.sh publishes it as one site.
     outDir: '../dist/strokeoff',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Isolate the QR decoder in a predictably-named chunk so it can be
+        // lazy-loaded (only when scanning) and kept out of the offline precache.
+        manualChunks: {
+          zxing: ['@zxing/browser', '@zxing/library'],
+        },
+      },
+    },
   },
   plugins: [
     react(),
@@ -30,6 +39,9 @@ export default defineConfig({
       workbox: {
         // Precache the built shell + assets so the app launches with no network.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // …but not the QR decoder — it's only needed when actively scanning
+        // (which needs network anyway), so it's fetched on demand, not installed.
+        globIgnores: ['**/zxing-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         // SPA: serve the cached app shell for any in-app navigation while offline.

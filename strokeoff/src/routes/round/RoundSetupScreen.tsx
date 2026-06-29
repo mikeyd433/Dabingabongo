@@ -15,7 +15,8 @@ import { useGroupConversion } from '@/lib/conversion'
 import { useRules } from '@/lib/rules'
 import { useCreateRound } from '@/lib/rounds'
 import { errorMessage } from '@/lib/validation'
-import { DEFAULT_THEME_ID, getTheme } from '@/themes'
+import { getTheme } from '@/themes'
+import { getRoundDefaults } from '@/lib/preferences'
 import type { ScoringMode } from '@/types'
 
 function today() {
@@ -43,12 +44,16 @@ export function RoundSetupScreen() {
   )
   const { data: rules } = useRules(activeGroup?.id)
 
+  // Pre-fill from the player's saved Settings defaults (spec §11).
+  const defaults = useMemo(() => getRoundDefaults(), [])
   const [course, setCourse] = useState('')
   const [playedOn, setPlayedOn] = useState(today())
   const [par, setPar] = useState('')
-  const [scoringMode, setScoringMode] = useState<ScoringMode>('multi_phone')
-  const [animations, setAnimations] = useState(true)
-  const [themeId, setThemeId] = useState(DEFAULT_THEME_ID)
+  const [scoringMode, setScoringMode] = useState<ScoringMode>(
+    defaults.scoringMode,
+  )
+  const [animations, setAnimations] = useState(defaults.animations)
+  const [themeId, setThemeId] = useState(defaults.themeId)
   const [conversion, setConversion] = useState<ConversionValue>({
     mode: 'tier',
     config: DEFAULT_TIER_CONFIG,

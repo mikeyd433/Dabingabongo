@@ -246,7 +246,7 @@ The fifth tab. Three sections.
 - **Avatar** (uploaded image, Supabase Storage) and **custom message / status** (short blurb) — **login-only**, **visible to others** wherever a player appears (leaderboard, feed, lobby).
 - Identity / login status (anonymous vs signed-in), magic-link sign-in/upgrade.
 - **Account management:** **sign out**, **change email**, **delete account / data** (full erasure path, since emails and avatars are stored).
-- **Settings** — app preferences (contents TBD; candidates: default theme/conversion for your personal group, default scoring mode, animations default, notification preferences, units).
+- **Settings** — app preferences. Built: a **haptic-feedback toggle** and **new-round defaults** (default scoring mode, preferred theme, animations on/off). Further candidates (default conversion, notification preferences, units) remain open.
 
 ### People — Option B
 Your "people" list builds from users you've **actually shared a round with**. Consent-based; **no global directory**. Tap a player to view their profile (avatar, message, optional stats), **quick-add** them to one of your groups, or **see their rounds** — the rounds of theirs you're allowed to see (those you both played, or rounds within a group you share). This keeps profile-browsing social without exposing a stranger's entire history.
