@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
 import { useAuth } from '@/lib/auth'
 import { useAddGuest, useRoundPlayers } from '@/lib/rounds'
+import { useEndRound } from '@/lib/endRound'
 import {
   useEditPointEvent,
   useLogPoint,
@@ -115,7 +116,115 @@ export function LiveRoundScreen({ round }: { round: Round }) {
         controllableIds={controllableIds}
         canScore={canScore}
       />
+
+      {me && !hasLeft ? <EndRoundControl roundId={round.id} /> : null}
     </div>
+  )
+}
+
+/**
+ * End the round — any participant can (spec §9), behind friction so it can't be a
+ * mis-tap: tucked away, a confirm dialog, then a press-and-hold to commit.
+ */
+function EndRoundControl({ roundId }: { roundId: string }) {
+  const end = useEndRound(roundId)
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!open) {
+    return (
+      <div className="pt-2 text-center">
+        <button
+          type="button"
+          className="font-label text-xs text-muted underline"
+          onClick={() => setOpen(true)}
+        >
+          End round…
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <p className="font-label text-sm text-text">
+        End the round for everyone? This locks scoring.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <HoldToConfirm
+          label={end.isPending ? 'Ending…' : 'Hold to end'}
+          disabled={end.isPending}
+          onConfirm={() =>
+            end.mutate(undefined, { onError: (e) => setError(errorMessage(e)) })
+          }
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </Button>
+      </div>
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+    </section>
+  )
+}
+
+const HOLD_MS = 1000
+
+function HoldToConfirm({
+  label,
+  disabled,
+  onConfirm,
+}: {
+  label: string
+  disabled: boolean
+  onConfirm: () => void
+}) {
+  const [holding, setHolding] = useState(false)
+  const timer = useRef<number | null>(null)
+
+  function clear() {
+    if (timer.current !== null) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+  }
+  function start() {
+    if (disabled) return
+    setHolding(true)
+    timer.current = window.setTimeout(() => {
+      setHolding(false)
+      onConfirm()
+    }, HOLD_MS)
+  }
+  function cancel() {
+    setHolding(false)
+    clear()
+  }
+  useEffect(() => clear, [])
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      className="relative min-h-[44px] flex-1 overflow-hidden rounded-card bg-accent px-5 font-label text-sm font-semibold text-accent-contrast disabled:opacity-50"
+    >
+      <span
+        className="absolute inset-0 origin-left opacity-40"
+        style={{
+          backgroundColor: 'var(--color-winner)',
+          transform: `scaleX(${holding ? 1 : 0})`,
+          transition: holding ? `transform ${HOLD_MS}ms linear` : 'none',
+        }}
+      />
+      <span className="relative">{label}</span>
+    </button>
   )
 }
 

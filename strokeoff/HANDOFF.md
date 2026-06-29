@@ -3,20 +3,22 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 4 (website integration done in the same branch)._
+_Last updated after Phase 6 (website integration done in the same branch)._
 
 ## Where things stand
 
 - **The app now lives in the website repo.** It was vendored into the
   **Dabingabongo** repo (dabingabongo.com) at `strokeoff/`, alongside the existing
   `brainstorm/` and `harmony/` sub-apps, and deploys to **`dabingabongo.com/strokeoff`**.
-  Continue Phase 4+ here, in `Dabingabongo/strokeoff`, not in the old standalone
+  Continue Phase 7+ here, in `Dabingabongo/strokeoff`, not in the old standalone
   StrokeOff repo.
-- **Branch:** website-side work is on `claude/dabingabongo-app-dev-2e20v4`. The
-  pre-integration history (Phases 0–3) is on `claude/strokeoff-phase-0-scaffold-khauv5`
-  in the standalone StrokeOff repo. No per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5.** Next up: **Phase 6 — End of round & history.**
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (28 tests) and `pnpm build`
+- **Branch:** website-side work is on `claude/dabingabongo-app-dev-2e20v4`;
+  integration + Phases 4–5 have also been merged to **`main`** (so Netlify deploys
+  them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
+  on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
+  per-phase branches in this setup.
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6.** Next up: **Phase 7 — Theme gallery & bundles.**
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (35 tests) and `pnpm build`
   are all green. Dev server boots and serves.
 
 ### Important caveat — backend not yet live
@@ -66,6 +68,19 @@ real project is connected, apply migrations and exercise the flows.
   `controls_round_player` to the single-phone controller (so the Phase 4 RPCs serve
   both modes), skips multi-player confirmations in Single Phone (controller assigns
   directly), and adds `reassign_guest`. New `useReassignGuest` hook.
+- **Phase 6 — End of round & history:** **end round (any participant)** behind
+  friction (tucked button → dialog → press-and-hold), **regular-score entry**
+  (anyone fills gaps; controller in Single Phone), **conversion → adjusted finals**
+  (reuses `strokesForPoints` against the round's `conversion_snapshot`),
+  **tie-breakers** (coin flip / random draw / number picker; writes
+  `tiebreak_winner_id`/`tiebreak_method`; "by tie-break" flag), **results board**,
+  **swipeable scorecards** (full matrix + per-player) **exported as PNG** via
+  `html-to-image` (dynamically imported), a read-only **event log**, and the
+  **History tab** (your completed rounds, tap to reopen results; delete = hide from
+  your view). Migration `0006` (`end_round`, `set_regular_strokes`,
+  `set_round_tiebreak`, `hide_round`; `round_players.hidden`). Pure
+  `features/round/results.ts` (finals/tie-break math) + 7 tests. New
+  `lib/endRound.ts`, `lib/exportImage.ts`.
 
 ## Stubbed / deferred (don't assume these exist)
 
@@ -73,8 +88,11 @@ real project is connected, apply migrations and exercise the flows.
   with no confetti; `animations_enabled` is snapshotted but unused so far).
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
   a one-line helper instead.
-- **End round / results** → Phase 6 (live screen has no End action; a completed
-  round shows a placeholder).
+- **Themed scorecards / full theme gallery** → Phase 7. Phase 6's scorecards are
+  token-driven but plain (no per-theme winner treatment, card chrome, or per-format
+  matrix-vs-solo pairing yet); the registry still ships only 2 themes.
+- **Guest results/claim email** ("Send email" on the score screen) → Phase 9. Phase
+  6 has no send-email button; `round_players` claim-token columns exist but unused.
 - **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
 - **Guests beyond single-phone pre-add**, guest claim/email → Phases 5 / 9.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
@@ -109,47 +127,42 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–5 done.)
+Community → People. (Phases 0–6 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 6:
+phase. For Phase 7:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 6 — End of
-> round & history** (spec §9, §10, §15) to its Deliverable. Honor the architecture
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 7 — Theme
+> gallery & bundles** (spec §13, §15) to its Deliverable. Honor the architecture
 > principles (theme tokens, snapshot, RLS-first, permission-on-writes,
-> derive-from-events). Add RLS to any new table in the same migration. Finish with
-> `pnpm typecheck && pnpm lint && pnpm test` clean.
+> derive-from-events). Finish with `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 6 builds on the scoring + conversion layers already in place:
-- **End round (any participant)** with friction (⋯ menu + hold-to-confirm + dialog,
-  spec §9): an RPC that sets `rounds.status = 'complete'` and `ended_at`, callable
-  by any participant. Add it as a new migration `0006` (don't edit earlier ones).
-  The live screen already routes `complete` rounds to a placeholder in
-  `RoundDetailScreen` — replace that with the results flow.
-- **Regular-score entry** (`round_players.regular_strokes`) — Multi Phone: each
-  player enters their own (anyone can fill gaps); Single Phone: controller enters
-  all. The column + `round_players_update_self` RLS already exist; you may need a
-  controller-aware RPC for Single Phone.
-- **Conversion + adjusted finals** — reuse `strokesForPoints` in
-  `features/conversion/convert.ts` against `rounds.conversion_snapshot` and the
-  per-player point totals from `features/round/leaderboard.ts` (`tallyPoints`).
-- **Tie-breakers** (spec §10) — write `tiebreak_winner_id` / `tiebreak_method`
-  (already on `rounds`); coin flip / number picker / random draw, "by tie-breaker"
-  flag. Keep the methods extensible.
-- **History tab** (`src/routes/history/HistoryScreen.tsx`, currently a placeholder)
-  + detail + delete (delete = remove from your view; see spec §11 visibility).
-- **Image export** (full matrix + per-player cards) via `html-to-image` — listed
-  in the spec stack but **not yet a dependency**; add it. Themed scorecards lean on
-  Phase 7's gallery, so a clean matrix/solo card against current tokens is enough.
-- Key files: `LiveRoundScreen.tsx`, `RoundDetailScreen.tsx`, `lib/rounds.ts`,
-  `lib/scoring.ts`, `features/conversion/convert.ts`, `features/round/leaderboard.ts`.
+Phase 7 is mostly **data, not new tables** — the token architecture has been there
+since Phase 0:
+- **Build out the ~21-theme registry** (spec §13) as token bundles in
+  `src/themes/`. The registry (`src/themes/registry.ts`) currently ships 2
+  (`stat-sheet`, `arcade`); add the rest as new bundles — no component edits if the
+  tokens cover every surface. Watch the **fixed-palette** themes (spec marks many
+  "Fixed dark/light") so exported scorecards look identical regardless of device
+  mode — see `src/themes/types.ts` for the mode handling.
+- **Live-preview gallery** — the round-setup theme picker
+  (`src/features/round/ThemePicker.tsx`) and `ThemeSwitcher` exist; extend to a
+  gallery of live previews rendered against sample/real data.
+- **Per-format pairing** (spec §13) — a theme may style the matrix vs the solo card
+  differently; the scorecards live in `src/routes/round/ResultsScreen.tsx`
+  (`MatrixCard` / `PlayerCard`) and currently read base tokens only.
+- **Group default theme** — `groups.default_theme_id` already exists and round
+  setup snapshots the chosen theme onto the round (`theme_snapshot`); make sure new
+  themes flow through both. Themes are snapshotted on Start, so a completed round's
+  look never changes (principle 2).
+- Key files: `src/themes/*`, `ThemePicker.tsx`, `ResultsScreen.tsx`, `ThemeSwitcher.tsx`.
 
 ## Connecting a real Supabase project (when ready)
 
 1. Create the project; copy URL + anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 2. Apply migrations: `npx supabase db push` (or `supabase db reset` locally).
-   Migrations live in `supabase/migrations/0001…0005`.
+   Migrations live in `supabase/migrations/0001…0006`.
 3. Enable **Anonymous sign-ins** and the **Email (magic link)** provider; add app
    origins to Auth → URL Configuration → Redirect URLs. See `supabase/README.md`.
 4. Set the same `VITE_` vars in the deploy environment — for this app that's the
