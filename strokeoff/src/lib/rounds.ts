@@ -83,8 +83,10 @@ export function useRoundPlayers(roundId: string | undefined) {
 }
 
 /**
- * Live lobby population (spec §5): subscribe to Postgres changes on round_players
- * and the round row, refreshing the cached queries as players join/leave.
+ * Live round channel (spec §5, §6): subscribe to Postgres changes on the round,
+ * its roster, the point-event ledger, and confirmations — refreshing the cached
+ * queries so the lobby populates and the live leaderboard / feed update in real
+ * time. One channel per round (`round:{id}`), reused across lobby and scoring.
  */
 export function useRoundRealtime(roundId: string | undefined) {
   const qc = useQueryClient()
@@ -102,6 +104,7 @@ export function useRoundRealtime(roundId: string | undefined) {
         },
         () => {
           void qc.invalidateQueries({ queryKey: ['round-players', roundId] })
+          void qc.invalidateQueries({ queryKey: ['my-round-player', roundId] })
         },
       )
       .on(
@@ -114,6 +117,33 @@ export function useRoundRealtime(roundId: string | undefined) {
         },
         () => {
           void qc.invalidateQueries({ queryKey: ['round', roundId] })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'point_events',
+          filter: `round_id=eq.${roundId}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ['point-events', roundId] })
+          // A multi-player award also creates confirmations addressed to others.
+          void qc.invalidateQueries({
+            queryKey: ['event-confirmations', roundId],
+          })
+        },
+      )
+      // event_confirmations has no round_id column to filter on; it's low-volume,
+      // so refresh the round's confirmation queries on any change.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'event_confirmations' },
+        () => {
+          void qc.invalidateQueries({
+            queryKey: ['event-confirmations', roundId],
+          })
         },
       )
       .subscribe()

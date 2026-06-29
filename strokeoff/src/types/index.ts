@@ -131,7 +131,9 @@ export interface PointEvent {
   id: UUID
   round_id: UUID
   subject_player_id: UUID
-  rule_id: UUID
+  // Null if the source rule was deleted after the event; the snapshot fields
+  // below preserve the event's meaning regardless (spec §7, principle 2).
+  rule_id: UUID | null
   rule_name_snapshot: string
   points_snapshot: number
   count: number

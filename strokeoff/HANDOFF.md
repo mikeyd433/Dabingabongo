@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 3 + website integration._
+_Last updated after Phase 4 (website integration done in the same branch)._
 
 ## Where things stand
 
@@ -15,8 +15,8 @@ _Last updated after Phase 3 + website integration._
 - **Branch:** website-side work is on `claude/dabingabongo-app-dev-2e20v4`. The
   pre-integration history (Phases 0–3) is on `claude/strokeoff-phase-0-scaffold-khauv5`
   in the standalone StrokeOff repo. No per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3.** Next up: **Phase 4 — Live scoring (Multi Phone).**
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (19 tests) and `pnpm build`
+- **Phases complete: 0, 1, 2, 3, 4.** Next up: **Phase 5 — Single Phone & guests.**
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (24 tests) and `pnpm build`
   are all green. Dev server boots and serves.
 
 ### Important caveat — backend not yet live
@@ -44,12 +44,31 @@ real project is connected, apply migrations and exercise the flows.
   scoring mode, conversion, theme picker, active-rules + bulk, animations), QR +
   code, join-by-code (+ `?join=CODE` auto-join), live roster via Realtime,
   single-phone guest pre-add, creator Start. Migration `0003`.
+- **Phase 4 — Live scoring (Multi Phone):** self-score against the round's frozen
+  rule palette, real-time **leaderboard derived from events** (never a counter),
+  **event feed** with **edit count / undo (void)** on your own points,
+  **best-effort multi-player confirmations** (logger awards the involved players,
+  who confirm/decline; offline → stays pending, points still stand), and
+  **leave/rejoin** with a persistent roster. Optimistic log via client-generated
+  event UUID. New `point_events` + `event_confirmations` tables, all writes through
+  permission-checked SECURITY DEFINER RPCs (`log_point`, `edit_point_event`,
+  `void_point_event`, `respond_to_confirmation`, `set_my_roster_status`), RLS +
+  Realtime. Migration `0004`. Pure `features/round/leaderboard.ts` (+ tests).
+  Route `/round/:roundId` now branches via `RoundDetailScreen` (lobby → live →
+  complete); the lobby is presentational (`LobbyView`).
 
 ## Stubbed / deferred (don't assume these exist)
 
-- **Live scoring, leaderboard, event feed, edit/undo/void, multi-player
-  confirmations, mid-round join/leave** → Phase 4+ (lobby shows an "active"
-  placeholder after Start).
+- **Single Phone scoring** (controller logs for everyone, spectator read-only) and
+  **guests *in scoring*** → Phase 5. Phase 4's live screen is Multi-Phone only;
+  the `log_point` permission already allows a guest's manager, but there's no
+  Single-Phone UI yet. Guest pre-add in the lobby exists from Phase 3.
+- **Celebration animations on a confirmed point** → Phase 8 (Phase 4 logs points
+  with no confetti; `animations_enabled` is snapshotted but unused so far).
+- **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
+  a one-line helper instead.
+- **End round / results** → Phase 6 (live screen has no End action; a completed
+  round shows a placeholder).
 - **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
 - **Guests beyond single-phone pre-add**, guest claim/email → Phases 5 / 9.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
@@ -84,21 +103,33 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–3 done.)
+Community → People. (Phases 0–4 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 4:
+phase. For Phase 5:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 4 — Live
-> scoring (Multi Phone)** (spec §6, §15) to its Deliverable. Honor the architecture
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 5 — Single
+> Phone & guests** (spec §6, §15) to its Deliverable. Honor the architecture
 > principles (theme tokens, snapshot, RLS-first, permission-on-writes,
 > derive-from-events). Add RLS to any new table in the same migration. Finish with
 > `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 4 will add `point_events` (+ likely `event_confirmations`), derive live
-totals from events (never a stored counter), enforce own-only writes in UI **and**
-RLS, and reuse the `round:{id}` Realtime channel already set up in
-`src/lib/rounds.ts` (extend it to `point_events`).
+Phase 5 builds directly on Phase 4's scoring layer:
+- **Controller logging** — in a `single_phone` round, let the controller log/edit/
+  void for **any** active player, not just themselves. The `log_point` /
+  `edit_point_event` / `void_point_event` RPCs currently gate on
+  `controls_round_player` (self or a guest you manage); extend that to "controller
+  in a single-phone round" (the round creator, or generalize to any participant per
+  spec) so the same RPCs serve both modes. Mirror the check in the UI.
+- **Guests in scoring** — surface the Phase 3 guest pre-add inside the live screen
+  and let the manager log on a guest's behalf (the `managed_by` path already works
+  in `controls_round_player`). Add guest **reassign** (change `managed_by`).
+- **Spectator read-only** — a non-controller in a single-phone round sees the
+  leaderboard + feed but no log palette (the live screen already hides the palette
+  for players who can't score; branch on mode + controller).
+- The live screen is `src/routes/round/LiveRoundScreen.tsx`; scoring hooks are in
+  `src/lib/scoring.ts`; the permission helper is `controls_round_player` in
+  migration `0004` (add a new migration `0005`, don't edit `0004`).
 
 ## Connecting a real Supabase project (when ready)
 

@@ -1,49 +1,27 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
 import { useAuth } from '@/lib/auth'
-import {
-  useAddGuest,
-  useRound,
-  useRoundPlayers,
-  useRoundRealtime,
-  useStartRound,
-} from '@/lib/rounds'
+import { useAddGuest, useRoundPlayers, useStartRound } from '@/lib/rounds'
 import { errorMessage } from '@/lib/validation'
+import type { Round } from '@/types'
 
-/** Lobby — Screen 2 (spec §5). Gather players, then the creator starts the round. */
-export function RoundLobbyScreen() {
-  const { roundId } = useParams()
+/**
+ * Lobby — Screen 2 (spec §5). Gather players, then the creator starts the round.
+ * Presentational: the parent RoundDetailScreen owns the round fetch + Realtime
+ * channel and only renders this while the round is in the `lobby` state.
+ */
+export function LobbyView({ round }: { round: Round }) {
   const { user } = useAuth()
-  const { data: round, isLoading } = useRound(roundId)
-  const { data: players } = useRoundPlayers(roundId)
-  useRoundRealtime(roundId)
-
-  if (isLoading) return <Centered>Loading round…</Centered>
-  if (!round) return <Centered>Round not found.</Centered>
+  const { data: players } = useRoundPlayers(round.id)
 
   const isCreator = round.created_by === user?.id
   const joinUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}${import.meta.env.BASE_URL}round?join=${round.code}`
       : ''
-
-  if (round.status === 'active') {
-    return (
-      <div className="flex flex-col gap-4 p-4">
-        <Header round={round} />
-        <Roster players={players} />
-        <div className="rounded-card border border-border bg-surface p-4 text-center">
-          <p className="font-label text-sm text-muted">
-            Round is live. Live scoring arrives in Phase 4.
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -185,14 +163,6 @@ function StartRow({ roundId }: { roundId: string }) {
         {startRound.isPending ? 'Starting…' : 'Start round'}
       </Button>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
-    </div>
-  )
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="px-6 py-12 text-center font-label text-sm text-muted">
-      {children}
     </div>
   )
 }

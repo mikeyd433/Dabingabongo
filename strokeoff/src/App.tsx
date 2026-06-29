@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout'
 import { HomeScreen } from '@/routes/home/HomeScreen'
 import { RoundScreen } from '@/routes/round/RoundScreen'
 import { RoundSetupScreen } from '@/routes/round/RoundSetupScreen'
-import { RoundLobbyScreen } from '@/routes/round/RoundLobbyScreen'
+import { RoundDetailScreen } from '@/routes/round/RoundDetailScreen'
 import { RulesScreen } from '@/routes/rules/RulesScreen'
 import { HistoryScreen } from '@/routes/history/HistoryScreen'
 import { CommunityScreen } from '@/routes/community/CommunityScreen'
@@ -19,7 +19,7 @@ export function App() {
         <Route index element={<HomeScreen />} />
         <Route path="round" element={<RoundScreen />} />
         <Route path="round/new" element={<RoundSetupScreen />} />
-        <Route path="round/:roundId" element={<RoundLobbyScreen />} />
+        <Route path="round/:roundId" element={<RoundDetailScreen />} />
         <Route path="rules" element={<RulesScreen />} />
         <Route path="history" element={<HistoryScreen />} />
         <Route path="community" element={<CommunityScreen />} />
