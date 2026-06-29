@@ -7,6 +7,14 @@ import { FormMessage } from '@/components/FormMessage'
 import { errorMessage } from '@/lib/validation'
 import type { RuleDraft } from '@/lib/rules'
 import type { Rule } from '@/types'
+import {
+  DEFAULT_ANIMATION,
+  PRESET_LABELS,
+  TIER1_PRESETS,
+  normalizeAnimation,
+  type AnimationConfig,
+  type AnimationPreset,
+} from '@/features/animations/types'
 
 const DISPLAY_NAME_MAX = 25 // spec §7
 
@@ -27,6 +35,7 @@ function toDraft(rule?: Rule): RuleDraft {
     max_players: rule?.max_players ?? null,
     is_repeatable: rule?.is_repeatable ?? true,
     active: rule?.active ?? true,
+    animation_config: rule?.animation_config ?? { ...DEFAULT_ANIMATION },
   }
 }
 
@@ -168,6 +177,11 @@ export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
         onChange={(v) => set('active', v)}
       />
 
+      <AnimationField
+        value={draft.animation_config}
+        onChange={(cfg) => set('animation_config', cfg)}
+      />
+
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
 
       <div className="flex gap-2">
@@ -208,6 +222,62 @@ function Field({
       {children}
       {hint ? (
         <span className="font-label text-xs text-muted">{hint}</span>
+      ) : null}
+    </div>
+  )
+}
+
+/** Per-rule celebration config (spec §12, Tier 1: preset + color/emoji). */
+function AnimationField({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown> | null
+  onChange: (cfg: AnimationConfig) => void
+}) {
+  const cfg = normalizeAnimation(value)
+  const set = (patch: Partial<AnimationConfig>) => onChange({ ...cfg, ...patch })
+
+  return (
+    <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
+      <span className="font-label text-sm text-text">Celebration</span>
+      <div className="flex gap-3">
+        <Field label="Effect" htmlFor="rule-anim-preset" className="flex-1">
+          <Select
+            id="rule-anim-preset"
+            value={cfg.preset}
+            onChange={(e) => set({ preset: e.target.value as AnimationPreset })}
+            className="w-full"
+          >
+            {TIER1_PRESETS.map((preset) => (
+              <option key={preset} value={preset}>
+                {PRESET_LABELS[preset]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Colors" htmlFor="rule-anim-color" className="flex-1">
+          <Select
+            id="rule-anim-color"
+            value={cfg.color === 'rainbow' ? 'rainbow' : 'theme'}
+            onChange={(e) => set({ color: e.target.value })}
+            className="w-full"
+          >
+            <option value="theme">Theme</option>
+            <option value="rainbow">Rainbow</option>
+          </Select>
+        </Field>
+      </div>
+      {cfg.preset === 'emoji-burst' ? (
+        <Field label="Emoji" htmlFor="rule-anim-emoji">
+          <TextInput
+            id="rule-anim-emoji"
+            value={cfg.emoji ?? ''}
+            maxLength={4}
+            onChange={(e) => set({ emoji: e.target.value })}
+            placeholder="🎉"
+          />
+        </Field>
       ) : null}
     </div>
   )

@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 7 + app logo (website integration done in the same branch)._
+_Last updated after Phase 8 + app logo (website integration done in the same branch)._
 
 ## Where things stand
 
@@ -17,11 +17,11 @@ _Last updated after Phase 7 + app logo (website integration done in the same bra
   them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
   on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
   per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7.** Next up: **Phase 8 — Animations.**
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8.** Next up: **Phase 9 — Guest claim flow.**
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (38 tests) and `pnpm build`
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (45 tests) and `pnpm build`
   are all green. Dev server boots and serves.
 
 ### Important caveat — backend not yet live
@@ -105,6 +105,16 @@ real project is connected, apply migrations and exercise the flows.
   color / type / card chrome via tokens, and scorecards read those, but the bespoke
   winner art per theme is component-level polish left for later. The 21-theme
   registry and live-preview gallery *are* done (Phase 7).
+- **Phase 8 — Animations (Tier 1):** a point landing fires the rule's celebration
+  when the round's master toggle (`rounds.animations_enabled`) is on (spec §12). The
+  preset library — confetti (default), fireworks, raining discs, screen flash, emoji
+  burst — runs on a self-cleaning full-screen `<canvas>`, **token-coloured** (reads
+  the active theme's accent/winner), with **duration + particle caps** and a
+  **`prefers-reduced-motion` opt-out**. Rule editor gains a Celebration picker
+  (effect + theme/rainbow colour + emoji). The config is **snapshotted onto
+  `round_rules`** at Start (migration `0007` adds the column + re-declares
+  `create_round`). Pure `features/animations/types.ts` (`normalizeAnimation` /
+  `resolveAnimation`, + 7 tests); engine in `features/animations/celebrate.ts`.
 - **Custom / seasonal themes in the DB** (`themes` table) → not used; the launch set
   is code-defined bundles in `src/themes/`. Group default theme is an id string.
 - **Guest results/claim email** ("Send email" on the score screen) → Phase 9. Phase
@@ -114,7 +124,10 @@ real project is connected, apply migrations and exercise the flows.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
   allows owner updates/deletes; UI only has create/join/leave + invite.
 - **Quick-add from People**, People tab → Phase 11.
-- **Animations** → Phase 8. **Offline queue / PWA polish** → Phase 10.
+- **Animations Tier 2/3** (custom particle = emoji/uploaded image; Lottie/GIF/sprite
+  with preview-before-save) → not built; Tier 1 presets are done and higher tiers
+  **fall back to confetti**. Needs a Supabase Storage bucket + RLS + upload UI.
+- **Offline queue / PWA polish** → Phase 10.
 
 ## Open design items & decisions (carried from the original handoff)
 
@@ -143,43 +156,46 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–7 done.)
+Community → People. (Phases 0–8 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 8:
+phase. For Phase 9:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 8 —
-> Animations** (spec §12, §15) to its Deliverable. Honor the architecture
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 9 — Guest
+> claim flow** (spec §10, §6, §15) to its Deliverable. Honor the architecture
 > principles (theme tokens, snapshot, RLS-first, permission-on-writes,
 > derive-from-events). Add RLS to any new table in the same migration. Finish with
 > `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 8 fires celebrations when a point is **confirmed**, governed by the round's
-**animations master toggle** (`rounds.animations_enabled`, already snapshotted and
-plumbed through setup but currently unused). Sequence **Tier 1 → 2 → 3** (spec §12):
-- **Tier 1 — preset library** (confetti, fireworks, raining discs, screen flash,
-  emoji burst, …) + color choices; **confetti is the default**. Each rule already
-  carries `animation_config` (jsonb on `rules`, snapshot path TBD) — wire the rule's
-  config to the celebration; default to plain confetti.
-- **Trigger point:** the live screen's `useLogPoint` success path
-  (`src/lib/scoring.ts` / `LiveRoundScreen.tsx`). Respect `animations_enabled` and
-  a **performance/duration cap** so a heavy effect can't jank the round (spec §12).
-- **Tier 2 — custom particle** (emoji or uploaded image; Supabase Storage) and
-  **Tier 3 — Lottie/GIF/sprite** with preview-before-save come after Tier 1; both
-  need a Storage bucket + RLS (new migration) — **graceful fallback to confetti**
-  if an asset fails to load.
-- Keep effects **token-driven** where colored (read theme accent/winner) so they
-  match the active theme. No heavy animation lib required for Tier 1 — a small
-  canvas/confetti utility is fine; keep it tree-shakeable / dynamically imported.
-- Key files: `LiveRoundScreen.tsx`, `lib/scoring.ts`, a new `features/animations/*`,
-  `rules.animation_config`, `rounds.animations_enabled`.
+Phase 9 lets a guest claim their score to a real account (spec §10 "Guest claim
+flow", Option B):
+- **"Send email" button** on the results screen (`ResultsScreen.tsx`) for any
+  guest / non-logged-in player. A light **consent confirm** when a manager enters
+  someone else's email ("this sends them one email").
+- **Claim token** — generate a one-time, expiring token **bound to that guest slot
+  in that round** (`round_players.claim_token` / `claim_token_expires_at` /
+  `claimed` columns already exist, unused). New migration `0008` for the
+  token-issue + claim-redeem RPCs (SECURITY DEFINER): redeem reassigns that round's
+  guest points to the signing-in account, **safe-fail** on already-claimed/expired,
+  and flips `claimed`.
+- **Email transport — Resend via a Supabase Edge Function** (`supabase/functions/`,
+  doesn't exist yet). `RESEND_API_KEY` + `SUPABASE_SERVICE_ROLE_KEY` are server-only
+  (see `.env.example`); never ship them to the client. The function sends the
+  results + a **claim link** (`dabingabongo.com/strokeoff/...?claim=TOKEN`).
+- **Claim landing** — a route that reads `?claim=TOKEN`, has the visitor sign in via
+  magic-link (reuse Phase 1 auth), then calls the redeem RPC. Mirror the
+  `?join=CODE` pattern in `RoundScreen.tsx`.
+- Key files: `ResultsScreen.tsx`, `lib/endRound.ts` (or new `lib/claim.ts`),
+  `supabase/functions/`, `round_players` claim columns, `RoundScreen.tsx` (token
+  landing). Note: Edge Functions + Resend can't be exercised here without a live
+  Supabase project + key — build them, type-check, and document the wiring.
 
 ## Connecting a real Supabase project (when ready)
 
 1. Create the project; copy URL + anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 2. Apply migrations: `npx supabase db push` (or `supabase db reset` locally).
-   Migrations live in `supabase/migrations/0001…0006`.
+   Migrations live in `supabase/migrations/0001…0007`.
 3. Enable **Anonymous sign-ins** and the **Email (magic link)** provider; add app
    origins to Auth → URL Configuration → Redirect URLs. See `supabase/README.md`.
 4. Set the same `VITE_` vars in the deploy environment — for this app that's the

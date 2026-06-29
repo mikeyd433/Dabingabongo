@@ -21,6 +21,7 @@ import {
 } from '@/lib/scoring'
 import { buildLeaderboard } from '@/features/round/leaderboard'
 import { controllablePlayers } from '@/features/round/permissions'
+import { celebrate } from '@/features/animations/celebrate'
 import { errorMessage } from '@/lib/validation'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
 
@@ -97,6 +98,7 @@ export function LiveRoundScreen({ round }: { round: Round }) {
           subjects={controllable}
           players={players}
           rules={rules}
+          animationsEnabled={round.animations_enabled}
         />
       ) : null}
 
@@ -335,11 +337,13 @@ function RulePalette({
   subjects,
   players,
   rules,
+  animationsEnabled,
 }: {
   roundId: string
   subjects: RoundPlayer[]
   players: RoundPlayer[]
   rules: RoundRule[]
+  animationsEnabled: boolean
 }) {
   const logPoint = useLogPoint(roundId)
   const [subjectId, setSubjectId] = useState<string | undefined>(undefined)
@@ -350,12 +354,21 @@ function RulePalette({
   const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0]
   const choosesSubject = subjects.length > 1
 
+  // Fire the rule's celebration once the point lands (spec §12), if the round's
+  // animations master toggle is on.
+  function celebrateFor(rule: RoundRule) {
+    if (animationsEnabled) celebrate(rule.animation_config)
+  }
+
   function logSingle(rule: RoundRule) {
     if (!subject) return
     setError(null)
     logPoint.mutate(
       { eventId: crypto.randomUUID(), subjectPlayerId: subject.id, rule },
-      { onError: (e) => setError(errorMessage(e)) },
+      {
+        onSuccess: () => celebrateFor(rule),
+        onError: (e) => setError(errorMessage(e)),
+      },
     )
   }
 
@@ -440,7 +453,10 @@ function RulePalette({
                 involvedPlayerIds,
               },
               {
-                onSuccess: () => setMultiRule(null),
+                onSuccess: () => {
+                  setMultiRule(null)
+                  celebrateFor(multiRule)
+                },
                 onError: (e) => setError(errorMessage(e)),
               },
             )

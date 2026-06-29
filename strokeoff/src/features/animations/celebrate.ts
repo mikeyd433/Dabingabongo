@@ -1,0 +1,173 @@
+import { resolveAnimation, type AnimationPreset, type ResolvedAnimation } from './types'
+
+/**
+ * Token-driven celebration engine (spec §12, Tier 1). `celebrate(config)` resolves
+ * a rule's animation against the *active theme's* colors and runs a short canvas
+ * effect over the whole screen, cleaning itself up. Honors `prefers-reduced-motion`
+ * and the duration/particle caps from `resolveAnimation`, so it can never jank the
+ * round. No-ops outside the browser.
+ */
+export function celebrate(raw: unknown): void {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return
+
+  const cs = getComputedStyle(document.documentElement)
+  const accent = cs.getPropertyValue('--color-accent').trim() || '#1d4ed8'
+  const winner = cs.getPropertyValue('--color-winner').trim() || '#15803d'
+  const anim = resolveAnimation(raw, { accent, winner })
+
+  if (anim.preset === 'screen-flash') {
+    runFlash(anim)
+    return
+  }
+  runParticles(anim)
+}
+
+function overlayStyle(el: HTMLElement) {
+  Object.assign(el.style, {
+    position: 'fixed',
+    inset: '0',
+    width: '100%',
+    height: '100%',
+    zIndex: '9999',
+    pointerEvents: 'none',
+  })
+}
+
+function runFlash(anim: ResolvedAnimation) {
+  const el = document.createElement('div')
+  overlayStyle(el)
+  el.style.background = anim.colors[0]
+  document.body.appendChild(el)
+  const fx = el.animate(
+    [{ opacity: 0 }, { opacity: 0.35 }, { opacity: 0 }],
+    { duration: anim.durationMs, easing: 'ease-out' },
+  )
+  fx.finished.then(() => el.remove()).catch(() => el.remove())
+}
+
+interface Particle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  rot: number
+  vr: number
+  size: number
+  color: string
+  emoji: string | null
+}
+
+function rnd(min: number, max: number) {
+  return min + Math.random() * (max - min)
+}
+
+function initParticles(
+  anim: ResolvedAnimation,
+  width: number,
+  height: number,
+): Particle[] {
+  const { colors, emoji, particleCount, preset } = anim
+  const pick = () => colors[Math.floor(Math.random() * colors.length)]
+  const particles: Particle[] = []
+  const falling = preset === 'confetti' || preset === 'raining-discs'
+
+  for (let i = 0; i < particleCount; i++) {
+    if (falling) {
+      particles.push({
+        x: rnd(0, width),
+        y: rnd(-height * 0.4, 0),
+        vx: rnd(-1, 1),
+        vy: rnd(1.5, 3.5),
+        rot: rnd(0, Math.PI * 2),
+        vr: rnd(-0.2, 0.2),
+        size: emoji ? rnd(12, 20) : rnd(6, 12),
+        color: pick(),
+        emoji,
+      })
+    } else {
+      // emoji-burst / fireworks — radial burst from upper-centre
+      const ang = rnd(0, Math.PI * 2)
+      const spd = rnd(2, 7)
+      particles.push({
+        x: width / 2,
+        y: height * 0.4,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 2,
+        rot: rnd(0, Math.PI * 2),
+        vr: rnd(-0.3, 0.3),
+        size: emoji ? rnd(12, 22) : rnd(3, 6),
+        color: pick(),
+        emoji,
+      })
+    }
+  }
+  return particles
+}
+
+function drawParticle(
+  ctx: CanvasRenderingContext2D,
+  p: Particle,
+  preset: AnimationPreset,
+) {
+  if (p.emoji) {
+    ctx.font = `${p.size * 2}px serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(p.emoji, p.x, p.y)
+    return
+  }
+  if (preset === 'fireworks') {
+    ctx.beginPath()
+    ctx.fillStyle = p.color
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+    ctx.fill()
+    return
+  }
+  // confetti rectangle
+  ctx.save()
+  ctx.translate(p.x, p.y)
+  ctx.rotate(p.rot)
+  ctx.fillStyle = p.color
+  ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6)
+  ctx.restore()
+}
+
+function runParticles(anim: ResolvedAnimation) {
+  const canvas = document.createElement('canvas')
+  overlayStyle(canvas)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const width = window.innerWidth
+  const height = window.innerHeight
+  canvas.width = width * dpr
+  canvas.height = height * dpr
+  ctx.scale(dpr, dpr)
+  document.body.appendChild(canvas)
+
+  const particles = initParticles(anim, width, height)
+  const start = performance.now()
+  let raf = 0
+
+  function frame(now: number) {
+    const t = now - start
+    if (t >= anim.durationMs || document.hidden) {
+      cancelAnimationFrame(raf)
+      canvas.remove()
+      return
+    }
+    ctx!.clearRect(0, 0, width, height)
+    ctx!.globalAlpha = Math.max(0, 1 - t / anim.durationMs)
+    for (const p of particles) {
+      p.vy += 0.15 // gravity
+      p.x += p.vx
+      p.y += p.vy
+      p.rot += p.vr
+      drawParticle(ctx!, p, anim.preset)
+    }
+    raf = requestAnimationFrame(frame)
+  }
+  raf = requestAnimationFrame(frame)
+}

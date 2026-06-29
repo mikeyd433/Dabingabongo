@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import { useAuth } from './auth'
 import type { Rule } from '@/types'
 
-/** Fields a user can author/edit on a rule (spec §7). */
+/** Fields a user can author/edit on a rule (spec §7, §12). */
 export type RuleDraft = Pick<
   Rule,
   | 'name'
@@ -15,6 +15,7 @@ export type RuleDraft = Pick<
   | 'max_players'
   | 'is_repeatable'
   | 'active'
+  | 'animation_config'
 >
 
 export function useRules(groupId: string | undefined) {

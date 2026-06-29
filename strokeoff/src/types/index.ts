@@ -125,6 +125,8 @@ export interface RoundRule {
   points_snapshot: number
   player_scope: PlayerScope
   is_repeatable: boolean
+  /** Frozen celebration config for this rule in this round (spec §12). */
+  animation_config: Record<string, unknown> | null
 }
 
 export interface PointEvent {
