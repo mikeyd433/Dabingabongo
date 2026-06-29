@@ -4,10 +4,9 @@ Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the s
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**
-and **end-to-end verified against the live DB**. Course par is **shipped** (0011
-applied + on `main`). A new **score-entry & confirmation gate** is **built + tested
-on branch `claude/stroke-off-app-n7nnqo`** but its migration `0012` is **NOT yet
-applied / not on `main`** — see "⏳ PENDING" below; do it first._
+and **end-to-end verified against the live DB**. Course par (0011) and the new
+**score-entry & confirmation gate** (0012) are both **migrated, merged to `main`, and
+deploying** — see "✅ Score-entry & confirmation gate — SHIPPED" below._
 
 ## Where things stand
 
@@ -27,19 +26,18 @@ applied / not on `main`** — see "⏳ PENDING" below; do it first._
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**79 tests** at branch HEAD;
-  `main` is at 76 — the +3 are the score-confirmation gate) and `pnpm build` are all
-  green. Dev server boots and serves; the build emits a Workbox SW
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**79 tests**, now on `main`)
+  and `pnpm build` are all green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### ⏳ PENDING — score-entry & confirmation gate (apply migration 0012, then merge)
+### ✅ Score-entry & confirmation gate — SHIPPED
 A dedicated **enter-&-confirm-scores step** now sits **before** the final standings
 (spec §10 step 2). Each player confirms their own regular score; in **Multi Phone the
 final screen stays locked until every active player has confirmed**. In **Single Phone**
 the controller enters all and confirms in one tap. Guests are entered/confirmed by any
 participant. A confirmed score is **locked** until reopened ("Edit scores" / per-row
-"Edit" → unconfirm), which re-gates the round. **Built, tested (79 tests), and committed
-on `claude/stroke-off-app-n7nnqo`, but NOT applied to the live DB or merged to `main`.**
+"Edit" → unconfirm), which re-gates the round. **Built, tested (79 tests), migrated,
+merged to `main`, and deploying.**
 
 - **What shipped (code):** pure `features/round/results.ts#scoreConfirmation` (gate
   helper, +3 tests); `RoundPlayer.score_confirmed` type; `lib/endRound.ts#useSetScoreConfirmed`;
@@ -48,18 +46,12 @@ on `claude/stroke-off-app-n7nnqo`, but NOT applied to the live DB or merged to `
   status for spectators) gated on `scoreConfirmation(...).allConfirmed`, plus a
   `ReopenScores` ("Edit scores") affordance on the final screen. Confirmations ride the
   existing `round_players` Realtime, so the gate updates live across phones.
-- **Migration `0012` (`supabase/migrations/0012_score_confirmation.sql`) is NOT applied.**
-  It adds `round_players.score_confirmed`, a participant/owner-gated `set_score_confirmed`
-  RPC, re-creates `set_regular_strokes` to **reject edits on a confirmed score** (the
-  lock), and **backfills existing complete rounds to `confirmed = true`** so reopening an
-  old round never strands it behind the new gate.
-- **ORDER MATTERS (same as 0011):** apply `0012` to the live project **before** merging
-  to `main` — the new client reads `score_confirmed` and calls `set_score_confirmed`, so
-  deploying code first would break the end-of-round screen. The migration is
-  backward-compatible, so applying it early is safe.
-- **To finish:** (1) `mcp__Supabase__apply_migration` with the `0012` file contents
-  (project `mtcfiwjqciqlegdfoxyt`); (2) fast-forward `main` to the branch and
-  `git push origin main` → Netlify rebuilds; (3) hard-reload the installed PWA.
+- **Migration `0012` (`supabase/migrations/0012_score_confirmation.sql`) is applied to
+  the live DB** (project `mtcfiwjqciqlegdfoxyt`) — verified: `round_players.score_confirmed`
+  column exists, `set_score_confirmed` + `set_regular_strokes` RPCs present, and all
+  existing complete rounds were backfilled to `confirmed = true` (so reopening an old
+  round never strands it behind the new gate). DB was migrated **before** the code
+  deploy, so the end-of-round screen never broke.
 - **Known limitation:** in Multi Phone, if a real player's phone dies before they
   confirm, the gate waits on them (only that player or — for guests — any participant can
   confirm). No "skip waiting" escape was added, per the explicit "wait for all" request.
@@ -117,8 +109,9 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0011` applied to the live DB; **`0012` (score-entry &
-confirmation gate) is written but NOT applied** (see "⏳ PENDING" above).
+**Migrations status:** `0001…0012` all applied to the live DB (`0012` score-entry &
+confirmation gate applied this session — see "✅ Score-entry & confirmation gate —
+SHIPPED" above).
 
 **✅ End-to-end verified against the live DB** (real phone, production URL): anonymous
 sign-in → the signup trigger provisioned profile + personal group + 4 seeded rules +
