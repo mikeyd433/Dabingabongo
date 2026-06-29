@@ -4,12 +4,10 @@ Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the s
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**.
-Course par (0011) and the **score-entry & confirmation gate** (0012) are shipped to
-`main`. A **feature batch** — haptics, an email-redirect fix, a Settings screen,
-share-app QR, camera QR scanning, owner group management, and profile stats — is
-**built + tested on branch `claude/stroke-off-app-n7nnqo`**; its migration `0013`
-(owner group management) is **NOT yet applied / not on `main`** — see "⏳ PENDING"
-below; do it first._
+Course par (0011), the **score-entry & confirmation gate** (0012), and a **feature
+batch** — haptics, an email-redirect fix, a Settings screen, share-app QR, camera QR
+scanning, owner group management (0013), and profile stats — are all **migrated,
+merged to `main`, and deploying**. See "✅ Feature batch — SHIPPED" below._
 
 ## Where things stand
 
@@ -29,15 +27,13 @@ below; do it first._
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**81 tests** at branch HEAD;
-  `main` is at 79 — the +2 are the profile-stats helper) and `pnpm build` are all
-  green. Dev server boots and serves; the build emits a Workbox SW
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**81 tests**, now on `main`)
+  and `pnpm build` are all green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### ⏳ PENDING — feature batch (apply migration 0013, then merge)
-A batch of requested features is **built, tested (81 tests), and committed on
-`claude/stroke-off-app-n7nnqo`**, but only **migration `0013` (owner group
-management)** needs applying before merge — everything else is client-only.
+### ✅ Feature batch — SHIPPED
+A batch of requested features, **built, tested (81 tests), migrated (0013 applied,
+verified), merged to `main`, and deploying.**
 
 - **Haptic feedback** (`lib/haptics.ts`): Vibration-API pulses behind a persisted
   on/off preference. `Button` fires a light tap on primary presses by default
@@ -64,10 +60,11 @@ management)** needs applying before merge — everything else is client-only.
 - **Profile stats** (`features/people/people.ts#playerStats` +2 tests,
   `PlayerProfileScreen.tsx`): a visible-rounds / multi-vs-single strip on a player's
   profile; the header now shows shared-rounds + last-played (`personSubtitle`).
-- **Migration `0013` (`supabase/migrations/0013_owner_group_management.sql`) is NOT
-  applied.** Apply it to the live project (`mtcfiwjqciqlegdfoxyt`) **before** merging,
-  then fast-forward `main` and push. Only owner-management actions need it; the rest
-  of the batch is safe without it.
+- **Migration `0013` (`supabase/migrations/0013_owner_group_management.sql`) is
+  applied** to the live project (`mtcfiwjqciqlegdfoxyt`) — verified: all five RPCs
+  (`is_group_owner`, `rename_group`, `remove_group_member`,
+  `transfer_group_ownership`, `delete_group`) present. DB migrated before the code
+  deploy.
 
 ### ✅ Score-entry & confirmation gate — SHIPPED
 A dedicated **enter-&-confirm-scores step** now sits **before** the final standings
@@ -148,8 +145,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0012` applied to the live DB; **`0013` (owner group
-management) is written but NOT applied** (see "⏳ PENDING" above).
+**Migrations status:** `0001…0013` all applied to the live DB (`0013` owner group
+management applied this session — see "✅ Feature batch — SHIPPED" above).
 
 **✅ End-to-end verified against the live DB** (real phone, production URL): anonymous
 sign-in → the signup trigger provisioned profile + personal group + 4 seeded rules +
