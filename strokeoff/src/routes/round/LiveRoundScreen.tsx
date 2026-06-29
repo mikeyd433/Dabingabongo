@@ -23,6 +23,7 @@ import { buildLeaderboard } from '@/features/round/leaderboard'
 import { groupLiveEvents, type FeedGroup } from '@/features/round/feed'
 import { controllablePlayers } from '@/features/round/permissions'
 import { celebrate } from '@/features/animations/celebrate'
+import { haptic } from '@/lib/haptics'
 import { errorMessage } from '@/lib/validation'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
 
@@ -203,6 +204,7 @@ function HoldToConfirm({
     setHolding(true)
     timer.current = window.setTimeout(() => {
       setHolding(false)
+      haptic('success') // the hold committed — confirm it in the hand
       onConfirm()
     }, HOLD_MS)
   }
@@ -361,9 +363,10 @@ function RulePalette({
   const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0]
   const choosesSubject = subjects.length > 1
 
-  // Fire the rule's celebration once the point lands (spec §12), if the round's
-  // animations master toggle is on.
+  // Mark a landed point: a success haptic (always, separate from the visual
+  // toggle) plus the rule's celebration (spec §12) when animations are enabled.
   function celebrateFor(rule: RoundRule) {
+    haptic('success')
     if (animationsEnabled) celebrate(rule.animation_config)
   }
 

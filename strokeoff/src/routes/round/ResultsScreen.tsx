@@ -399,6 +399,7 @@ function ConfirmAllButton({
     <div className="mt-3">
       <Button
         type="button"
+        haptic="success"
         disabled={!ready || setConfirmed.isPending}
         onClick={confirmAll}
       >
@@ -603,7 +604,7 @@ function ConfirmRow({
           />
           {error ? <FormMessage tone="error">{error}</FormMessage> : null}
         </div>
-        <Button type="button" disabled={busy} onClick={confirm}>
+        <Button type="button" haptic="success" disabled={busy} onClick={confirm}>
           Confirm
         </Button>
       </div>
