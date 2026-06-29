@@ -2,13 +2,16 @@ import { Outlet } from 'react-router-dom'
 import { TabBar } from './TabBar'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { HealthIndicator } from './HealthIndicator'
+import { InstallPrompt } from './InstallPrompt'
+import { useOfflineSync } from '@/lib/useOfflineSync'
 
 /**
  * Base app layout: a themed header (wordmark + connectivity + theme switcher), the
  * scrollable routed content, and the persistent bottom tab bar. Every surface here
- * is token-driven (spec §13).
+ * is token-driven (spec §13). Mounts the offline reconnect-sync once for the app.
  */
 export function Layout() {
+  useOfflineSync()
   return (
     <div className="flex h-full flex-col bg-bg text-text">
       <header
@@ -34,6 +37,8 @@ export function Layout() {
           </div>
         </div>
       </header>
+
+      <InstallPrompt />
 
       <main className="mx-auto w-full max-w-screen-sm flex-1 overflow-y-auto">
         <Outlet />

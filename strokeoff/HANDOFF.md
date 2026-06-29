@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 9 + app logo (website integration done in the same branch)._
+_Last updated after Phase 10 (offline resilience & PWA polish)._
 
 ## Where things stand
 
@@ -17,12 +17,13 @@ _Last updated after Phase 9 + app logo (website integration done in the same bra
   them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
   on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
   per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.** Next up: **Phase 10 — Offline resilience & PWA polish.**
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.** Next up: **Phase 11 — Community → People & polish.**
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (45 tests) and `pnpm build`
-  are all green. Dev server boots and serves.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (59 tests) and `pnpm build`
+  are all green. Dev server boots and serves; the build emits a Workbox SW
+  (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
 ### Important caveat — backend not yet live
 There is **no Supabase project wired in this environment** (`.env.local` is empty).
@@ -113,6 +114,30 @@ real project is connected, apply migrations and exercise the flows.
   `sendMagicLink` takes an optional `redirectTo`. **Not runnable here** (needs a live
   Supabase project + Resend key) — built, type-checks, documented in `supabase/README.md`.
 
+- **Phase 10 — Offline resilience & PWA polish:** the app now survives patchy course
+  signal (spec §2, §4). **Durable offline write queue** — point logs/edits/voids that
+  can't reach the server are persisted to **IndexedDB** (`lib/offlineQueue.ts`, with a
+  memory-only fallback for jsdom/private-mode) keyed on the client event UUID, and
+  **replayed in order on reconnect** (`lib/offlineMutations.ts#flushQueue`); the
+  underlying RPCs are idempotent on the event id, so replays can't double-count.
+  `callRpcOrQueue` wraps every scoring write: a **transient network error** (or
+  `navigator.onLine === false`) parks the write and keeps the optimistic event;
+  a **real server error** (permission/validation, carries a `code`/`status`) still
+  throws and rolls back. **Queued log events are overlaid** on the server ledger in
+  `usePointEvents` (via `useSyncExternalStore` over the queue + pure
+  `mergePendingEvents`, deduped by id) so the feed/leaderboard stay honest while
+  offline and across a reload. **Reconnect sync** (`useOfflineSync`, mounted once in
+  `Layout`) flushes the queue and refetches active queries on `online`/on load.
+  **Service worker** — Workbox `navigateFallback` to the cached shell so the app
+  **opens offline**, image runtime cache, `cleanupOutdatedCaches` (`vite.config.ts`).
+  **Install prompt** — `useInstallPrompt` captures `beforeinstallprompt`; dismissible
+  token-driven `InstallPrompt` banner (dismissal remembered in localStorage).
+  **Connection status** — `HealthIndicator` now leads with offline / "Syncing N…"
+  state via `useConnection` + pure `connectionLabel`. No DB changes. Pure
+  `features/offline/pending.ts` (+ 10 tests) and `lib/offlineQueue.ts` (+ 4 tests).
+  _Note:_ edit/void are queued for replay but don't render optimistically while
+  offline (they reflect after reconnect); a future polish item if it matters.
+
 ## Stubbed / deferred (don't assume these exist)
 
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
@@ -131,7 +156,9 @@ real project is connected, apply migrations and exercise the flows.
 - **Animations Tier 2/3** (custom particle = emoji/uploaded image; Lottie/GIF/sprite
   with preview-before-save) → not built; Tier 1 presets are done and higher tiers
   **fall back to confetti**. Needs a Supabase Storage bucket + RLS + upload UI.
-- **Offline queue / PWA polish** → Phase 10.
+- **Camera QR scanning** → still display-only (carried; spec §3 "Scan QR").
+- **Full offline / local-only mode** (a round with no connection at all) → out of
+  scope for v1 by design (spec §4); Phase 10 covers *intermittent* signal only.
 
 ## Open design items & decisions (carried from the original handoff)
 
@@ -160,34 +187,34 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–9 done.)
+Community → People. (Phases 0–10 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 10:
+phase. For Phase 11:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 10 —
-> Offline resilience & PWA polish** (spec §4, §2, §15) to its Deliverable. Honor the
-> architecture principles (especially **derive-from-events** and **client-generated
-> event UUIDs**, already in place). Finish with `pnpm typecheck && pnpm lint &&
-> pnpm test` clean.
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 11 —
+> Community → People & polish** (spec §3, §11, §15) to its Deliverable. Honor the
+> architecture principles (RLS-first on any visibility rule, login-only people data).
+> Finish with `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 10 makes the app survive patchy course signal (spec §2, §4):
-- **Offline write queue** — point logs/edits/voids are already optimistic with a
-  **client UUID** (`useLogPoint` in `lib/scoring.ts`); persist pending mutations to
-  **IndexedDB** and replay on reconnect. `log_point` is already idempotent on the
-  event id, so replays can't double-count — lean on that.
-- **Reconnect sync** — on `online`/realtime-resubscribe, flush the queue and
-  refetch. TanStack Query is the cache; add an online-manager + a persisted mutation
-  queue (consider `@tanstack/query-persist-client` or a small custom IndexedDB
-  queue — keep it light).
-- **Service-worker caching** — `vite-plugin-pwa` is configured (Phase 0); tune the
-  Workbox runtime caching so the shell + app assets work offline. A live round still
-  needs the network (shared realtime), but the app should **open offline** and queue.
-- **Install prompt** — capture `beforeinstallprompt` and offer an install affordance.
-- **Connection status** — surface offline/queued state (the header already has a
-  `HealthIndicator`; extend it).
-- Key files: `lib/scoring.ts`, `lib/queryClient.ts`, `vite.config.ts` (VitePWA /
-  Workbox), `components/HealthIndicator.tsx`, a new `lib/offlineQueue.ts`. No new DB.
+Phase 11 builds out the **People** section of Community (spec §11), the last phase:
+- **People-you've-played-with browsing (Option B)** — list the players you've shared
+  a round with; tap a player → their profile.
+- **View a player's visible rounds** — only rounds you're allowed to see (RLS), and
+  **quick-add** a player to one of your groups.
+- **Optional stats** and any remaining polish (settings contents, coach marks).
+- Likely needs a new migration for a "players I've shared a round with" view/RPC
+  with RLS, plus `routes/community/` UI. No offline/PWA work remains.
+
+**Phase 10 offline notes for whoever touches scoring next:** every scoring write now
+goes through `callRpcOrQueue` (`lib/offlineMutations.ts`) — keep new write RPCs
+**idempotent on a client id** so a queued replay can't double-apply, and add them to
+the queue the same way. Queued log events are overlaid in `usePointEvents` via the
+durable queue (`lib/offlineQueue.ts`); edit/void queue but don't render optimistically
+while offline (open polish item). Reconnect flush lives in `useOfflineSync` (mounted
+in `Layout`). Key Phase-10 files: `lib/offlineQueue.ts`, `lib/offlineMutations.ts`,
+`lib/useOfflineSync.ts`, `lib/useConnection.ts`, `lib/useInstallPrompt.ts`,
+`features/offline/pending.ts`, `components/InstallPrompt.tsx`, `vite.config.ts`.
 
 ## Connecting a real Supabase project (when ready)
 

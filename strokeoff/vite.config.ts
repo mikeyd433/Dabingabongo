@@ -7,11 +7,15 @@ import path from 'node:path'
 // Theme color matches the `stat-sheet` default theme accent (see src/themes/statSheet.ts).
 const THEME_COLOR = '#1d4ed8'
 
+// Sub-path of dabingabongo.com — Vite base, manifest scope/start_url, and the
+// service worker's navigate fallback all key off this single value.
+const BASE = '/strokeoff/'
+
 export default defineConfig({
   // Stroke Off is served from a sub-path of dabingabongo.com (vendored alongside
   // the brainstorm/ and harmony/ apps). Assets, router basename, and the PWA
   // manifest scope all key off this single value.
-  base: '/strokeoff/',
+  base: BASE,
   build: {
     // Emit into the website's shared dist/ so build.sh publishes it as one site.
     outDir: '../dist/strokeoff',
@@ -22,14 +26,38 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
+      // Phase 10 — make the shell open offline and survive patchy course signal.
+      workbox: {
+        // Precache the built shell + assets so the app launches with no network.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        // SPA: serve the cached app shell for any in-app navigation while offline.
+        navigateFallback: `${BASE}index.html`,
+        // Never hijack the SW script itself or Supabase auth/api round-trips.
+        navigateFallbackDenylist: [/sw\.js$/, /\/auth\//, /\/rest\//],
+        runtimeCaching: [
+          {
+            // Same-origin images not in the precache (e.g. future avatars).
+            urlPattern: ({ request, sameOrigin }) =>
+              sameOrigin && request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'so-images',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'Stroke Off',
         short_name: 'Stroke Off',
         description:
           'A points-based disc golf side-game that runs parallel to your round.',
         display: 'standalone',
-        start_url: '/strokeoff/',
-        scope: '/strokeoff/',
+        start_url: BASE,
+        scope: BASE,
         background_color: '#ffffff',
         theme_color: THEME_COLOR,
         icons: [

@@ -1,4 +1,6 @@
 import { useHealthCheck } from '@/lib/useHealthCheck'
+import { useConnection } from '@/lib/useConnection'
+import { connectionLabel } from '@/features/offline/pending'
 import type { HealthStatus } from '@/lib/healthCheck'
 
 const DOT: Record<HealthStatus, string> = {
@@ -16,14 +18,38 @@ const LABEL: Record<HealthStatus, string> = {
 }
 
 /**
- * Tiny Supabase connectivity indicator (Phase 0 health check). No business logic —
- * just surfaces whether the client reached the backend.
+ * Connectivity indicator. Browser offline / queued offline-writes take precedence
+ * (spec §4) — they're what matters on a patchy course; otherwise it falls back to
+ * the Supabase health check. Fully token-driven.
  */
 export function HealthIndicator() {
+  const { online, queued } = useConnection()
   const { data, isLoading } = useHealthCheck()
-  const status: HealthStatus = isLoading
-    ? 'checking'
-    : (data?.status ?? 'error')
+
+  // Device offline, or writes are parked/syncing: surface that first.
+  if (!online || queued > 0) {
+    const color = !online ? 'var(--color-accent)' : 'var(--color-muted)'
+    const label = connectionLabel({ online, queued })
+    return (
+      <span
+        className="flex items-center gap-1.5 font-label text-xs text-muted"
+        title={
+          queued > 0
+            ? `${queued} point ${queued === 1 ? 'write' : 'writes'} waiting to sync.`
+            : 'No connection — points will queue and sync when you reconnect.'
+        }
+      >
+        <span
+          aria-hidden
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        {label}
+      </span>
+    )
+  }
+
+  const status: HealthStatus = isLoading ? 'checking' : (data?.status ?? 'error')
 
   return (
     <span

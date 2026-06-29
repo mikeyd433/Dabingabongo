@@ -1,6 +1,10 @@
+import { useMemo, useSyncExternalStore } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { callRpcOrQueue } from './offlineMutations'
+import { getSnapshot, subscribe as subscribeQueue } from './offlineQueue'
+import { mergePendingEvents, pendingLogEvents } from '@/features/offline/pending'
 import type { PointEvent, RoundPlayer, RoundRule } from '@/types'
 
 /**
@@ -34,9 +38,25 @@ export function useRoundRules(roundId: string | undefined) {
   })
 }
 
+/**
+ * Still-queued optimistic log events for this round (offline writes not yet
+ * synced). Sourced from the durable offline queue so they survive a reload and
+ * keep the feed/leaderboard honest while signal is out (Phase 10).
+ */
+function usePendingRoundEvents(roundId: string | undefined): PointEvent[] {
+  const pending = useSyncExternalStore(subscribeQueue, getSnapshot, getSnapshot)
+  return useMemo(
+    () =>
+      roundId
+        ? pendingLogEvents(pending).filter((e) => e.round_id === roundId)
+        : [],
+    [pending, roundId],
+  )
+}
+
 /** The full point-event ledger for the round, newest first (feed + leaderboard). */
 export function usePointEvents(roundId: string | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: eventsKey(roundId),
     enabled: Boolean(roundId),
     queryFn: async (): Promise<PointEvent[]> => {
@@ -49,6 +69,18 @@ export function usePointEvents(roundId: string | undefined) {
       return data ?? []
     },
   })
+
+  // Overlay any queued offline writes on top of the server ledger (deduped by id).
+  const pending = usePendingRoundEvents(roundId)
+  const data = useMemo(
+    () =>
+      query.data || pending.length > 0
+        ? mergePendingEvents(query.data ?? [], pending)
+        : query.data,
+    [query.data, pending],
+  )
+
+  return { ...query, data }
 }
 
 /** The caller's own roster row in this round (the subject they self-score). */
@@ -123,39 +155,59 @@ export interface LogPointVars {
   involvedPlayerIds?: string[]
 }
 
-/** Log a point for a subject you control, with an optimistic feed/leaderboard bump. */
+function buildOptimisticEvent(
+  vars: LogPointVars,
+  roundId: string,
+  userId: string | undefined,
+): PointEvent {
+  return {
+    id: vars.eventId,
+    round_id: roundId,
+    subject_player_id: vars.subjectPlayerId,
+    rule_id: vars.rule.rule_id,
+    rule_name_snapshot: vars.rule.name_snapshot,
+    points_snapshot: vars.rule.points_snapshot,
+    count: vars.count ?? 1,
+    logged_by: userId ?? '',
+    edited_at: null,
+    voided: false,
+    void_reason: null,
+    created_at: new Date().toISOString(),
+  }
+}
+
+/**
+ * Log a point for a subject you control, with an optimistic feed/leaderboard bump.
+ * On a transient network failure the write is parked in the offline queue and the
+ * optimistic event stays put (it's re-overlaid from the queue, so an
+ * `invalidate`/refetch can't drop it); it replays idempotently on reconnect.
+ */
 export function useLogPoint(roundId: string | undefined) {
   const { user } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (vars: LogPointVars): Promise<void> => {
-      const { error } = await supabase.rpc('log_point', {
-        p_round_id: roundId!,
-        p_subject_player_id: vars.subjectPlayerId,
-        p_rule_id: vars.rule.rule_id,
-        p_count: vars.count ?? 1,
-        p_involved_player_ids: vars.involvedPlayerIds ?? [],
-        p_event_id: vars.eventId,
-      })
-      if (error) throw error
-    },
+    mutationFn: async (vars: LogPointVars): Promise<{ queued: boolean }> =>
+      callRpcOrQueue(
+        {
+          type: 'log',
+          roundId: roundId!,
+          rpc: 'log_point',
+          params: {
+            p_round_id: roundId!,
+            p_subject_player_id: vars.subjectPlayerId,
+            p_rule_id: vars.rule.rule_id,
+            p_count: vars.count ?? 1,
+            p_involved_player_ids: vars.involvedPlayerIds ?? [],
+            p_event_id: vars.eventId,
+          },
+          optimisticEvent: buildOptimisticEvent(vars, roundId!, user?.id),
+        },
+        vars.eventId,
+      ),
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: eventsKey(roundId) })
       const previous = qc.getQueryData<PointEvent[]>(eventsKey(roundId))
-      const optimistic: PointEvent = {
-        id: vars.eventId,
-        round_id: roundId!,
-        subject_player_id: vars.subjectPlayerId,
-        rule_id: vars.rule.rule_id,
-        rule_name_snapshot: vars.rule.name_snapshot,
-        points_snapshot: vars.rule.points_snapshot,
-        count: vars.count ?? 1,
-        logged_by: user?.id ?? '',
-        edited_at: null,
-        voided: false,
-        void_reason: null,
-        created_at: new Date().toISOString(),
-      }
+      const optimistic = buildOptimisticEvent(vars, roundId!, user?.id)
       qc.setQueryData<PointEvent[]>(eventsKey(roundId), (old) => [
         optimistic,
         ...(old ?? []),
@@ -163,6 +215,7 @@ export function useLogPoint(roundId: string | undefined) {
       return { previous }
     },
     onError: (_err, _vars, context) => {
+      // Real (server) error — roll back. A queued write doesn't reach here.
       if (context?.previous) {
         qc.setQueryData(eventsKey(roundId), context.previous)
       }
@@ -176,13 +229,18 @@ export function useLogPoint(roundId: string | undefined) {
 export function useEditPointEvent(roundId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ eventId, count }: { eventId: string; count: number }) => {
-      const { error } = await supabase.rpc('edit_point_event', {
-        p_event_id: eventId,
-        p_count: count,
-      })
-      if (error) throw error
-    },
+    mutationFn: async ({ eventId, count }: { eventId: string; count: number }) =>
+      // Queue id is per-event so a later edit replaces an unsynced earlier one
+      // (last edit wins); the edit replays idempotently (absolute count).
+      callRpcOrQueue(
+        {
+          type: 'edit',
+          roundId: roundId!,
+          rpc: 'edit_point_event',
+          params: { p_event_id: eventId, p_count: count },
+        },
+        `edit:${eventId}`,
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: eventsKey(roundId) })
     },
@@ -198,13 +256,16 @@ export function useVoidPointEvent(roundId: string | undefined) {
     }: {
       eventId: string
       reason?: string
-    }) => {
-      const { error } = await supabase.rpc('void_point_event', {
-        p_event_id: eventId,
-        p_reason: reason ?? null,
-      })
-      if (error) throw error
-    },
+    }) =>
+      callRpcOrQueue(
+        {
+          type: 'void',
+          roundId: roundId!,
+          rpc: 'void_point_event',
+          params: { p_event_id: eventId, p_reason: reason ?? null },
+        },
+        `void:${eventId}`,
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: eventsKey(roundId) })
     },
