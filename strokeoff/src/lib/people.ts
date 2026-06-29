@@ -49,6 +49,28 @@ export function usePlayerRounds(profileId: string | undefined) {
   })
 }
 
+export interface PlayerRoundStats {
+  rounds_played: number
+  wins: number
+  best_rank: number | null
+}
+
+/** Wins / rounds played / best finish for a player, across rounds you can see. */
+export function usePlayerStats(profileId: string | undefined) {
+  return useQuery({
+    queryKey: ['player-stats', profileId],
+    enabled: Boolean(profileId),
+    queryFn: async (): Promise<PlayerRoundStats> => {
+      const { data, error } = await supabase.rpc('player_round_stats', {
+        p_other: profileId!,
+      })
+      if (error) throw error
+      const row = (data ?? [])[0] as PlayerRoundStats | undefined
+      return row ?? { rounds_played: 0, wins: 0, best_rank: null }
+    },
+  })
+}
+
 /** Quick-add a player you've played with to one of your groups (spec §11). */
 export function useQuickAddToGroup() {
   const { user } = useAuth()

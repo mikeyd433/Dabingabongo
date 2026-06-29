@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
+import { CoachMark } from '@/components/CoachMark'
 import { useRoundPlayers } from '@/lib/rounds'
 import { useAuth } from '@/lib/auth'
 import { usePointEvents, useRoundRules } from '@/lib/scoring'
 import {
+  useRecordRoundFinish,
   useSetRegularStrokes,
   useSetRoundPar,
   useSetScoreConfirmed,
@@ -59,6 +61,31 @@ export function ResultsScreen({ round }: { round: Round }) {
     results.finalsReady &&
     results.tiedForWin.length > 1 &&
     !round.tiebreak_winner_id
+
+  // Persist the finishes once finals are in and confirmed, so player history +
+  // stats (spec §11) don't recompute. Idempotent + deterministic, so it writes
+  // once and stops when the stored values already match (incl. after a tie-break).
+  const recordFinish = useRecordRoundFinish(round.id)
+  useEffect(() => {
+    if (!gate.allConfirmed || !results.finalsReady || recordFinish.isPending) {
+      return
+    }
+    const stale = results.rows.some(
+      (r) =>
+        r.player.final_rank !== r.rank ||
+        r.player.is_winner !== r.isWinner ||
+        r.player.final_adjusted !== r.adjusted,
+    )
+    if (!stale) return
+    recordFinish.mutate(
+      results.rows.map((r) => ({
+        player_id: r.player.id,
+        adjusted: r.adjusted,
+        rank: r.rank,
+        is_winner: r.isWinner,
+      })),
+    )
+  }, [gate.allConfirmed, results, recordFinish])
 
   // End-of-round step 2 (spec §10): a dedicated enter-&-confirm-scores screen
   // sits before the final standings. In Multi Phone the finals stay locked until
@@ -327,6 +354,13 @@ function ScoreConfirmScreen({
           {round.played_on} · Scoring locked
         </p>
       </div>
+
+      {!singlePhoneController && !isSinglePhone ? (
+        <CoachMark id="score-confirm">
+          Enter your strokes and tap confirm. The final standings unlock once
+          everyone has confirmed their score.
+        </CoachMark>
+      ) : null}
 
       <section className="rounded-card border border-border bg-surface p-4">
         <div className="flex items-center justify-between gap-2">

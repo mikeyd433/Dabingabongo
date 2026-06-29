@@ -8,13 +8,16 @@ import { errorMessage } from '@/lib/validation'
 import type { RuleDraft } from '@/lib/rules'
 import type { Rule } from '@/types'
 import {
+  ALL_PRESETS,
   DEFAULT_ANIMATION,
   PRESET_LABELS,
-  TIER1_PRESETS,
   normalizeAnimation,
   type AnimationConfig,
   type AnimationPreset,
 } from '@/features/animations/types'
+import { celebrate } from '@/features/animations/celebrate'
+import { useUploadAnimationAsset } from '@/lib/animationAssets'
+import type { ChangeEvent } from 'react'
 
 const DISPLAY_NAME_MAX = 25 // spec §7
 
@@ -227,7 +230,7 @@ function Field({
   )
 }
 
-/** Per-rule celebration config (spec §12, Tier 1: preset + color/emoji). */
+/** Per-rule celebration config (spec §12): preset + color, custom emoji/image. */
 function AnimationField({
   value,
   onChange,
@@ -237,19 +240,45 @@ function AnimationField({
 }) {
   const cfg = normalizeAnimation(value)
   const set = (patch: Partial<AnimationConfig>) => onChange({ ...cfg, ...patch })
+  const upload = useUploadAnimationAsset()
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  function choosePreset(preset: AnimationPreset) {
+    // Custom image is the only tier-2 effect today; everything else is tier 1.
+    set({ preset, tier: preset === 'image-burst' ? 2 : 1 })
+  }
+
+  function handleImage(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    upload.mutate(file, {
+      onSuccess: (url) => set({ preset: 'image-burst', tier: 2, imageUrl: url }),
+      onError: (err) => setUploadError(errorMessage(err)),
+    })
+  }
 
   return (
     <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
-      <span className="font-label text-sm text-text">Celebration</span>
+      <div className="flex items-center justify-between">
+        <span className="font-label text-sm text-text">Celebration</span>
+        <button
+          type="button"
+          className="font-label text-xs font-semibold text-accent underline"
+          onClick={() => celebrate(cfg)}
+        >
+          Preview
+        </button>
+      </div>
       <div className="flex gap-3">
         <Field label="Effect" htmlFor="rule-anim-preset" className="flex-1">
           <Select
             id="rule-anim-preset"
             value={cfg.preset}
-            onChange={(e) => set({ preset: e.target.value as AnimationPreset })}
+            onChange={(e) => choosePreset(e.target.value as AnimationPreset)}
             className="w-full"
           >
-            {TIER1_PRESETS.map((preset) => (
+            {ALL_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
                 {PRESET_LABELS[preset]}
               </option>
@@ -279,6 +308,32 @@ function AnimationField({
           />
         </Field>
       ) : null}
+      {cfg.preset === 'image-burst' ? (
+        <div className="flex items-center gap-3">
+          {cfg.imageUrl ? (
+            <img
+              src={cfg.imageUrl}
+              alt="Celebration particle"
+              className="h-12 w-12 rounded-card object-contain"
+            />
+          ) : null}
+          <label className="inline-flex min-h-[44px] cursor-pointer items-center rounded-card border border-border bg-surface px-4 font-label text-sm font-semibold text-text">
+            {upload.isPending
+              ? 'Uploading…'
+              : cfg.imageUrl
+                ? 'Replace image'
+                : 'Upload image'}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handleImage}
+              disabled={upload.isPending}
+            />
+          </label>
+        </div>
+      ) : null}
+      {uploadError ? <FormMessage tone="error">{uploadError}</FormMessage> : null}
     </div>
   )
 }

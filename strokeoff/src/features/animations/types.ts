@@ -12,6 +12,8 @@ export type AnimationPreset =
   | 'raining-discs'
   | 'screen-flash'
   | 'emoji-burst'
+  // Tier 2 — custom particle from an uploaded image (spec §12).
+  | 'image-burst'
 
 /** Where the effect's colors come from: a named source or a literal hex string. */
 export type AnimationColor = 'theme' | 'rainbow' | string
@@ -19,12 +21,14 @@ export type AnimationColor = 'theme' | 'rainbow' | string
 // A type alias (not interface) so it carries an implicit index signature and slots
 // straight into the `animation_config` jsonb column (Record<string, unknown>).
 export type AnimationConfig = {
-  /** Spec §12 tiers; only tier 1 renders today, higher tiers fall back. */
+  /** Spec §12 tiers: 1 = preset library, 2 = custom emoji/image particle. */
   tier: number
   preset: AnimationPreset
   color: AnimationColor
   /** Glyph for `emoji-burst` (and overridable for `raining-discs`). */
   emoji?: string
+  /** Public URL of the uploaded particle image for `image-burst` (tier 2). */
+  imageUrl?: string
 }
 
 export const TIER1_PRESETS: AnimationPreset[] = [
@@ -35,12 +39,16 @@ export const TIER1_PRESETS: AnimationPreset[] = [
   'emoji-burst',
 ]
 
+/** Every renderable preset, including tier-2 custom-particle effects. */
+export const ALL_PRESETS: AnimationPreset[] = [...TIER1_PRESETS, 'image-burst']
+
 export const PRESET_LABELS: Record<AnimationPreset, string> = {
   confetti: 'Confetti',
   fireworks: 'Fireworks',
   'raining-discs': 'Raining discs',
   'screen-flash': 'Screen flash',
   'emoji-burst': 'Emoji burst',
+  'image-burst': 'Custom image',
 }
 
 export const DEFAULT_ANIMATION: AnimationConfig = {
@@ -66,7 +74,7 @@ const RAINBOW = [
 export function normalizeAnimation(raw: unknown): AnimationConfig {
   if (!raw || typeof raw !== 'object') return DEFAULT_ANIMATION
   const r = raw as Record<string, unknown>
-  const preset = TIER1_PRESETS.includes(r.preset as AnimationPreset)
+  const preset = ALL_PRESETS.includes(r.preset as AnimationPreset)
     ? (r.preset as AnimationPreset)
     : DEFAULT_ANIMATION.preset
   const color =
@@ -75,13 +83,15 @@ export function normalizeAnimation(raw: unknown): AnimationConfig {
       : DEFAULT_ANIMATION.color
   const tier = typeof r.tier === 'number' ? r.tier : 1
   const emoji = typeof r.emoji === 'string' ? r.emoji : undefined
-  return { tier, preset, color, emoji }
+  const imageUrl = typeof r.imageUrl === 'string' ? r.imageUrl : undefined
+  return { tier, preset, color, emoji, imageUrl }
 }
 
 export interface ResolvedAnimation {
   preset: AnimationPreset
   colors: string[]
   emoji: string | null
+  imageUrl: string | null
   durationMs: number
   particleCount: number
 }
@@ -98,16 +108,20 @@ function resolveColors(
 
 /**
  * Resolve a stored config (against the active theme's colors) into the concrete
- * inputs the canvas engine needs, applying the performance caps. Tiers above 1
- * render as confetti until their custom assets land (graceful fallback, spec §12).
+ * inputs the canvas engine needs, applying the performance caps. Unknown presets
+ * — and a `image-burst` with no uploaded image yet — fall back to confetti
+ * (graceful degradation, spec §12).
  */
 export function resolveAnimation(
   raw: unknown,
   theme: { accent: string; winner: string },
 ): ResolvedAnimation {
   const cfg = normalizeAnimation(raw)
-  const preset: AnimationPreset =
-    cfg.tier > 1 || !TIER1_PRESETS.includes(cfg.preset) ? 'confetti' : cfg.preset
+  let preset: AnimationPreset = ALL_PRESETS.includes(cfg.preset)
+    ? cfg.preset
+    : 'confetti'
+  // The custom-image effect needs an image; without one, fall back.
+  if (preset === 'image-burst' && !cfg.imageUrl) preset = 'confetti'
 
   const emoji =
     preset === 'emoji-burst'
@@ -129,6 +143,7 @@ export function resolveAnimation(
     preset,
     colors: resolveColors(cfg.color, theme),
     emoji,
+    imageUrl: preset === 'image-burst' ? (cfg.imageUrl ?? null) : null,
     durationMs,
     particleCount,
   }

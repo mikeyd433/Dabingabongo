@@ -4,10 +4,13 @@ Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the s
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**.
-Course par (0011), the **score-entry & confirmation gate** (0012), and a **feature
-batch** — haptics, an email-redirect fix, a Settings screen, share-app QR, camera QR
-scanning, owner group management (0013), and profile stats — are all **migrated,
-merged to `main`, and deploying**. See "✅ Feature batch — SHIPPED" below._
+Shipped to `main`: course par (0011), score-confirmation gate (0012), and a feature
+batch (haptics, email-redirect fix, Settings, share-app QR, camera QR, owner group
+mgmt (0013), profile stats). A **polish batch** — one-time coach marks, animation
+**Tier 2** (custom image-burst particle + preview), and **win/loss profile stats** —
+is **built + tested on branch `claude/stroke-off-app-n7nnqo`**; its migrations
+`0014` (round finish) + `0015` (animation-assets bucket) are **NOT yet applied / not
+on `main`** — see "⏳ PENDING" below; do them first._
 
 ## Where things stand
 
@@ -27,9 +30,36 @@ merged to `main`, and deploying**. See "✅ Feature batch — SHIPPED" below._
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**81 tests**, now on `main`)
-  and `pnpm build` are all green. Dev server boots and serves; the build emits a Workbox SW
-  (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**82 tests** at branch HEAD;
+  `main` is at 81) and `pnpm build` are all green. Dev server boots and serves; the
+  build emits a Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) offline.
+
+### ⏳ PENDING — polish batch (apply migrations 0014 + 0015, then merge)
+Built, tested (82 tests), committed on `claude/stroke-off-app-n7nnqo`; needs both
+migrations applied before merge.
+
+- **One-time coach marks** (`lib/coachmarks.ts`, `components/CoachMark.tsx`): a
+  dismissible hint shown once per device (remembered in localStorage). Placed on the
+  live scoring screen and the new score-confirm screen. No DB.
+- **Animation Tier 2 — custom image burst** (migration `0015`): a new `image-burst`
+  preset whose particle is an **uploaded image**. New public `animation-assets`
+  Storage bucket (owner-folder-scoped writes, like avatars); `lib/animationAssets.ts`
+  upload hook; `RuleEditor` gains an image upload + a **Preview** button (fires the
+  effect for any preset). Engine (`celebrate.ts`) draws image particles and **falls
+  back to confetti** if the image is missing/fails to load. `types.ts` adds the
+  preset + `imageUrl` + `ALL_PRESETS`. (Tier 3 Lottie/GIF/sprite still deferred —
+  needs a player dependency.)
+- **Win/loss profile stats** (migration `0014`): `round_players` gains
+  `final_adjusted` / `final_rank` / `is_winner`; `record_round_finish` RPC persists
+  the client-computed finishes when a round's finals are in + confirmed (idempotent,
+  any participant — `ResultsScreen` writes them in an effect); `player_round_stats`
+  RPC returns played / wins / best-finish over the rounds the caller can see
+  (mirrors `rounds_with_player` visibility). The profile shows a Played / Wins / Best
+  strip. **The conversion/tie-break math stays on the client** (the tested source of
+  truth); the RPC only stores + aggregates.
+- **ORDER MATTERS (same as before):** apply `0014` + `0015` to the live project
+  **before** merging — the results screen calls `record_round_finish` and reads the
+  new columns, and the rule editor uploads to the new bucket.
 
 ### ✅ Feature batch — SHIPPED
 A batch of requested features, **built, tested (81 tests), migrated (0013 applied,
@@ -145,7 +175,11 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0013` all applied to the live DB (`0013` owner group
+**Migrations status:** `0001…0013` applied to the live DB; **`0014` (round finish) +
+`0015` (animation-assets bucket) are written but NOT applied** (see "⏳ PENDING").
+
+<!-- prior note retained below -->
+**Earlier:** `0001…0013` all applied to the live DB (`0013` owner group
 management applied this session — see "✅ Feature batch — SHIPPED" above).
 
 **✅ End-to-end verified against the live DB** (real phone, production URL): anonymous
@@ -296,8 +330,9 @@ doesn't work — verify via the MCP logs or the real app.
 
 ## Stubbed / deferred (don't assume these exist)
 
-- **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
-  a one-line helper instead.
+- **One-time coach marks** on the live screen (spec §3) → ✅ built (`CoachMark` +
+  `lib/coachmarks.ts`, pending batch) — shown once per device on the live + confirm
+  screens.
 - **Per-theme winner *treatments*** (rubber stamp, crown, "JACKPOT", etc.) and
   **per-format matrix-vs-solo pairing** (spec §13) are **not** built: themes drive
   color / type / card chrome via tokens, and scorecards read those, but the bespoke
@@ -310,14 +345,15 @@ doesn't work — verify via the MCP logs or the real app.
 - **Owner-only group management** (remove member, rename, hand-off, delete) → ✅ built
   (migration 0013 + `GroupCard.tsx`, pending batch). Owner-gated, hidden for the
   personal group.
-- **Optional player stats** on the profile → partially built: a visible-rounds /
-  multi-vs-single strip + shared-rounds & last-played subtitle. Win/loss and per-rule
-  stats are still a future add (would need per-round results computation).
+- **Optional player stats** on the profile → ✅ win/loss built (migration 0014 +
+  `player_round_stats`): Played / Wins / Best finish. Per-rule stats are still a
+  future add.
 - **Settings contents** (spec §11 "Me → Settings") → ✅ built (haptics toggle +
-  new-round defaults, pending batch). **One-time coach marks** are still deferred.
-- **Animations Tier 2/3** (custom particle = emoji/uploaded image; Lottie/GIF/sprite
-  with preview-before-save) → not built; Tier 1 presets are done and higher tiers
-  **fall back to confetti**. Needs a Supabase Storage bucket + RLS + upload UI.
+  new-round defaults).
+- **Animations Tier 2** (custom particle = emoji/uploaded image) → ✅ built: emoji
+  burst (Tier 1) + the new **image-burst** preset (migration 0015 + upload + preview).
+  **Tier 3** (Lottie/GIF/sprite with preview) → still deferred; needs a player
+  dependency. Unknown/assetless higher-tier configs still **fall back to confetti**.
 - **Full offline / local-only mode** (a round with no connection at all) → out of
   scope for v1 by design (spec §4); Phase 10 covers *intermittent* signal only.
 

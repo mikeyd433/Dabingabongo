@@ -23,6 +23,7 @@ import { buildLeaderboard } from '@/features/round/leaderboard'
 import { groupLiveEvents, type FeedGroup } from '@/features/round/feed'
 import { controllablePlayers } from '@/features/round/permissions'
 import { celebrate } from '@/features/animations/celebrate'
+import { CoachMark } from '@/components/CoachMark'
 import { haptic } from '@/lib/haptics'
 import { errorMessage } from '@/lib/validation'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
@@ -93,6 +94,13 @@ export function LiveRoundScreen({ round }: { round: Round }) {
       ) : null}
 
       <Leaderboard rows={leaderboard} meId={me?.id} />
+
+      {canScore ? (
+        <CoachMark id="live-scoring">
+          Tap a rule to log a point. Totals convert to stroke deductions when the
+          round ends — lowest adjusted score wins.
+        </CoachMark>
+      ) : null}
 
       {canScore ? (
         <RulePalette

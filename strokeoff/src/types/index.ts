@@ -128,6 +128,10 @@ export interface RoundPlayer {
   regular_strokes: number | null
   /** Player has confirmed their regular score in the end-of-round flow (spec §10). */
   score_confirmed: boolean
+  /** Persisted finish once finals are in (spec §11 stats); null until recorded. */
+  final_adjusted: number | null
+  final_rank: number | null
+  is_winner: boolean
   claim_token: string | null
   claim_token_expires_at: string | null
   claimed: boolean

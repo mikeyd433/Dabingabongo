@@ -20,7 +20,18 @@ export function celebrate(raw: unknown): void {
     runFlash(anim)
     return
   }
-  runParticles(anim)
+  // Tier 2 custom image: preload the particle, then burst it. If it fails to
+  // load, fall back to confetti so a celebration still fires.
+  if (anim.preset === 'image-burst' && anim.imageUrl) {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => runParticles(anim, img)
+    img.onerror = () =>
+      runParticles({ ...anim, preset: 'confetti', imageUrl: null }, null)
+    img.src = anim.imageUrl
+    return
+  }
+  runParticles(anim, null)
 }
 
 function overlayStyle(el: HTMLElement) {
@@ -56,6 +67,7 @@ interface Particle {
   size: number
   color: string
   emoji: string | null
+  image: HTMLImageElement | null
 }
 
 function rnd(min: number, max: number) {
@@ -66,11 +78,13 @@ function initParticles(
   anim: ResolvedAnimation,
   width: number,
   height: number,
+  image: HTMLImageElement | null,
 ): Particle[] {
   const { colors, emoji, particleCount, preset } = anim
   const pick = () => colors[Math.floor(Math.random() * colors.length)]
   const particles: Particle[] = []
   const falling = preset === 'confetti' || preset === 'raining-discs'
+  const big = Boolean(emoji || image) // emoji/image particles read larger
 
   for (let i = 0; i < particleCount; i++) {
     if (falling) {
@@ -81,12 +95,13 @@ function initParticles(
         vy: rnd(1.5, 3.5),
         rot: rnd(0, Math.PI * 2),
         vr: rnd(-0.2, 0.2),
-        size: emoji ? rnd(12, 20) : rnd(6, 12),
+        size: big ? rnd(12, 20) : rnd(6, 12),
         color: pick(),
         emoji,
+        image,
       })
     } else {
-      // emoji-burst / fireworks — radial burst from upper-centre
+      // emoji-burst / image-burst / fireworks — radial burst from upper-centre
       const ang = rnd(0, Math.PI * 2)
       const spd = rnd(2, 7)
       particles.push({
@@ -96,9 +111,10 @@ function initParticles(
         vy: Math.sin(ang) * spd - 2,
         rot: rnd(0, Math.PI * 2),
         vr: rnd(-0.3, 0.3),
-        size: emoji ? rnd(12, 22) : rnd(3, 6),
+        size: big ? rnd(12, 22) : rnd(3, 6),
         color: pick(),
         emoji,
+        image,
       })
     }
   }
@@ -110,6 +126,15 @@ function drawParticle(
   p: Particle,
   preset: AnimationPreset,
 ) {
+  if (p.image) {
+    const s = p.size * 2
+    ctx.save()
+    ctx.translate(p.x, p.y)
+    ctx.rotate(p.rot)
+    ctx.drawImage(p.image, -s / 2, -s / 2, s, s)
+    ctx.restore()
+    return
+  }
   if (p.emoji) {
     ctx.font = `${p.size * 2}px serif`
     ctx.textAlign = 'center'
@@ -133,7 +158,10 @@ function drawParticle(
   ctx.restore()
 }
 
-function runParticles(anim: ResolvedAnimation) {
+function runParticles(
+  anim: ResolvedAnimation,
+  image: HTMLImageElement | null,
+) {
   const canvas = document.createElement('canvas')
   overlayStyle(canvas)
   const ctx = canvas.getContext('2d')
@@ -147,7 +175,7 @@ function runParticles(anim: ResolvedAnimation) {
   ctx.scale(dpr, dpr)
   document.body.appendChild(canvas)
 
-  const particles = initParticles(anim, width, height)
+  const particles = initParticles(anim, width, height, image)
   const start = performance.now()
   let raf = 0
 

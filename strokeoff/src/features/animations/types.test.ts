@@ -50,10 +50,24 @@ describe('resolveAnimation', () => {
     ).toBeGreaterThan(2)
   })
 
-  it('falls back to confetti for higher tiers (custom assets not yet rendered)', () => {
-    expect(
-      resolveAnimation({ tier: 2, preset: 'emoji-burst' }, theme).preset,
-    ).toBe('confetti')
+  it('renders a custom image burst only once an image is uploaded', () => {
+    // No image yet → graceful confetti fallback.
+    expect(resolveAnimation({ preset: 'image-burst' }, theme).preset).toBe(
+      'confetti',
+    )
+    // With an image → renders the custom burst and carries the URL through.
+    const withImage = resolveAnimation(
+      { preset: 'image-burst', tier: 2, imageUrl: 'https://x/p.png' },
+      theme,
+    )
+    expect(withImage.preset).toBe('image-burst')
+    expect(withImage.imageUrl).toBe('https://x/p.png')
+  })
+
+  it('falls back to confetti for an unknown preset', () => {
+    expect(resolveAnimation({ preset: 'lottie-thing' }, theme).preset).toBe(
+      'confetti',
+    )
   })
 
   it('caps duration and particle count', () => {

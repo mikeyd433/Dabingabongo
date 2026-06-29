@@ -118,6 +118,34 @@ export function useSetTiebreak(roundId: string | undefined) {
   })
 }
 
+export interface RoundFinish {
+  player_id: string
+  adjusted: number | null
+  rank: number | null
+  is_winner: boolean
+}
+
+/**
+ * Persist a completed round's computed finishes (adjusted final / rank / winner)
+ * so player history + stats don't have to recompute them. Idempotent on the
+ * server; any participant may write (migration 0014).
+ */
+export function useRecordRoundFinish(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (finishes: RoundFinish[]) => {
+      const { error } = await supabase.rpc('record_round_finish', {
+        p_round_id: roundId!,
+        p_finishes: finishes,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['round-players', roundId] })
+    },
+  })
+}
+
 /** Completed rounds you were part of and haven't hidden (spec §3, §11). */
 export function useHistoryRounds() {
   const { user } = useAuth()

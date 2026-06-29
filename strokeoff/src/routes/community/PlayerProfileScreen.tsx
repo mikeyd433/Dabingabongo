@@ -6,12 +6,13 @@ import { Select } from '@/components/Select'
 import { FormMessage } from '@/components/FormMessage'
 import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
-import { usePerson, usePlayerRounds, useQuickAddToGroup } from '@/lib/people'
 import {
-  addableGroups,
-  personSubtitle,
-  playerStats,
-} from '@/features/people/people'
+  usePerson,
+  usePlayerRounds,
+  usePlayerStats,
+  useQuickAddToGroup,
+} from '@/lib/people'
+import { addableGroups, personSubtitle } from '@/features/people/people'
 import { errorMessage } from '@/lib/validation'
 import type { PersonSummary } from '@/types'
 
@@ -174,18 +175,21 @@ function QuickAddCard({ person }: { person: PersonSummary }) {
 function PlayerRoundsCard({ profileId }: { profileId: string }) {
   const navigate = useNavigate()
   const { data: rounds = [], isLoading } = usePlayerRounds(profileId)
-  const stats = playerStats(rounds)
+  const { data: stats } = usePlayerStats(profileId)
 
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-display text-base font-semibold text-text">
         Rounds you can see
       </h2>
-      {!isLoading && rounds.length > 0 ? (
+      {stats && stats.rounds_played > 0 ? (
         <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <Stat label="Visible" value={stats.visibleRounds} />
-          <Stat label="Multi phone" value={stats.multiPhone} />
-          <Stat label="Single phone" value={stats.singlePhone} />
+          <Stat label="Played" value={stats.rounds_played} />
+          <Stat label="Wins" value={stats.wins} />
+          <Stat
+            label="Best finish"
+            value={stats.best_rank != null ? `#${stats.best_rank}` : '—'}
+          />
         </dl>
       ) : null}
       {isLoading ? (
@@ -222,7 +226,7 @@ function PlayerRoundsCard({ profileId }: { profileId: string }) {
   )
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-card bg-surface-alt px-2 py-2">
       <dt className="font-label text-xs text-muted">{label}</dt>
