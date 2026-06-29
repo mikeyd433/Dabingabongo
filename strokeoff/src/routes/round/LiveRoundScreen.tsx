@@ -20,6 +20,7 @@ import {
   type PendingConfirmation,
 } from '@/lib/scoring'
 import { buildLeaderboard } from '@/features/round/leaderboard'
+import { groupLiveEvents, type FeedGroup } from '@/features/round/feed'
 import { controllablePlayers } from '@/features/round/permissions'
 import { celebrate } from '@/features/animations/celebrate'
 import { errorMessage } from '@/lib/validation'
@@ -707,28 +708,25 @@ function EventFeed({
   controllableIds: Set<string>
   canScore: boolean
 }) {
+  const groups = useMemo(() => groupLiveEvents(events), [events])
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-label text-sm font-semibold text-text">Event feed</h2>
-      {events.length === 0 ? (
+      {groups.length === 0 ? (
         <p className="mt-2 font-label text-xs text-muted">
           No points logged yet.
         </p>
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
-          {events.map((ev) => (
+          {groups.map((group) => (
             <FeedRow
-              key={ev.id}
+              key={group.key}
               roundId={roundId}
-              event={ev}
-              subjectName={playerName.get(ev.subject_player_id) ?? 'Player'}
+              group={group}
+              subjectName={playerName.get(group.subjectId) ?? 'Player'}
               // You manage points for any subject you control (spec §6): in Multi
               // Phone that's yourself + your guests; in Single Phone, everyone.
-              canManage={
-                canScore &&
-                !ev.voided &&
-                controllableIds.has(ev.subject_player_id)
-              }
+              canManage={canScore && controllableIds.has(group.subjectId)}
             />
           ))}
         </ul>
@@ -739,62 +737,59 @@ function EventFeed({
 
 function FeedRow({
   roundId,
-  event,
+  group,
   subjectName,
   canManage,
 }: {
   roundId: string
-  event: PointEvent
+  group: FeedGroup
   subjectName: string
   canManage: boolean
 }) {
   const voidEvent = useVoidPointEvent(roundId)
   const editEvent = useEditPointEvent(roundId)
+  const busy = editEvent.isPending || voidEvent.isPending
 
-  const total = event.count * event.points_snapshot
-  const time = new Date(event.created_at).toLocaleTimeString([], {
+  const total = group.count * group.pointsSnapshot
+  const time = new Date(group.latestAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   })
 
+  // +/− peel the stack via the group's latest event: a multi-event stack drops
+  // one event at a time; a single edited-count event steps its count down.
+  function removeOne() {
+    if (group.latestCount > 1) {
+      editEvent.mutate({ eventId: group.latestId, count: group.latestCount - 1 })
+    } else {
+      voidEvent.mutate({ eventId: group.latestId })
+    }
+  }
+
   return (
     <li className="flex items-center justify-between gap-2">
-      <div className={event.voided ? 'opacity-50' : undefined}>
-        <p
-          className={`font-label text-sm text-text ${event.voided ? 'line-through' : ''}`}
-        >
-          <span className="font-semibold">{subjectName}</span>{' '}
-          {event.rule_name_snapshot}
+      <div>
+        <p className="font-label text-sm text-text">
+          <span className="font-semibold">{subjectName}</span> {group.ruleName}
         </p>
         <p className="font-numeral text-xs text-muted">
-          ×{event.count} · +{total}
-          {event.edited_at && !event.voided ? ' · edited' : ''} · {time}
+          ×{group.count} · +{total}
+          {group.edited ? ' · edited' : ''} · {time}
         </p>
       </div>
       {canManage ? (
         <div className="flex shrink-0 items-center gap-1">
-          <StepperButton
-            label="−"
-            disabled={editEvent.isPending || event.count <= 1}
-            onClick={() =>
-              editEvent.mutate({ eventId: event.id, count: event.count - 1 })
-            }
-          />
+          <StepperButton label="−" disabled={busy} onClick={removeOne} />
           <StepperButton
             label="+"
-            disabled={editEvent.isPending}
+            disabled={busy}
             onClick={() =>
-              editEvent.mutate({ eventId: event.id, count: event.count + 1 })
+              editEvent.mutate({
+                eventId: group.latestId,
+                count: group.latestCount + 1,
+              })
             }
           />
-          <button
-            type="button"
-            className="ml-1 font-label text-xs text-muted underline disabled:opacity-50"
-            disabled={voidEvent.isPending}
-            onClick={() => voidEvent.mutate({ eventId: event.id })}
-          >
-            Undo
-          </button>
         </div>
       ) : null}
     </li>
