@@ -13,11 +13,18 @@ export async function signInAnonymously(displayName: string) {
   if (error) throw error
 }
 
-/** Magic-link sign-in for a signed-out visitor (creates an account if new). */
-export async function sendMagicLink(email: string) {
+/**
+ * Magic-link sign-in for a signed-out visitor (creates an account if new).
+ * `redirectTo` overrides where the link lands — e.g. back to a `?claim=…` URL so
+ * the claim resumes after sign-in (spec §10). Defaults to the app root.
+ */
+export async function sendMagicLink(email: string, redirectTo?: string) {
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim(),
-    options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+    options: {
+      emailRedirectTo:
+        redirectTo ?? window.location.origin + import.meta.env.BASE_URL,
+    },
   })
   if (error) throw error
 }

@@ -4,20 +4,26 @@ import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { EmptyState } from '@/components/EmptyState'
 import { FormMessage } from '@/components/FormMessage'
-import { useAuth } from '@/lib/auth'
+import { sendMagicLink, useAuth } from '@/lib/auth'
 import { useCurrentRound, useJoinRound } from '@/lib/rounds'
+import { useRedeemClaim } from '@/lib/claim'
 import { errorMessage } from '@/lib/validation'
 
 /**
  * Round tab index (spec §3). Routes you into your live round, handles a join code
- * (from a QR link or manual entry), or offers start/join when nothing is active.
+ * (from a QR link or manual entry) or a guest claim link (`?claim=…`, spec §10),
+ * or offers start/join when nothing is active.
  */
 export function RoundScreen() {
   const { user, loading } = useAuth()
   const [searchParams] = useSearchParams()
   const joinCode = searchParams.get('join')
+  const claimToken = searchParams.get('claim')
 
   if (loading) return <Centered>Loading…</Centered>
+
+  // Claim comes first and tolerates a signed-out visitor (the guest from the email).
+  if (claimToken) return <ClaimHandler token={claimToken} />
 
   if (!user) {
     return (
@@ -31,6 +37,101 @@ export function RoundScreen() {
   if (joinCode) return <JoinHandler code={joinCode} />
 
   return <RoundEntry />
+}
+
+/**
+ * Lands a `?claim=TOKEN` link (spec §10). A signed-out guest signs in via
+ * magic-link first (returning to this same URL); once signed in, the token is
+ * redeemed and their guest slot + points move to their account.
+ */
+function ClaimHandler({ token }: { token: string }) {
+  const { user, loading } = useAuth()
+  const redeem = useRedeemClaim()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const attempted = useRef(false)
+
+  useEffect(() => {
+    if (loading || !user || attempted.current) return
+    attempted.current = true
+    redeem
+      .mutateAsync(token)
+      .then((round) => navigate(`/round/${round.id}`, { replace: true }))
+      .catch((e) => setError(errorMessage(e)))
+  }, [user, loading, token, redeem, navigate])
+
+  if (loading) return <Centered>Loading…</Centered>
+  if (!user) return <ClaimSignIn />
+  if (error) {
+    return (
+      <div className="flex flex-col gap-3 p-4">
+        <FormMessage tone="error">{error}</FormMessage>
+        <Button type="button" onClick={() => navigate('/', { replace: true })}>
+          Back to Home
+        </Button>
+      </div>
+    )
+  }
+  return <Centered>Claiming your score…</Centered>
+}
+
+function ClaimSignIn() {
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function handleSend() {
+    if (!email.includes('@')) {
+      setError('Enter your email.')
+      return
+    }
+    setPending(true)
+    setError(null)
+    try {
+      // Return to this exact claim URL after the magic link so the claim resumes.
+      await sendMagicLink(email.trim(), window.location.href)
+      setSent(true)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="p-4">
+        <EmptyState
+          title="Check your email"
+          message="Tap the link we sent to sign in and claim your score."
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <EmptyState
+        title="Claim your score"
+        message="Sign in with your email to keep this round's score on your own account."
+      />
+      <div className="flex gap-2">
+        <TextInput
+          type="email"
+          inputMode="email"
+          value={email}
+          placeholder="you@email.com"
+          aria-label="Your email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Button type="button" disabled={pending} onClick={handleSend}>
+          {pending ? 'Sending…' : 'Send link'}
+        </Button>
+      </div>
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+    </div>
+  )
 }
 
 function RoundEntry() {

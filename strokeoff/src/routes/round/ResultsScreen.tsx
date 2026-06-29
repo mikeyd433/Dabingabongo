@@ -5,6 +5,7 @@ import { FormMessage } from '@/components/FormMessage'
 import { useRoundPlayers } from '@/lib/rounds'
 import { usePointEvents, useRoundRules } from '@/lib/scoring'
 import { useSetRegularStrokes, useSetTiebreak } from '@/lib/endRound'
+import { useSendClaimEmail } from '@/lib/claim'
 import { exportNodeToPng } from '@/lib/exportImage'
 import {
   closestToTarget,
@@ -75,8 +76,90 @@ export function ResultsScreen({ round }: { round: Round }) {
         </p>
       )}
 
+      <GuestClaims rows={results.rows} />
+
       <EventLog events={events} players={players} />
     </div>
+  )
+}
+
+/**
+ * "Send email" for any guest (spec §10): emails them a one-time link to claim
+ * their score onto their own account. A light consent confirm guards sending to
+ * someone else's address.
+ */
+function GuestClaims({ rows }: { rows: ResultRow[] }) {
+  const guests = rows.filter((r) => r.player.is_guest)
+  if (guests.length === 0) return null
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <h2 className="font-label text-sm font-semibold text-text">
+        Claim a score
+      </h2>
+      <p className="mt-1 font-label text-xs text-muted">
+        Email a guest a one-time link so they can keep their score on their own
+        account.
+      </p>
+      <ul className="mt-2 flex flex-col gap-3">
+        {guests.map((row) => (
+          <ClaimRow key={row.player.id} playerId={row.player.id} name={row.player.display_name} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function ClaimRow({ playerId, name }: { playerId: string; name: string }) {
+  const send = useSendClaimEmail()
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (sent) {
+    return (
+      <li>
+        <span className="font-label text-sm text-text">{name}</span>
+        <FormMessage tone="success">Claim email sent to {email}.</FormMessage>
+      </li>
+    )
+  }
+
+  return (
+    <li className="flex flex-col gap-1">
+      <span className="font-label text-sm text-text">{name}</span>
+      <div className="flex gap-2">
+        <TextInput
+          type="email"
+          inputMode="email"
+          value={email}
+          placeholder="guest@email.com"
+          aria-label={`${name} email`}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={send.isPending || !email.includes('@')}
+          onClick={() => {
+            const ok = window.confirm(
+              `Send ${name} a claim link at ${email.trim()}? This sends them one email.`,
+            )
+            if (!ok) return
+            setError(null)
+            send.mutate(
+              { roundPlayerId: playerId, email: email.trim() },
+              {
+                onSuccess: () => setSent(true),
+                onError: (e) => setError(errorMessage(e)),
+              },
+            )
+          }}
+        >
+          {send.isPending ? 'Sending…' : 'Send email'}
+        </Button>
+      </div>
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+    </li>
   )
 }
 

@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules'] },
+  // supabase/functions is Deno (remote imports, Deno globals) — linted by its own
+  // toolchain, not this app's eslint.
+  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', 'supabase/functions'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

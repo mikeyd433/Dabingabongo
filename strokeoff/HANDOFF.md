@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 8 + app logo (website integration done in the same branch)._
+_Last updated after Phase 9 + app logo (website integration done in the same branch)._
 
 ## Where things stand
 
@@ -17,7 +17,7 @@ _Last updated after Phase 8 + app logo (website integration done in the same bra
   them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
   on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
   per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8.** Next up: **Phase 9 — Guest claim flow.**
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.** Next up: **Phase 10 — Offline resilience & PWA polish.**
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
@@ -93,11 +93,28 @@ real project is connected, apply migrations and exercise the flows.
   'fixed'` so exported scorecards look identical regardless of device light/dark.
   Themes still snapshot on Start (`theme_snapshot`), so a finished round's look is
   frozen. No migration (data only). Theme tests extended (count/unique/modes).
+- **Phase 8 — Animations (Tier 1):** a point landing fires the rule's celebration
+  when the round's master toggle (`rounds.animations_enabled`) is on (spec §12).
+  Preset library — confetti (default), fireworks, raining discs, screen flash, emoji
+  burst — on a self-cleaning full-screen `<canvas>`, **token-coloured**, with
+  **duration + particle caps** and a **`prefers-reduced-motion` opt-out**. Rule
+  editor gains a Celebration picker; config is **snapshotted onto `round_rules`**
+  (migration `0007`). Pure `features/animations/types.ts` (+ 7 tests); engine in
+  `features/animations/celebrate.ts`. Tier 2/3 fall back to confetti.
+- **Phase 9 — Guest claim flow:** a guest can be emailed a one-time link that, after
+  they sign in, moves that round's guest slot + points to their account (spec §10,
+  Option B). **Results screen** gains a per-guest **"Send email"** (consent confirm);
+  **RoundScreen** lands `?claim=TOKEN` (signed-out → magic-link sign-in back to the
+  same URL → redeem). Migration `0008`: `issue_guest_claim` (service-role only;
+  stores the **md5 hash** in the existing `round_players` claim columns, returns the
+  raw token) + `redeem_guest_claim` (authenticated; binds the slot to the caller,
+  **safe-fails** on used/expired/already-in-round). Email is a **Resend Supabase
+  Edge Function** (`supabase/functions/send-claim-email`, Deno). New `lib/claim.ts`;
+  `sendMagicLink` takes an optional `redirectTo`. **Not runnable here** (needs a live
+  Supabase project + Resend key) — built, type-checks, documented in `supabase/README.md`.
 
 ## Stubbed / deferred (don't assume these exist)
 
-- **Celebration animations on a confirmed point** → Phase 8 (Phase 4 logs points
-  with no confetti; `animations_enabled` is snapshotted but unused so far).
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
   a one-line helper instead.
 - **Per-theme winner *treatments*** (rubber stamp, crown, "JACKPOT", etc.) and
@@ -105,22 +122,9 @@ real project is connected, apply migrations and exercise the flows.
   color / type / card chrome via tokens, and scorecards read those, but the bespoke
   winner art per theme is component-level polish left for later. The 21-theme
   registry and live-preview gallery *are* done (Phase 7).
-- **Phase 8 — Animations (Tier 1):** a point landing fires the rule's celebration
-  when the round's master toggle (`rounds.animations_enabled`) is on (spec §12). The
-  preset library — confetti (default), fireworks, raining discs, screen flash, emoji
-  burst — runs on a self-cleaning full-screen `<canvas>`, **token-coloured** (reads
-  the active theme's accent/winner), with **duration + particle caps** and a
-  **`prefers-reduced-motion` opt-out**. Rule editor gains a Celebration picker
-  (effect + theme/rainbow colour + emoji). The config is **snapshotted onto
-  `round_rules`** at Start (migration `0007` adds the column + re-declares
-  `create_round`). Pure `features/animations/types.ts` (`normalizeAnimation` /
-  `resolveAnimation`, + 7 tests); engine in `features/animations/celebrate.ts`.
 - **Custom / seasonal themes in the DB** (`themes` table) → not used; the launch set
   is code-defined bundles in `src/themes/`. Group default theme is an id string.
-- **Guest results/claim email** ("Send email" on the score screen) → Phase 9. Phase
-  6 has no send-email button; `round_players` claim-token columns exist but unused.
 - **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
-- **Guest claim/email** → Phase 9.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
   allows owner updates/deletes; UI only has create/join/leave + invite.
 - **Quick-add from People**, People tab → Phase 11.
@@ -156,46 +160,43 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–8 done.)
+Community → People. (Phases 0–9 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 9:
+phase. For Phase 10:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 9 — Guest
-> claim flow** (spec §10, §6, §15) to its Deliverable. Honor the architecture
-> principles (theme tokens, snapshot, RLS-first, permission-on-writes,
-> derive-from-events). Add RLS to any new table in the same migration. Finish with
-> `pnpm typecheck && pnpm lint && pnpm test` clean.
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 10 —
+> Offline resilience & PWA polish** (spec §4, §2, §15) to its Deliverable. Honor the
+> architecture principles (especially **derive-from-events** and **client-generated
+> event UUIDs**, already in place). Finish with `pnpm typecheck && pnpm lint &&
+> pnpm test` clean.
 
-Phase 9 lets a guest claim their score to a real account (spec §10 "Guest claim
-flow", Option B):
-- **"Send email" button** on the results screen (`ResultsScreen.tsx`) for any
-  guest / non-logged-in player. A light **consent confirm** when a manager enters
-  someone else's email ("this sends them one email").
-- **Claim token** — generate a one-time, expiring token **bound to that guest slot
-  in that round** (`round_players.claim_token` / `claim_token_expires_at` /
-  `claimed` columns already exist, unused). New migration `0008` for the
-  token-issue + claim-redeem RPCs (SECURITY DEFINER): redeem reassigns that round's
-  guest points to the signing-in account, **safe-fail** on already-claimed/expired,
-  and flips `claimed`.
-- **Email transport — Resend via a Supabase Edge Function** (`supabase/functions/`,
-  doesn't exist yet). `RESEND_API_KEY` + `SUPABASE_SERVICE_ROLE_KEY` are server-only
-  (see `.env.example`); never ship them to the client. The function sends the
-  results + a **claim link** (`dabingabongo.com/strokeoff/...?claim=TOKEN`).
-- **Claim landing** — a route that reads `?claim=TOKEN`, has the visitor sign in via
-  magic-link (reuse Phase 1 auth), then calls the redeem RPC. Mirror the
-  `?join=CODE` pattern in `RoundScreen.tsx`.
-- Key files: `ResultsScreen.tsx`, `lib/endRound.ts` (or new `lib/claim.ts`),
-  `supabase/functions/`, `round_players` claim columns, `RoundScreen.tsx` (token
-  landing). Note: Edge Functions + Resend can't be exercised here without a live
-  Supabase project + key — build them, type-check, and document the wiring.
+Phase 10 makes the app survive patchy course signal (spec §2, §4):
+- **Offline write queue** — point logs/edits/voids are already optimistic with a
+  **client UUID** (`useLogPoint` in `lib/scoring.ts`); persist pending mutations to
+  **IndexedDB** and replay on reconnect. `log_point` is already idempotent on the
+  event id, so replays can't double-count — lean on that.
+- **Reconnect sync** — on `online`/realtime-resubscribe, flush the queue and
+  refetch. TanStack Query is the cache; add an online-manager + a persisted mutation
+  queue (consider `@tanstack/query-persist-client` or a small custom IndexedDB
+  queue — keep it light).
+- **Service-worker caching** — `vite-plugin-pwa` is configured (Phase 0); tune the
+  Workbox runtime caching so the shell + app assets work offline. A live round still
+  needs the network (shared realtime), but the app should **open offline** and queue.
+- **Install prompt** — capture `beforeinstallprompt` and offer an install affordance.
+- **Connection status** — surface offline/queued state (the header already has a
+  `HealthIndicator`; extend it).
+- Key files: `lib/scoring.ts`, `lib/queryClient.ts`, `vite.config.ts` (VitePWA /
+  Workbox), `components/HealthIndicator.tsx`, a new `lib/offlineQueue.ts`. No new DB.
 
 ## Connecting a real Supabase project (when ready)
 
 1. Create the project; copy URL + anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 2. Apply migrations: `npx supabase db push` (or `supabase db reset` locally).
-   Migrations live in `supabase/migrations/0001…0007`.
+   Migrations live in `supabase/migrations/0001…0008`. For the guest-claim email,
+   also deploy the `send-claim-email` Edge Function + set its Resend secrets (see
+   `supabase/README.md`).
 3. Enable **Anonymous sign-ins** and the **Email (magic link)** provider; add app
    origins to Auth → URL Configuration → Redirect URLs. See `supabase/README.md`.
 4. Set the same `VITE_` vars in the deploy environment — for this app that's the
