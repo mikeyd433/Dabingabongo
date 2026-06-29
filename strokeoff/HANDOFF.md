@@ -43,11 +43,16 @@ revoked direct EXECUTE on the internal `seed_group_defaults` + trigger functions
 policy. The remaining advisor warnings are the by-design "SECURITY DEFINER RPC is
 executable" notices — every write RPC checks `auth.uid()`/membership itself.
 
-**Still owner-only (dashboard, no MCP tool for it):** enable **Anonymous** +
-**Email (magic link)** providers and add redirect URLs (localhost + the Netlify
-origin) under Authentication; set the same `VITE_` vars on the Netlify site for
-prod. The app has **not yet been click-tested end-to-end** against this DB — that's
-the next thing to do once auth providers are on.
+**Edge function deployed:** `send-claim-email` (Phase 9 guest-claim email) is
+deployed to the project (version 1, `verify_jwt` on). It still needs its **function
+secrets** set in the dashboard to actually send — `RESEND_API_KEY`, `CLAIM_FROM`
+(a Resend-verified sender), `APP_URL` — and a verified Resend sender domain.
+(`SUPABASE_URL`/`ANON`/`SERVICE_ROLE_KEY` are auto-injected.)
+
+**Still owner-only (dashboard, no MCP tool for it):** auth providers (**Anonymous**
++ **Email**) and redirect URLs are reportedly enabled; the edge-function secrets
+above; and the same `VITE_` vars on the Netlify site for prod. The app has **not yet
+been click-tested end-to-end** against this DB — that's the next thing to do.
 
 ## What each phase delivered
 
