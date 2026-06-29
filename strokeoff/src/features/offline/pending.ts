@@ -85,8 +85,11 @@ export function mergePendingEvents(
   const seen = new Set(serverEvents.map((e) => e.id))
   const extra = pending.filter((e) => !seen.has(e.id))
   if (extra.length === 0) return serverEvents
-  return [...extra, ...serverEvents].sort((a, b) =>
-    b.created_at.localeCompare(a.created_at),
+  return [...extra, ...serverEvents].sort(
+    (a, b) =>
+      // Newest-first, with id as a stable tiebreak so two events sharing a
+      // millisecond-precision timestamp don't reorder unpredictably on re-merge.
+      b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
   )
 }
 

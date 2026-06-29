@@ -143,12 +143,16 @@ export async function list(): Promise<PendingMutation[]> {
 export async function clearQueue(): Promise<void> {
   await hydrate()
   mirror = []
-  if (!memoryOnly && idbAvailable()) {
+  // Attempt the IDB clear whenever IDB exists — even if a prior op degraded us to
+  // memory-only — so a successful clear restores persistence rather than leaving
+  // the module permanently memory-only after a single transient IDB hiccup.
+  if (idbAvailable()) {
     try {
       const db = await openDb()
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
       await txDone(tx)
+      memoryOnly = false
     } catch {
       memoryOnly = true
     }

@@ -220,7 +220,11 @@ export function useLogPoint(roundId: string | undefined) {
         qc.setQueryData(eventsKey(roundId), context.previous)
       }
     },
-    onSettled: () => {
+    onSettled: (result) => {
+      // A queued (offline) write never reached the server — invalidating would
+      // only fire a doomed refetch that drops the optimistic row; the durable
+      // queue overlay keeps it visible until it actually syncs.
+      if (result?.queued) return
       void qc.invalidateQueries({ queryKey: eventsKey(roundId) })
     },
   })
@@ -241,7 +245,9 @@ export function useEditPointEvent(roundId: string | undefined) {
         },
         `edit:${eventId}`,
       ),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Skip the refetch for a queued offline edit (it replays on reconnect).
+      if (result?.queued) return
       void qc.invalidateQueries({ queryKey: eventsKey(roundId) })
     },
   })
@@ -266,7 +272,9 @@ export function useVoidPointEvent(roundId: string | undefined) {
         },
         `void:${eventId}`,
       ),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Skip the refetch for a queued offline void (it replays on reconnect).
+      if (result?.queued) return
       void qc.invalidateQueries({ queryKey: eventsKey(roundId) })
     },
   })

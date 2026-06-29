@@ -40,4 +40,13 @@ describe('strokesForPoints — input hygiene', () => {
     expect(strokesForPoints('tier', DEFAULT_TIER_CONFIG, -3)).toBe(0)
     expect(strokesForPoints('ratio', DEFAULT_RATIO_CONFIG, 5.9)).toBe(1)
   })
+
+  it('does not crash on a malformed/mismatched config (returns 0)', () => {
+    // A `tier` snapshot whose config has no `tiers` array, or a mode/config
+    // mismatch, must degrade to no deduction rather than throwing.
+    // @ts-expect-error — deliberately malformed config
+    expect(strokesForPoints('tier', {}, 20)).toBe(0)
+    // @ts-expect-error — ratio-shaped config under tier mode
+    expect(strokesForPoints('tier', { pointsPerStroke: 5 }, 20)).toBe(0)
+  })
 })

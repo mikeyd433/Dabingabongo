@@ -25,6 +25,15 @@ export function QrScanner({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Keep the latest callback in a ref so the camera effect can run exactly once.
+  // The caller typically passes an inline arrow (a new reference every render);
+  // depending on it directly would tear down and re-init the camera on each
+  // parent re-render, flickering the viewfinder and churning getUserMedia.
+  const onResultRef = useRef(onResult)
+  useEffect(() => {
+    onResultRef.current = onResult
+  }, [onResult])
+
   useEffect(() => {
     let stop: (() => void) | undefined
     let cancelled = false
@@ -41,7 +50,7 @@ export function QrScanner({
             if (handled || !result) return
             handled = true
             ctrl.stop()
-            onResult(result.getText())
+            onResultRef.current(result.getText())
           },
         )
         if (cancelled) controls.stop()
@@ -59,7 +68,7 @@ export function QrScanner({
       cancelled = true
       stop?.()
     }
-  }, [onResult])
+  }, [])
 
   return (
     <div

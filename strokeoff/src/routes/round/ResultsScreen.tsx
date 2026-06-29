@@ -420,16 +420,27 @@ function ConfirmAllButton({
 }) {
   const setConfirmed = useSetScoreConfirmed(roundId)
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const ready = gate.missingScore.length === 0 && gate.total > 0
 
-  function confirmAll() {
+  async function confirmAll() {
     setError(null)
-    for (const p of players) {
-      if (p.score_confirmed) continue
-      setConfirmed.mutate(
-        { playerId: p.id, confirmed: true },
-        { onError: (e) => setError(errorMessage(e)) },
+    setSubmitting(true)
+    try {
+      // Confirm every player together and await all of them. A single mutation
+      // hook .mutate()'d in a loop only retains the last call's state, so one
+      // player's failure could be silently clobbered by a later success.
+      await Promise.all(
+        players
+          .filter((p) => !p.score_confirmed)
+          .map((p) =>
+            setConfirmed.mutateAsync({ playerId: p.id, confirmed: true }),
+          ),
       )
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -438,7 +449,7 @@ function ConfirmAllButton({
       <Button
         type="button"
         haptic="success"
-        disabled={!ready || setConfirmed.isPending}
+        disabled={!ready || submitting}
         onClick={confirmAll}
       >
         Confirm scores &amp; view results
@@ -665,6 +676,7 @@ function ReopenScores({
 }) {
   const { user } = useAuth()
   const setConfirmed = useSetScoreConfirmed(round.id)
+  const [submitting, setSubmitting] = useState(false)
   const isController = round.created_by === user?.id
   const singlePhoneController =
     round.scoring_mode === 'single_phone' && isController
@@ -676,18 +688,28 @@ function ReopenScores({
   })
   if (mine.length === 0) return null
 
+  async function reopenAll() {
+    setSubmitting(true)
+    try {
+      // Await all reopens together — looping .mutate() only tracks the last call.
+      await Promise.all(
+        mine.map((p) =>
+          setConfirmed.mutateAsync({ playerId: p.id, confirmed: false }),
+        ),
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex items-center justify-between gap-2 rounded-card border border-border bg-surface-alt px-4 py-2">
       <span className="font-label text-xs text-muted">Scores confirmed.</span>
       <Button
         type="button"
         variant="secondary"
-        disabled={setConfirmed.isPending}
-        onClick={() => {
-          for (const p of mine) {
-            setConfirmed.mutate({ playerId: p.id, confirmed: false })
-          }
-        }}
+        disabled={submitting}
+        onClick={reopenAll}
       >
         Edit scores
       </Button>

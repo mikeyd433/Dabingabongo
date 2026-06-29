@@ -59,6 +59,18 @@ describe('parseConversion', () => {
     expect(parseConversion({ mode: 'nope' })).toBeNull()
     expect(parseConversion({ mode: 'tier' })).toBeNull()
   })
+
+  it('rejects a config whose shape mismatches its mode', () => {
+    // tier mode needs a tiers array; ratio mode needs a numeric ratio.
+    expect(parseConversion({ mode: 'tier', config: {} })).toBeNull()
+    expect(
+      parseConversion({ mode: 'tier', config: { pointsPerStroke: 5 } }),
+    ).toBeNull()
+    expect(parseConversion({ mode: 'ratio', config: {} })).toBeNull()
+    expect(
+      parseConversion({ mode: 'ratio', config: { tiers: [] } }),
+    ).toBeNull()
+  })
 })
 
 describe('computeResults', () => {

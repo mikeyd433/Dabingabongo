@@ -164,7 +164,9 @@ export function useHistoryRounds() {
       )
         .map((row) => row.rounds)
         .filter((r): r is Round => r !== null && r.status === 'complete')
-      rounds.sort((a, b) => (a.ended_at ?? '') < (b.ended_at ?? '') ? 1 : -1)
+      // Newest-first by end time. A full comparator (returns 0 on ties) keeps the
+      // sort stable rather than the old `<? 1 : -1`, which never returned 0.
+      rounds.sort((a, b) => (b.ended_at ?? '').localeCompare(a.ended_at ?? ''))
       return rounds
     },
   })

@@ -15,14 +15,34 @@ function applyTheme(theme: Theme, root: HTMLElement) {
     root.style.setProperty(key, value)
   }
   // Tell the browser which form-control/scrollbar palette to use. A `fixed` theme
-  // declares its own light/dark intent so exports look identical everywhere.
+  // pins its own intent regardless of the device preference — but several fixed
+  // themes are light (Receipt, Newsprint, Brutalist…), so derive the palette from
+  // the theme's background luminance instead of assuming dark.
   const colorScheme =
-    theme.mode === 'fixed'
-      ? // Heuristic: fixed themes in our set are dark unless clearly light.
-        'dark light'
-      : theme.mode
+    theme.mode === 'fixed' ? fixedColorScheme(theme) : theme.mode
   root.style.setProperty('color-scheme', colorScheme)
   root.dataset.theme = theme.id
+}
+
+/** Pick the UA palette for a fixed theme from its background luminance. */
+function fixedColorScheme(theme: Theme): 'light dark' | 'dark light' {
+  const lum = hexLuminance(theme.tokens['--color-bg'])
+  // Unparseable → fall back to the prior dark-first default.
+  return lum != null && lum > 0.5 ? 'light dark' : 'dark light'
+}
+
+/** Perceived luminance (0–1) of a #rgb/#rrggbb color, or null if unparseable. */
+function hexLuminance(hex: string): number | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const h =
+    m[1].length === 3
+      ? m[1].replace(/./g, (c) => c + c)
+      : m[1]
+  const r = parseInt(h.slice(0, 2), 16) / 255
+  const g = parseInt(h.slice(2, 4), 16) / 255
+  const b = parseInt(h.slice(4, 6), 16) / 255
+  return 0.299 * r + 0.587 * g + 0.114 * b
 }
 
 interface ThemeProviderProps {

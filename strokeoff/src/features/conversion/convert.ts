@@ -28,9 +28,11 @@ export function strokesForPoints(
     return Math.floor(pts / per)
   }
 
-  const tiers = [...(config as TierConfig).tiers].sort(
-    (a, b) => a.minPoints - b.minPoints,
-  )
+  // Defend against a malformed/mismatched config snapshot (e.g. a `tier` mode
+  // whose config has no `tiers` array): no bands → no deduction, never a crash.
+  const tierConfig = config as TierConfig
+  if (!Array.isArray(tierConfig.tiers)) return 0
+  const tiers = [...tierConfig.tiers].sort((a, b) => a.minPoints - b.minPoints)
   let strokes = 0
   for (const band of tiers) {
     if (pts >= band.minPoints) strokes = band.strokes

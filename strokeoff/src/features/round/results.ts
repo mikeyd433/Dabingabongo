@@ -46,6 +46,11 @@ export function parseConversion(snapshot: unknown): ConversionSnapshot | null {
   const s = snapshot as Record<string, unknown>
   if (s.mode !== 'tier' && s.mode !== 'ratio') return null
   if (!s.config || typeof s.config !== 'object') return null
+  // Guard the config shape against the mode so a mismatched snapshot can't slip
+  // through to the math: tier needs a `tiers` array, ratio a numeric ratio.
+  const config = s.config as Record<string, unknown>
+  if (s.mode === 'tier' && !Array.isArray(config.tiers)) return null
+  if (s.mode === 'ratio' && typeof config.pointsPerStroke !== 'number') return null
   return { mode: s.mode, config: s.config as ConversionConfig }
 }
 

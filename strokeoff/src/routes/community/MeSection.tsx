@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/Button'
@@ -158,13 +158,22 @@ function ShareAppCard() {
       ? `${window.location.origin}${import.meta.env.BASE_URL}`
       : ''
   const [copied, setCopied] = useState(false)
+  const resetTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (resetTimer.current) window.clearTimeout(resetTimer.current)
+    },
+    [],
+  )
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(appUrl)
       setCopied(true)
       haptic('light')
-      window.setTimeout(() => setCopied(false), 2000)
+      if (resetTimer.current) window.clearTimeout(resetTimer.current)
+      resetTimer.current = window.setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard blocked — the link is shown below to copy by hand.
     }
@@ -281,10 +290,16 @@ function AvatarRow() {
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    const input = e.target
     if (!file) return
     setError(null)
     uploadAvatar.mutate(file, {
       onError: (err) => setError(errorMessage(err)),
+      // Clear the input so picking the *same* file again (e.g. retry after a
+      // failure) still fires a change event.
+      onSettled: () => {
+        input.value = ''
+      },
     })
   }
 
