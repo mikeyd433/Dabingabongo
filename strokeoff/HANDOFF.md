@@ -6,11 +6,10 @@ the source of truth. This file says **what's built, what's next, and what to wat
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**.
 Shipped to `main`: course par (0011), score-confirmation gate (0012), and a feature
 batch (haptics, email-redirect fix, Settings, share-app QR, camera QR, owner group
-mgmt (0013), profile stats). A **polish batch** — one-time coach marks, animation
-**Tier 2** (custom image-burst particle + preview), and **win/loss profile stats** —
-is **built + tested on branch `claude/stroke-off-app-n7nnqo`**; its migrations
-`0014` (round finish) + `0015` (animation-assets bucket) are **NOT yet applied / not
-on `main`** — see "⏳ PENDING" below; do them first._
+mgmt (0013), profile stats). The latest **polish batch** — one-time coach marks,
+animation **Tier 2** (custom image-burst particle + preview), and **win/loss profile
+stats** — is also **migrated (0014 + 0015), merged to `main`, and deploying**. See
+"✅ Polish batch — SHIPPED" below._
 
 ## Where things stand
 
@@ -30,13 +29,13 @@ on `main`** — see "⏳ PENDING" below; do them first._
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**82 tests** at branch HEAD;
-  `main` is at 81) and `pnpm build` are all green. Dev server boots and serves; the
-  build emits a Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) offline.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**82 tests**, now on `main`)
+  and `pnpm build` are all green. Dev server boots and serves; the build emits a
+  Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### ⏳ PENDING — polish batch (apply migrations 0014 + 0015, then merge)
-Built, tested (82 tests), committed on `claude/stroke-off-app-n7nnqo`; needs both
-migrations applied before merge.
+### ✅ Polish batch — SHIPPED
+Built, tested (82 tests), **migrated (0014 + 0015, applied + verified), merged to
+`main`, and deploying.**
 
 - **One-time coach marks** (`lib/coachmarks.ts`, `components/CoachMark.tsx`): a
   dismissible hint shown once per device (remembered in localStorage). Placed on the
@@ -57,9 +56,9 @@ migrations applied before merge.
   (mirrors `rounds_with_player` visibility). The profile shows a Played / Wins / Best
   strip. **The conversion/tie-break math stays on the client** (the tested source of
   truth); the RPC only stores + aggregates.
-- **ORDER MATTERS (same as before):** apply `0014` + `0015` to the live project
-  **before** merging — the results screen calls `record_round_finish` and reads the
-  new columns, and the rule editor uploads to the new bucket.
+- **Migrations `0014` + `0015` applied** to the live project (`mtcfiwjqciqlegdfoxyt`)
+  — verified: the 3 finish columns + `record_round_finish`/`player_round_stats` RPCs,
+  and the `animation-assets` bucket + its 4 storage policies. DB migrated before code.
 
 ### ✅ Feature batch — SHIPPED
 A batch of requested features, **built, tested (81 tests), migrated (0013 applied,
@@ -175,8 +174,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0013` applied to the live DB; **`0014` (round finish) +
-`0015` (animation-assets bucket) are written but NOT applied** (see "⏳ PENDING").
+**Migrations status:** `0001…0015` all applied to the live DB (`0014` round finish +
+`0015` animation-assets bucket applied this session — see "✅ Polish batch — SHIPPED").
 
 <!-- prior note retained below -->
 **Earlier:** `0001…0013` all applied to the live DB (`0013` owner group
