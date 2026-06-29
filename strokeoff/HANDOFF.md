@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 6 (website integration done in the same branch)._
+_Last updated after Phase 7 + app logo (website integration done in the same branch)._
 
 ## Where things stand
 
@@ -17,8 +17,11 @@ _Last updated after Phase 6 (website integration done in the same branch)._
   them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
   on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
   per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5, 6.** Next up: **Phase 7 — Theme gallery & bundles.**
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (35 tests) and `pnpm build`
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7.** Next up: **Phase 8 — Animations.**
+- **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
+  wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
+  spec §16 "icon is a placeholder" item is now resolved.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (38 tests) and `pnpm build`
   are all green. Dev server boots and serves.
 
 ### Important caveat — backend not yet live
@@ -81,6 +84,15 @@ real project is connected, apply migrations and exercise the flows.
   `set_round_tiebreak`, `hide_round`; `round_players.hidden`). Pure
   `features/round/results.ts` (finals/tie-break math) + 7 tests. New
   `lib/endRound.ts`, `lib/exportImage.ts`.
+- **Phase 7 — Theme gallery & bundles:** the full **launch gallery of 21 themes**
+  (`src/themes/gallery.ts` adds 19 to the original `stat-sheet` + `arcade`), each a
+  complete token bundle so switching restyles the whole round with no component
+  edits. Round setup's `ThemePicker` is now a **live-preview gallery** (each tile is
+  a mini scorecard in that theme's own tokens); `ThemeSwitcher` and group-default
+  flow pick them up automatically. **Fixed-palette** themes are marked `mode:
+  'fixed'` so exported scorecards look identical regardless of device light/dark.
+  Themes still snapshot on Start (`theme_snapshot`), so a finished round's look is
+  frozen. No migration (data only). Theme tests extended (count/unique/modes).
 
 ## Stubbed / deferred (don't assume these exist)
 
@@ -88,24 +100,28 @@ real project is connected, apply migrations and exercise the flows.
   with no confetti; `animations_enabled` is snapshotted but unused so far).
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
   a one-line helper instead.
-- **Themed scorecards / full theme gallery** → Phase 7. Phase 6's scorecards are
-  token-driven but plain (no per-theme winner treatment, card chrome, or per-format
-  matrix-vs-solo pairing yet); the registry still ships only 2 themes.
+- **Per-theme winner *treatments*** (rubber stamp, crown, "JACKPOT", etc.) and
+  **per-format matrix-vs-solo pairing** (spec §13) are **not** built: themes drive
+  color / type / card chrome via tokens, and scorecards read those, but the bespoke
+  winner art per theme is component-level polish left for later. The 21-theme
+  registry and live-preview gallery *are* done (Phase 7).
+- **Custom / seasonal themes in the DB** (`themes` table) → not used; the launch set
+  is code-defined bundles in `src/themes/`. Group default theme is an id string.
 - **Guest results/claim email** ("Send email" on the score screen) → Phase 9. Phase
   6 has no send-email button; `round_players` claim-token columns exist but unused.
 - **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
-- **Guests beyond single-phone pre-add**, guest claim/email → Phases 5 / 9.
+- **Guest claim/email** → Phase 9.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
   allows owner updates/deletes; UI only has create/join/leave + invite.
 - **Quick-add from People**, People tab → Phase 11.
-- **Full theme gallery (~21)** → Phase 7 (registry currently ships 2).
 - **Animations** → Phase 8. **Offline queue / PWA polish** → Phase 10.
 
 ## Open design items & decisions (carried from the original handoff)
 
 Cosmetic / still-to-design (don't block the build):
-- **App icon & visual identity** — name is locked (**Stroke Off**); icon is a
-  placeholder (brand-blue ring in `public/`). Final identity TBD.
+- **App icon & visual identity** — name is locked (**Stroke Off**); the **logo is
+  now in place** (disc-basket "S/O" mark in `public/logo.png` + generated icons).
+  Any further visual-identity polish (wordmark type, themed splash) is optional.
 - **Per-theme art** — 3 directions mocked, ~21 spec'd as directions; the full
   gallery is Phase 7.
 - **Scorecard styling** — matrix vs solo per-theme pairing still to be locked
@@ -127,35 +143,36 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–6 done.)
+Community → People. (Phases 0–7 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 7:
+phase. For Phase 8:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 7 — Theme
-> gallery & bundles** (spec §13, §15) to its Deliverable. Honor the architecture
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 8 —
+> Animations** (spec §12, §15) to its Deliverable. Honor the architecture
 > principles (theme tokens, snapshot, RLS-first, permission-on-writes,
-> derive-from-events). Finish with `pnpm typecheck && pnpm lint && pnpm test` clean.
+> derive-from-events). Add RLS to any new table in the same migration. Finish with
+> `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 7 is mostly **data, not new tables** — the token architecture has been there
-since Phase 0:
-- **Build out the ~21-theme registry** (spec §13) as token bundles in
-  `src/themes/`. The registry (`src/themes/registry.ts`) currently ships 2
-  (`stat-sheet`, `arcade`); add the rest as new bundles — no component edits if the
-  tokens cover every surface. Watch the **fixed-palette** themes (spec marks many
-  "Fixed dark/light") so exported scorecards look identical regardless of device
-  mode — see `src/themes/types.ts` for the mode handling.
-- **Live-preview gallery** — the round-setup theme picker
-  (`src/features/round/ThemePicker.tsx`) and `ThemeSwitcher` exist; extend to a
-  gallery of live previews rendered against sample/real data.
-- **Per-format pairing** (spec §13) — a theme may style the matrix vs the solo card
-  differently; the scorecards live in `src/routes/round/ResultsScreen.tsx`
-  (`MatrixCard` / `PlayerCard`) and currently read base tokens only.
-- **Group default theme** — `groups.default_theme_id` already exists and round
-  setup snapshots the chosen theme onto the round (`theme_snapshot`); make sure new
-  themes flow through both. Themes are snapshotted on Start, so a completed round's
-  look never changes (principle 2).
-- Key files: `src/themes/*`, `ThemePicker.tsx`, `ResultsScreen.tsx`, `ThemeSwitcher.tsx`.
+Phase 8 fires celebrations when a point is **confirmed**, governed by the round's
+**animations master toggle** (`rounds.animations_enabled`, already snapshotted and
+plumbed through setup but currently unused). Sequence **Tier 1 → 2 → 3** (spec §12):
+- **Tier 1 — preset library** (confetti, fireworks, raining discs, screen flash,
+  emoji burst, …) + color choices; **confetti is the default**. Each rule already
+  carries `animation_config` (jsonb on `rules`, snapshot path TBD) — wire the rule's
+  config to the celebration; default to plain confetti.
+- **Trigger point:** the live screen's `useLogPoint` success path
+  (`src/lib/scoring.ts` / `LiveRoundScreen.tsx`). Respect `animations_enabled` and
+  a **performance/duration cap** so a heavy effect can't jank the round (spec §12).
+- **Tier 2 — custom particle** (emoji or uploaded image; Supabase Storage) and
+  **Tier 3 — Lottie/GIF/sprite** with preview-before-save come after Tier 1; both
+  need a Storage bucket + RLS (new migration) — **graceful fallback to confetti**
+  if an asset fails to load.
+- Keep effects **token-driven** where colored (read theme accent/winner) so they
+  match the active theme. No heavy animation lib required for Tier 1 — a small
+  canvas/confetti utility is fine; keep it tree-shakeable / dynamically imported.
+- Key files: `LiveRoundScreen.tsx`, `lib/scoring.ts`, a new `features/animations/*`,
+  `rules.animation_config`, `rounds.animations_enabled`.
 
 ## Connecting a real Supabase project (when ready)
 

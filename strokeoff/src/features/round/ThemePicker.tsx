@@ -1,8 +1,11 @@
 import { themes } from '@/themes'
+import type { Theme } from '@/themes'
 
 /**
- * Theme picker with live token previews (spec §5, §13). Each swatch renders using
- * that theme's own tokens — a taste of the full gallery built in Phase 7.
+ * Theme gallery with live previews (spec §5, §13). Every tile renders a miniature
+ * scorecard using *that theme's own* tokens (so the preview can't use Tailwind's
+ * active-theme classes — it reads the bundle directly), giving a real taste of how
+ * the whole round will look before it's picked and snapshotted on Start.
  */
 export function ThemePicker({
   value,
@@ -13,58 +16,121 @@ export function ThemePicker({
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      {themes.map((theme) => {
-        const t = theme.tokens
-        const selected = theme.id === value
-        return (
-          <button
-            key={theme.id}
-            type="button"
-            onClick={() => onChange(theme.id)}
-            aria-pressed={selected}
-            className="rounded-card border-2 p-1 text-left transition-opacity"
+      {themes.map((theme) => (
+        <ThemeTile
+          key={theme.id}
+          theme={theme}
+          selected={theme.id === value}
+          onClick={() => onChange(theme.id)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ThemeTile({
+  theme,
+  selected,
+  onClick,
+}: {
+  theme: Theme
+  selected: boolean
+  onClick: () => void
+}) {
+  const t = theme.tokens
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={`${theme.name} theme`}
+      className="rounded-card p-1 text-left transition-opacity"
+      style={{
+        borderWidth: selected ? 2 : 1,
+        borderStyle: 'solid',
+        borderColor: selected ? 'var(--color-accent)' : 'var(--color-border)',
+      }}
+    >
+      {/* Mini scorecard rendered in the theme's own tokens. */}
+      <div
+        className="p-2"
+        style={{
+          background: t['--color-bg'],
+          color: t['--color-text'],
+          fontFamily: t['--font-label'],
+          borderRadius: t['--radius-card'],
+        }}
+      >
+        <div
+          className="px-2 py-1.5"
+          style={{
+            background: t['--color-surface'],
+            borderRadius: t['--radius-card'],
+            borderWidth: t['--border-width-card'],
+            borderStyle: 'solid',
+            borderColor: t['--color-border'],
+          }}
+        >
+          <div
+            className="text-xs font-bold"
+            style={{ fontFamily: t['--font-display'] }}
+          >
+            {theme.name}
+          </div>
+          {/* Winner row */}
+          <Row
+            name="Jordan"
+            score="52"
+            t={t}
+            highlight
+          />
+          <Row name="Casey" score="55" t={t} />
+        </div>
+        <div className="mt-1 flex items-center gap-1 px-1">
+          <Dot color={t['--color-accent']} />
+          <Dot color={t['--color-winner']} />
+          <span
+            className="ml-auto text-xs font-bold"
             style={{
-              borderColor: selected
-                ? 'var(--color-accent)'
-                : 'var(--color-border)',
+              color: t['--color-accent'],
+              fontFamily: t['--font-numeral'],
             }}
           >
-            <div
-              className="rounded-card p-3"
-              style={{
-                background: t['--color-bg'],
-                color: t['--color-text'],
-                fontFamily: t['--font-label'],
-              }}
-            >
-              <div
-                className="rounded px-2 py-1 text-xs font-semibold"
-                style={{
-                  background: t['--color-surface'],
-                  borderWidth: 1,
-                  borderStyle: 'solid',
-                  borderColor: t['--color-border'],
-                }}
-              >
-                {theme.name}
-              </div>
-              <div className="mt-2 flex items-center gap-1">
-                <Dot color={t['--color-accent']} />
-                <Dot color={t['--color-winner']} />
-                <span
-                  className="ml-auto text-sm font-bold"
-                  style={{
-                    color: t['--color-accent'],
-                    fontFamily: t['--font-numeral'],
-                  }}
-                >
-                  −2
-                </span>
-              </div>
-            </div>
-          </button>
-        )
-      })}
+            −2
+          </span>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function Row({
+  name,
+  score,
+  t,
+  highlight,
+}: {
+  name: string
+  score: string
+  t: Theme['tokens']
+  highlight?: boolean
+}) {
+  return (
+    <div
+      className="mt-1 flex items-center justify-between rounded px-1 text-[10px]"
+      style={highlight ? { background: t['--color-surface-alt'] } : undefined}
+    >
+      <span style={{ color: highlight ? t['--color-winner'] : t['--color-text'] }}>
+        {name}
+      </span>
+      <span
+        style={{
+          fontFamily: t['--font-numeral'],
+          color: t['--color-muted'],
+        }}
+      >
+        {score}
+      </span>
     </div>
   )
 }

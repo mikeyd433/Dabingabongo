@@ -30,4 +30,25 @@ describe('theme registry', () => {
     expect(a['--color-bg']).not.toBe(b['--color-bg'])
     expect(a['--color-accent']).not.toBe(b['--color-accent'])
   })
+
+  it('ships the full launch gallery (~21) with unique ids', () => {
+    expect(themes.length).toBeGreaterThanOrEqual(21)
+    const ids = themes.map((t) => t.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('every theme has a valid mode and non-empty token values', () => {
+    for (const theme of themes) {
+      expect(['light', 'dark', 'fixed']).toContain(theme.mode)
+      expect(theme.name.length).toBeGreaterThan(0)
+      for (const value of Object.values(theme.tokens)) {
+        expect(typeof value).toBe('string')
+        expect(value.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('includes fixed-palette themes (consistent exported scorecards)', () => {
+    expect(themes.some((t) => t.mode === 'fixed')).toBe(true)
+  })
 })

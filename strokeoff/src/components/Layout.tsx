@@ -16,8 +16,17 @@ export function Layout() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 px-4 py-3">
-          <span className="font-display text-lg font-bold tracking-tight text-text">
-            Stroke<span className="text-accent"> Off</span>
+          <span className="flex items-center gap-2">
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Stroke Off"
+              width={32}
+              height={32}
+              className="h-8 w-8 shrink-0"
+            />
+            <span className="font-display text-lg font-bold tracking-tight text-text">
+              Stroke<span className="text-accent"> Off</span>
+            </span>
           </span>
           <div className="flex items-center gap-3">
             <HealthIndicator />
