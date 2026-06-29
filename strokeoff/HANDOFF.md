@@ -27,12 +27,27 @@ _Last updated after Phase 11 (Community → People). **All 12 phases (0–11) co
   are all green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### Important caveat — backend not yet live
-There is **no Supabase project wired in this environment** (`.env.local` is empty).
-All Supabase code (auth, RLS, RPCs, Realtime) is written and type-checks, but has
-**not been run against a real database**. Phases were verified via
-typecheck/lint/unit-tests/build + dev-server smoke, not end-to-end. First time a
-real project is connected, apply migrations and exercise the flows.
+### Backend — now provisioned (Supabase project `stroke-off`)
+A live Supabase project exists: **`stroke-off`**, ref **`mtcfiwjqciqlegdfoxyt`**
+(org "The Jackie Chan Fan Club", us-east-1), URL
+`https://mtcfiwjqciqlegdfoxyt.supabase.co`. **All 10 migrations (`0001…0010`) are
+applied** (verified via `list_migrations`); all 11 public tables have RLS enabled;
+the four realtime tables (`rounds`, `round_players`, `point_events`,
+`event_confirmations`) are published. `.env.local` is wired with the URL + anon key
+(gitignored — the anon key is also safe to expose client-side).
+
+**Migration `0010` (security hardening)** was added from the Supabase advisors:
+revoked direct EXECUTE on the internal `seed_group_defaults` + trigger functions
+(the dangerous one — it mutates with no caller check and is only meant to run inside
+`create_group`/the signup trigger), and dropped the avatar bucket's broad listing
+policy. The remaining advisor warnings are the by-design "SECURITY DEFINER RPC is
+executable" notices — every write RPC checks `auth.uid()`/membership itself.
+
+**Still owner-only (dashboard, no MCP tool for it):** enable **Anonymous** +
+**Email (magic link)** providers and add redirect URLs (localhost + the Netlify
+origin) under Authentication; set the same `VITE_` vars on the Netlify site for
+prod. The app has **not yet been click-tested end-to-end** against this DB — that's
+the next thing to do once auth providers are on.
 
 ## What each phase delivered
 
