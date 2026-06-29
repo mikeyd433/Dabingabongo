@@ -3,7 +3,7 @@
 Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the spec is
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
-_Last updated after Phase 10 (offline resilience & PWA polish)._
+_Last updated after Phase 11 (Community → People). **All 12 phases (0–11) complete.**_
 
 ## Where things stand
 
@@ -17,11 +17,13 @@ _Last updated after Phase 10 (offline resilience & PWA polish)._
   them). Push to `main` only when asked. The pre-integration history (Phases 0–3) is
   on `claude/strokeoff-phase-0-scaffold-khauv5` in the standalone StrokeOff repo. No
   per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.** Next up: **Phase 11 — Community → People & polish.**
+- **Phases complete: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 — the full spec §15 phase
+  plan is done.** What remains is optional polish (see "Stubbed / deferred") and the
+  owner-action backend wiring (see "Connecting a real Supabase project").
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (59 tests) and `pnpm build`
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (67 tests) and `pnpm build`
   are all green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
@@ -138,6 +140,23 @@ real project is connected, apply migrations and exercise the flows.
   _Note:_ edit/void are queued for replay but don't render optimistically while
   offline (they reflect after reconnect); a future polish item if it matters.
 
+- **Phase 11 — Community → People (Option B):** the **People** section now lists the
+  players you've **actually shared a round with** — no global directory (spec §11).
+  Tap a player → a **profile route** (`/community/people/:profileId`,
+  `PlayerProfileScreen`) showing avatar / custom message / shared-round count,
+  **quick-add to one of your groups**, and **their rounds you're allowed to see**
+  (rounds you both played, or in a group you share) which tap through to results.
+  Migration `0009` is the access layer (no new tables): `shares_round` predicate;
+  **widened `profiles` SELECT** to people you share a group *or* round with (replaces
+  the group-only policy from 0002, so profiles are readable wherever a player
+  appears); and three SECURITY DEFINER RPCs — `people_i_played_with`
+  (distinct non-guest co-players + shared-round count + last-played date, scoped to
+  your rounds), `rounds_with_player` (the player's completed rounds visible to you
+  via `is_round_participant`/`is_group_member`), and `quick_add_to_group`
+  (member-of-group + have-played-with + has-an-account checks, idempotent). New
+  `lib/people.ts` hooks, reusable token-driven `components/Avatar.tsx`, pure
+  `features/people/people.ts` (labels + `addableGroups`; + 9 tests).
+
 ## Stubbed / deferred (don't assume these exist)
 
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
@@ -151,8 +170,12 @@ real project is connected, apply migrations and exercise the flows.
   is code-defined bundles in `src/themes/`. Group default theme is an id string.
 - **Camera QR scanning** → only QR *display* + QR-link/manual-code join exist.
 - **Owner-only group management** (remove member, rename, hand-off, delete) — RLS
-  allows owner updates/deletes; UI only has create/join/leave + invite.
-- **Quick-add from People**, People tab → Phase 11.
+  allows owner updates/deletes; UI only has create/join/leave + invite. (The People
+  quick-add inserts member rows, but there's still no remove/rename/hand-off UI.)
+- **Optional player stats** on the profile (spec §11 "optional stats") → only the
+  shared-round count + last-played are shown; richer stats are a future add.
+- **One-time coach marks** + **Settings contents** (spec §11 "Me → Settings") → still
+  the only unbuilt UI polish; Settings is a placeholder, coach marks are deferred.
 - **Animations Tier 2/3** (custom particle = emoji/uploaded image; Lottie/GIF/sprite
   with preview-before-save) → not built; Tier 1 presets are done and higher tiers
   **fall back to confetti**. Needs a Supabase Storage bucket + RLS + upload UI.
@@ -187,24 +210,26 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–10 done.)
+Community → People. **All done.**
 
-Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 11:
+**The spec §15 phase plan is complete.** The build is feature-complete against the
+spec and green on `typecheck`/`lint`/`test`/`build`. What's left is not a "next
+phase" — it's:
+1. **Wire a real Supabase project** and exercise the flows end-to-end (see below) —
+   nothing has run against a live DB yet; apply migrations `0001…0009`.
+2. **Optional polish** from "Stubbed / deferred": Settings contents, one-time coach
+   marks, owner group-management UI (remove/rename/hand-off), richer player stats,
+   camera QR scanning, animation Tier 2/3. Each is small and self-contained — pick
+   per product priority; there's no forced order now.
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 11 —
-> Community → People & polish** (spec §3, §11, §15) to its Deliverable. Honor the
-> architecture principles (RLS-first on any visibility rule, login-only people data).
-> Finish with `pnpm typecheck && pnpm lint && pnpm test` clean.
-
-Phase 11 builds out the **People** section of Community (spec §11), the last phase:
-- **People-you've-played-with browsing (Option B)** — list the players you've shared
-  a round with; tap a player → their profile.
-- **View a player's visible rounds** — only rounds you're allowed to see (RLS), and
-  **quick-add** a player to one of your groups.
-- **Optional stats** and any remaining polish (settings contents, coach marks).
-- Likely needs a new migration for a "players I've shared a round with" view/RPC
-  with RLS, plus `routes/community/` UI. No offline/PWA work remains.
+**People (Phase 11) notes for whoever touches Community next:** the People list and a
+player's visible rounds come from SECURITY DEFINER RPCs in migration `0009`
+(`people_i_played_with`, `rounds_with_player`, `quick_add_to_group`) — keep new
+people/visibility logic in RPCs, not client-side filtering, so RLS stays the source
+of truth. The `0009` policy swap **widened `profiles` SELECT** to `shares_group OR
+shares_round`; if you add another visibility surface, extend `shares_round` rather
+than opening the table. People hooks live in `lib/people.ts`, pure helpers in
+`features/people/people.ts`, the profile route is `/community/people/:profileId`.
 
 **Phase 10 offline notes for whoever touches scoring next:** every scoring write now
 goes through `callRpcOrQueue` (`lib/offlineMutations.ts`) — keep new write RPCs
@@ -221,7 +246,7 @@ in `Layout`). Key Phase-10 files: `lib/offlineQueue.ts`, `lib/offlineMutations.t
 1. Create the project; copy URL + anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 2. Apply migrations: `npx supabase db push` (or `supabase db reset` locally).
-   Migrations live in `supabase/migrations/0001…0008`. For the guest-claim email,
+   Migrations live in `supabase/migrations/0001…0009`. For the guest-claim email,
    also deploy the `send-claim-email` Edge Function + set its Resend secrets (see
    `supabase/README.md`).
 3. Enable **Anonymous sign-ins** and the **Email (magic link)** provider; add app

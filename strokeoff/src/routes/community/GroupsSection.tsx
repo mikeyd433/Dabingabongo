@@ -12,8 +12,8 @@ import { errorMessage, validateDisplayName } from '@/lib/validation'
 
 /**
  * Community → Groups (spec §11). Create a group, join via invite code, and manage
- * each group (invite, members, conversion, leave). Quick-add from People lands in
- * Phase 11. Group membership is login-only.
+ * each group (invite, members, conversion, leave). Quick-add from People is wired
+ * through the player profile (Phase 11). Group membership is login-only.
  */
 export function GroupsSection() {
   const { user, isAnonymous } = useAuth()

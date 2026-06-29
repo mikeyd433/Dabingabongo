@@ -7,6 +7,7 @@ import { RoundDetailScreen } from '@/routes/round/RoundDetailScreen'
 import { RulesScreen } from '@/routes/rules/RulesScreen'
 import { HistoryScreen } from '@/routes/history/HistoryScreen'
 import { CommunityScreen } from '@/routes/community/CommunityScreen'
+import { PlayerProfileScreen } from '@/routes/community/PlayerProfileScreen'
 
 /**
  * App routes. The five static tabs render inside the persistent Layout shell
@@ -23,6 +24,10 @@ export function App() {
         <Route path="rules" element={<RulesScreen />} />
         <Route path="history" element={<HistoryScreen />} />
         <Route path="community" element={<CommunityScreen />} />
+        <Route
+          path="community/people/:profileId"
+          element={<PlayerProfileScreen />}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -15,6 +15,20 @@ export interface Profile {
   created_at: string
 }
 
+/**
+ * A player you've shared a round with (Community → People, Option B; spec §11).
+ * Returned by the `people_i_played_with` RPC — not a table.
+ */
+export interface PersonSummary {
+  profile_id: UUID
+  display_name: string
+  avatar_url: string | null
+  custom_message: string | null
+  is_anonymous: boolean
+  shared_rounds: number
+  last_played_on: string | null
+}
+
 export interface Group {
   id: UUID
   name: string

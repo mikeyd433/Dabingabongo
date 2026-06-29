@@ -3,9 +3,9 @@ import { PeopleSection } from './PeopleSection'
 import { GroupsSection } from './GroupsSection'
 
 /**
- * Community tab (spec §3, §11). Three sections — Me, People, Groups. Phase 1
- * delivers Me (identity + profile + account management) and surfaces the personal
- * group; People and group create/join arrive in later phases.
+ * Community tab (spec §3, §11). Three sections — Me (identity + profile + account
+ * management), People (players you've shared a round with — Phase 11), and Groups
+ * (create/join/manage). Tapping a person opens their profile route.
  */
 export function CommunityScreen() {
   return (
