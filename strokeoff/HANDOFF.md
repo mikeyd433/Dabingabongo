@@ -4,8 +4,9 @@ Living status doc. Read `CLAUDE.md` and `docs/strokeoff-spec.md` first — the s
 the source of truth. This file says **what's built, what's next, and what to watch**.
 
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**
-and **end-to-end verified against the live DB**. One feature (course par) is built +
-committed locally but **not yet pushed** — see "⏳ PENDING" below; do it first._
+and **end-to-end verified against the live DB**. The course-par feature is now
+**migrated (0011 applied), merged to `main`, and deploying** — see "✅ Course par —
+SHIPPED" below._
 
 ## Where things stand
 
@@ -25,38 +26,27 @@ committed locally but **not yet pushed** — see "⏳ PENDING" below; do it firs
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**76 tests** at local HEAD;
-  `origin/main` is at 73 — the +3 are the unpushed par commit) and `pnpm build` are
-  all green. Dev server boots and serves; the build emits a Workbox SW
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**76 tests**, now on
+  `main`) and `pnpm build` are all green. Dev server boots and serves; the build emits a Workbox SW
   (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### ⏳ PENDING — push the course-par feature (do this FIRST)
+### ✅ Course par — SHIPPED
 A **course par** feature (set a course's par at round setup or on the results screen;
 finals then show as over/under par — "−2 / E / +3" — in standings + scorecards) is
-**fully built, tested, and committed locally but NOT pushed/deployed.** It was held
-because it needs a DB migration applied first and this session lost the Supabase MCP.
+**built, tested, migrated, merged to `main`, and deploying.**
 
-- **Where the work lives:** the par feature commit + this handoff update are pushed
-  to branch **`claude/stroke-off-app-n7nnqo`** (NOT `main`), so **production `main` is
-  untouched and unbroken**. Production is still at the pre-par commit. A fresh session
-  clones `main` by default — so **check out `claude/stroke-off-app-n7nnqo` first** to
-  get this work (`git fetch origin && git checkout claude/stroke-off-app-n7nnqo`).
-- **What the commit does:** par field on `RoundSetupScreen` + a par editor on
-  `ResultsScreen`; `types` (`Round.par`), `lib/rounds.ts` (`CreateRoundInput.par`),
-  `lib/endRound.ts` (`useSetRoundPar`), pure `features/round/results.ts`
-  (`ResultRow.toPar` + `formatToPar`, +3 tests). to-par is on the **adjusted** final.
-- **Migration `0011` (`supabase/migrations/0011_course_par.sql`) is NOT applied to
-  the live DB.** It adds `rounds.par`, a participant-gated `set_round_par` RPC, and
-  re-creates `create_round` with an optional `p_par` (drops the old 8-arg signature).
-- **ORDER MATTERS:** apply `0011` to the live project **before** merging to `main` —
-  the new client passes `p_par` to `create_round`, so deploying the code first would
-  break round creation. The migration is backward-compatible, so applying it early is
-  safe (the currently-deployed client still works against it).
-- **To finish (next session):** (1) check out the branch; (2)
-  `mcp__Supabase__apply_migration` with the `0011` file contents (project
-  `mtcfiwjqciqlegdfoxyt`) — or paste it into the dashboard SQL editor; (3) fast-forward
-  `main` to the branch and `git push origin main` → Netlify auto-rebuilds (~45s); (4)
-  hard-reload the installed PWA (fully close → reopen) to clear the cached SW.
+- **Migration `0011` (`supabase/migrations/0011_course_par.sql`) is applied to the
+  live DB** (project `mtcfiwjqciqlegdfoxyt`) — verified: `rounds.par` column exists,
+  the participant-gated `set_round_par` RPC exists, and `create_round` now has the
+  9-arg signature with `p_par` (the old 8-arg signature was dropped). Migration order
+  was honoured (DB before code), so round creation never broke.
+- **What shipped:** par field on `RoundSetupScreen` + a par editor on `ResultsScreen`;
+  `types` (`Round.par`), `lib/rounds.ts` (`CreateRoundInput.par`), `lib/endRound.ts`
+  (`useSetRoundPar`), pure `features/round/results.ts` (`ResultRow.toPar` +
+  `formatToPar`, +3 tests). to-par is on the **adjusted** final.
+- **Deployed:** `main` was fast-forwarded to `claude/stroke-off-app-n7nnqo` and pushed
+  → Netlify auto-rebuilds (~45s). After it deploys, **hard-reload the installed PWA**
+  (fully close → reopen) to clear the cached SW.
 
 ### Backend — now provisioned (Supabase project `stroke-off`)
 A live Supabase project exists: **`stroke-off`**, ref **`mtcfiwjqciqlegdfoxyt`**
@@ -93,8 +83,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0010` applied to the live DB; **`0011` (course par) is
-written but NOT applied** (see "⏳ PENDING" above).
+**Migrations status:** `0001…0011` all applied to the live DB (`0011` course par
+applied this session — see "✅ Course par — SHIPPED" above).
 
 **✅ End-to-end verified against the live DB** (real phone, production URL): anonymous
 sign-in → the signup trigger provisioned profile + personal group + 4 seeded rules +
