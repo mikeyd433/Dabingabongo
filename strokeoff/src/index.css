@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Seed the default (`stat-sheet`) tokens at :root so the shell is styled on first
+ * paint, before ThemeProvider runs. These MUST mirror src/themes/statSheet.ts.
+ * At runtime ThemeProvider overrides these on <html> for the active theme.
+ */
+:root {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f5f9;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+
+  --color-accent: #1d4ed8;
+  --color-accent-contrast: #ffffff;
+  --color-winner: #15803d;
+
+  --font-label: 'Inter', system-ui, sans-serif;
+  --font-numeral: 'Inter', ui-monospace, 'SF Mono', 'Roboto Mono', monospace;
+  --font-display: 'Inter', system-ui, sans-serif;
+
+  --radius-card: 0.75rem;
+  --border-width-card: 1px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-label);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Numeric/tabular content reads like a box score (spec §13 typography). */
+  .font-numeral {
+    font-variant-numeric: tabular-nums;
+  }
+}

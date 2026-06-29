@@ -2,10 +2,28 @@
   command = "bash build.sh"
   publish = "dist"
 
+# The Stroke Off app (built into /strokeoff by build.sh) needs these set in the
+# Netlify UI → Site settings → Environment (NOT committed here):
+#   VITE_SUPABASE_URL       - Supabase project URL
+#   VITE_SUPABASE_ANON_KEY  - Supabase anon/public key
+# Without them the app still builds and runs; its Supabase health check just reports
+# "not configured" until they're provided.
+
 [[headers]]
   for = "/*"
   [headers.values]
   Access-Control-Allow-Origin = "*"
+
+# Never cache the Stroke Off service worker or web manifest, so the PWA update flow works.
+[[headers]]
+  for = "/strokeoff/sw.js"
+  [headers.values]
+  Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/strokeoff/manifest.webmanifest"
+  [headers.values]
+  Cache-Control = "no-cache"
 
 # Short, typeable link for the TouchSynth APK
 [[redirects]]
@@ -34,6 +52,17 @@
 [[redirects]]
   from = "/harmony/*"
   to   = "/harmony/index.html"
+  status = 200
+
+# SPA fallback for Stroke Off app (client-side routes resolve on deep link / refresh)
+[[redirects]]
+  from = "/strokeoff"
+  to   = "/strokeoff/"
+  status = 301
+
+[[redirects]]
+  from = "/strokeoff/*"
+  to   = "/strokeoff/index.html"
   status = 200
 
 [[redirects]]
