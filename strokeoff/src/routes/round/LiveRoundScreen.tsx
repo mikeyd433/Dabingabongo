@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { TextInput } from '@/components/TextInput'
@@ -193,8 +193,12 @@ function HoldToConfirm({
       timer.current = null
     }
   }
-  function start() {
+  function start(e: PointerEvent<HTMLButtonElement>) {
     if (disabled) return
+    // Keep the gesture bound to this button: on touch devices a tiny finger
+    // drift (pointerleave) or the browser starting a scroll (pointercancel)
+    // would otherwise kill the hold before it completes.
+    e.currentTarget.setPointerCapture?.(e.pointerId)
     setHolding(true)
     timer.current = window.setTimeout(() => {
       setHolding(false)
@@ -213,9 +217,11 @@ function HoldToConfirm({
       disabled={disabled}
       onPointerDown={start}
       onPointerUp={cancel}
-      onPointerLeave={cancel}
       onPointerCancel={cancel}
-      className="relative min-h-[44px] flex-1 overflow-hidden rounded-card bg-accent px-5 font-label text-sm font-semibold text-accent-contrast disabled:opacity-50"
+      onContextMenu={(e) => e.preventDefault()}
+      // touch-none = `touch-action: none`, so the browser won't hijack the hold
+      // for scrolling/zoom; select-none stops the long-press text/callout menu.
+      className="relative min-h-[44px] flex-1 touch-none select-none overflow-hidden rounded-card bg-accent px-5 font-label text-sm font-semibold text-accent-contrast disabled:opacity-50"
     >
       <span
         className="absolute inset-0 origin-left opacity-40"
