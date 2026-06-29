@@ -45,6 +45,7 @@ export function RoundSetupScreen() {
 
   const [course, setCourse] = useState('')
   const [playedOn, setPlayedOn] = useState(today())
+  const [par, setPar] = useState('')
   const [scoringMode, setScoringMode] = useState<ScoringMode>('multi_phone')
   const [animations, setAnimations] = useState(true)
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID)
@@ -90,6 +91,12 @@ export function RoundSetupScreen() {
       setError('Pick a group first.')
       return
     }
+    const parTrimmed = par.trim()
+    const parValue = parTrimmed === '' ? null : Number(parTrimmed)
+    if (parValue !== null && (!Number.isInteger(parValue) || parValue < 0)) {
+      setError('Course par must be a whole number.')
+      return
+    }
     setError(null)
     const theme = getTheme(themeId)
     try {
@@ -97,6 +104,7 @@ export function RoundSetupScreen() {
         groupId: activeGroup.id,
         course: course.trim(),
         playedOn,
+        par: parValue,
         scoringMode,
         conversion,
         theme: {
@@ -145,6 +153,16 @@ export function RoundSetupScreen() {
           type="date"
           value={playedOn}
           onChange={(e) => setPlayedOn(e.target.value)}
+        />
+      </Field>
+
+      <Field label="Course par (optional)">
+        <TextInput
+          value={par}
+          inputMode="numeric"
+          placeholder="e.g. 54 — leave blank to skip"
+          aria-label="Course par"
+          onChange={(e) => setPar(e.target.value)}
         />
       </Field>
 

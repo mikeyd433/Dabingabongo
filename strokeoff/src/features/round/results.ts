@@ -17,6 +17,8 @@ export interface ResultRow {
   regularStrokes: number | null
   /** regular − strokesOff; null until this player's regular score is entered. */
   adjusted: number | null
+  /** adjusted − course par; null when par isn't set or the final isn't in yet. */
+  toPar: number | null
   /** 1-based finishing rank (ties share); null until every player's score is in. */
   rank: number | null
   isWinner: boolean
@@ -52,6 +54,7 @@ export function computeResults(
   events: PointEvent[],
   conversionSnapshot: unknown,
   tiebreakWinnerId: string | null = null,
+  par: number | null = null,
 ): Results {
   const totals = tallyPoints(events)
   const conv = parseConversion(conversionSnapshot)
@@ -65,12 +68,14 @@ export function computeResults(
     const regularStrokes = player.regular_strokes
     const adjusted =
       regularStrokes == null ? null : regularStrokes - strokesOff
+    const toPar = adjusted == null || par == null ? null : adjusted - par
     return {
       player,
       points,
       strokesOff,
       regularStrokes,
       adjusted,
+      toPar,
       rank: null,
       isWinner: false,
       byTiebreak: false,
@@ -109,6 +114,13 @@ export function computeResults(
   if (winner) winner.isWinner = true
 
   return { rows, finalsReady, tiedForWin, winner }
+}
+
+/** Golf-style over/under-par label: 0 → "E", −2 → "−2", +3 → "+3". */
+export function formatToPar(toPar: number): string {
+  if (toPar === 0) return 'E'
+  // Use a real minus glyph for unders, matching the rest of the UI.
+  return toPar > 0 ? `+${toPar}` : `−${Math.abs(toPar)}`
 }
 
 /** Number-picker tie-break: the pick closest to the target wins (ties → first). */

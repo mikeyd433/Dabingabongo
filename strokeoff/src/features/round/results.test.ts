@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   closestToTarget,
   computeResults,
+  formatToPar,
   parseConversion,
   randomPick,
 } from './results'
@@ -112,6 +113,40 @@ describe('computeResults', () => {
     ]
     const res = computeResults(players, [], ratio)
     expect(res.rows.map((r) => r.player.id)).toEqual(['a'])
+  })
+
+  it('computes to-par against the course par when set', () => {
+    const players = [
+      player({ id: 'a', regular_strokes: 54 }), // 10 pts -> -2 -> 52, par 54 -> -2
+      player({ id: 'b', regular_strokes: 60 }), // 0 pts  -> 60, par 54 -> +6
+    ]
+    const events = [event('a', 1, 10)]
+    const res = computeResults(players, events, ratio, null, 54)
+    const byId = Object.fromEntries(res.rows.map((r) => [r.player.id, r]))
+    expect(byId.a.toPar).toBe(-2)
+    expect(byId.b.toPar).toBe(6)
+  })
+
+  it('leaves to-par null when par is unset or the final is not in', () => {
+    const players = [
+      player({ id: 'a', regular_strokes: 54 }),
+      player({ id: 'b' }), // no score
+    ]
+    const noPar = computeResults(players, [], ratio)
+    expect(noPar.rows.every((r) => r.toPar === null)).toBe(true)
+
+    const withPar = computeResults(players, [], ratio, null, 54)
+    const byId = Object.fromEntries(withPar.rows.map((r) => [r.player.id, r]))
+    expect(byId.a.toPar).toBe(0) // 54 vs par 54 = even
+    expect(byId.b.toPar).toBeNull() // no score yet
+  })
+})
+
+describe('formatToPar', () => {
+  it('labels even, under, and over par', () => {
+    expect(formatToPar(0)).toBe('E')
+    expect(formatToPar(-2)).toBe('−2')
+    expect(formatToPar(3)).toBe('+3')
   })
 })
 

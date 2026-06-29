@@ -49,6 +49,24 @@ export function useSetRegularStrokes(roundId: string | undefined) {
   })
 }
 
+/** Set or correct the course par (any participant; spec — over/under-par finals). */
+export function useSetRoundPar(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (par: number | null): Promise<Round> => {
+      const { data, error } = await supabase.rpc('set_round_par', {
+        p_round_id: roundId!,
+        p_par: par,
+      })
+      if (error) throw error
+      return data as Round
+    },
+    onSuccess: (round) => {
+      void qc.invalidateQueries({ queryKey: ['round', round.id] })
+    },
+  })
+}
+
 export function useSetTiebreak(roundId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({

@@ -14,6 +14,7 @@ function round(partial: Partial<Round>): Round {
     conversion_snapshot: null,
     theme_snapshot: null,
     animations_enabled: true,
+    par: null,
     tiebreak_winner_id: null,
     tiebreak_method: null,
     created_by: 'u',

@@ -104,6 +104,8 @@ export interface Round {
   conversion_snapshot: Record<string, unknown> | null
   theme_snapshot: Record<string, unknown> | null
   animations_enabled: boolean
+  /** Optional course par; when set, results show each final relative to par. */
+  par: number | null
   tiebreak_winner_id: UUID | null
   tiebreak_method: string | null
   created_by: UUID

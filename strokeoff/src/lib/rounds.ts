@@ -27,6 +27,8 @@ export interface CreateRoundInput {
   theme: ThemeSnapshot
   animationsEnabled: boolean
   ruleIds: string[]
+  /** Optional course par (null = not set). */
+  par: number | null
 }
 
 /** The user's current joinable round (lobby or active), if any. */
@@ -166,6 +168,7 @@ export function useCreateRound() {
         p_theme: input.theme,
         p_animations: input.animationsEnabled,
         p_rule_ids: input.ruleIds,
+        p_par: input.par,
       })
       if (error) throw error
       return data as Round

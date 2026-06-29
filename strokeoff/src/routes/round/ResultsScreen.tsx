@@ -4,12 +4,17 @@ import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
 import { useRoundPlayers } from '@/lib/rounds'
 import { usePointEvents, useRoundRules } from '@/lib/scoring'
-import { useSetRegularStrokes, useSetTiebreak } from '@/lib/endRound'
+import {
+  useSetRegularStrokes,
+  useSetRoundPar,
+  useSetTiebreak,
+} from '@/lib/endRound'
 import { useSendClaimEmail } from '@/lib/claim'
 import { exportNodeToPng } from '@/lib/exportImage'
 import {
   closestToTarget,
   computeResults,
+  formatToPar,
   randomPick,
   type ResultRow,
 } from '@/features/round/results'
@@ -33,8 +38,15 @@ export function ResultsScreen({ round }: { round: Round }) {
         events,
         round.conversion_snapshot,
         round.tiebreak_winner_id,
+        round.par,
       ),
-    [players, events, round.conversion_snapshot, round.tiebreak_winner_id],
+    [
+      players,
+      events,
+      round.conversion_snapshot,
+      round.tiebreak_winner_id,
+      round.par,
+    ],
   )
 
   const needsTiebreak =
@@ -54,6 +66,8 @@ export function ResultsScreen({ round }: { round: Round }) {
       </div>
 
       <ScoreEntry roundId={round.id} players={results.rows} />
+
+      <ParEditor roundId={round.id} par={round.par} />
 
       {needsTiebreak ? (
         <TiebreakTool roundId={round.id} tied={results.tiedForWin} />
@@ -196,6 +210,58 @@ function EventLog({
           ))}
         </ul>
       )}
+    </section>
+  )
+}
+
+/** Set or correct the course par so finals show as over/under par. */
+function ParEditor({ roundId, par }: { roundId: string; par: number | null }) {
+  const setPar = useSetRoundPar(roundId)
+  const [value, setValue] = useState(par?.toString() ?? '')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setValue(par?.toString() ?? '')
+  }, [par])
+
+  function commit() {
+    const trimmed = value.trim()
+    const next = trimmed === '' ? null : Number(trimmed)
+    if (next !== null && (!Number.isInteger(next) || next < 0)) {
+      setError('Enter a whole number for par.')
+      return
+    }
+    if (next === par) return
+    setError(null)
+    setPar.mutate(next, { onError: (e) => setError(errorMessage(e)) })
+  }
+
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="font-label text-sm font-semibold text-text">
+            Course par
+          </h2>
+          <p className="mt-1 font-label text-xs text-muted">
+            Set it to see each final as over/under par.
+          </p>
+        </div>
+        <div className="w-24">
+          <TextInput
+            value={value}
+            inputMode="numeric"
+            placeholder="—"
+            aria-label="Course par"
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+          />
+        </div>
+      </div>
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
     </section>
   )
 }
@@ -428,6 +494,11 @@ function ResultsBoard({ results }: { results: ReturnType<typeof computeResults> 
               <span className="text-base font-bold text-text">
                 {row.adjusted ?? '—'}
               </span>
+              {row.toPar != null ? (
+                <span className="ml-1 font-semibold text-text">
+                  ({formatToPar(row.toPar)})
+                </span>
+              ) : null}
             </span>
           </li>
         ))}
@@ -624,6 +695,15 @@ function MatrixCard({
           <SummaryRow label="Off" rows={rows} winnerId={winnerId} pick={(r) => `−${r.strokesOff}`} />
           <SummaryRow label="Score" rows={rows} winnerId={winnerId} pick={(r) => r.regularStrokes ?? '—'} />
           <SummaryRow label="Final" rows={rows} winnerId={winnerId} pick={(r) => r.adjusted ?? '—'} bold />
+          {round.par != null ? (
+            <SummaryRow
+              label="To par"
+              rows={rows}
+              winnerId={winnerId}
+              pick={(r) => (r.toPar != null ? formatToPar(r.toPar) : '—')}
+              bold
+            />
+          ) : null}
         </tbody>
       </table>
     </div>
@@ -721,6 +801,13 @@ function PlayerCard({
         <Line label="Strokes off" value={`−${row.strokesOff}`} />
         <Line label="Regular" value={row.regularStrokes ?? '—'} />
         <Line label="Final" value={row.adjusted ?? '—'} bold />
+        {round.par != null ? (
+          <Line
+            label="To par"
+            value={row.toPar != null ? formatToPar(row.toPar) : '—'}
+            bold
+          />
+        ) : null}
       </dl>
     </div>
   )
