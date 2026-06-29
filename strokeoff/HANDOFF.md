@@ -9,9 +9,9 @@ batch (haptics, email-redirect fix, Settings, share-app QR, camera QR, owner gro
 mgmt (0013), profile stats); a polish batch (coach marks, animation **Tier 2**
 image-burst, win/loss stats — 0014 + 0015); and animation **Tier 3** (custom
 Lottie / animated-image overlay). The latest batch — **sprite-sheet animations**,
-**per-theme winner treatments**, and **per-rule stat breakdowns** — is **built +
-tested on branch `claude/stroke-off-app-n7nnqo`**; its migration `0016` (per-rule
-stats RPC) is **NOT yet applied / not on `main`** — see "⏳ PENDING" below; do it first._
+**per-theme winner treatments**, and **per-rule stat breakdowns** (migration 0016) —
+is also **migrated, merged to `main`, and deploying**. See "✅ Sprites + winner
+treatments + per-rule stats — SHIPPED" below._
 
 ## Where things stand
 
@@ -31,13 +31,14 @@ stats RPC) is **NOT yet applied / not on `main`** — see "⏳ PENDING" below; d
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**85 tests** at branch HEAD;
-  `main` is at 84) and `pnpm build` are all green. Dev server boots and serves; the
-  build emits a Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) offline.
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**85 tests**, now on `main`)
+  and `pnpm build` are all green. Dev server boots and serves; the build emits a
+  Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
 
-### ⏳ PENDING — sprites + winner treatments + per-rule stats (apply 0016, then merge)
-Built, tested (85 tests), committed on `claude/stroke-off-app-n7nnqo`. Only the
-per-rule stats need a migration; the other two are client-only.
+### ✅ Sprites + winner treatments + per-rule stats — SHIPPED
+Built, tested (85 tests), **migrated (0016 applied + verified), merged to `main`,
+and deploying.** Only the per-rule stats needed a migration; the other two are
+client-only.
 
 - **Sprite-sheet animations** (Tier 3, no migration): new `sprite-animation` preset
   — upload one sheet image + set columns/rows/fps; `celebrate.ts` steps frames on a
@@ -54,8 +55,8 @@ per-rule stats need a migration; the other two are client-only.
   tallies a player's points by `rule_name_snapshot` across the rounds the caller can
   see (mirrors `rounds_with_player` visibility). New `usePlayerRuleStats` hook +
   a "Rules scored" card on the profile.
-- **ORDER:** apply `0016` to the live project before merging (the profile calls the
-  new RPC). The other two have no DB dependency.
+- **Migration `0016` applied** to the live project (`mtcfiwjqciqlegdfoxyt`) — verified
+  `player_rule_stats` present. DB migrated before the code merge.
 
 ### ✅ Animation Tier 3 — SHIPPED
 A **fully custom celebration** (spec §12, Tier 3): a new `custom-animation` preset
@@ -217,8 +218,8 @@ the client fell back to its `http://localhost:54321` placeholder → "failed to 
 on the phone. If you ever see that again, check Netlify env vars are set and
 **redeploy** (a code push or a clear-cache deploy), then hard-reload the PWA.
 
-**Migrations status:** `0001…0015` applied to the live DB; **`0016` (per-rule stats
-RPC) is written but NOT applied** (see "⏳ PENDING" near the top).
+**Migrations status:** `0001…0016` all applied to the live DB (`0016` per-rule stats
+RPC applied this session — see "✅ Sprites + winner treatments + per-rule stats").
 
 <!-- prior note retained below -->
 **Earlier:** `0001…0013` all applied to the live DB (`0013` owner group
