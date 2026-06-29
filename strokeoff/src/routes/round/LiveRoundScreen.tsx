@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/Button'
+import { Select } from '@/components/Select'
+import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
-import { useRoundPlayers } from '@/lib/rounds'
+import { useAuth } from '@/lib/auth'
+import { useAddGuest, useRoundPlayers } from '@/lib/rounds'
 import {
   useEditPointEvent,
   useLogPoint,
   useMyPendingConfirmations,
   useMyRoundPlayer,
   usePointEvents,
+  useReassignGuest,
   useRespondToConfirmation,
   useRoundRules,
   useSetRosterStatus,
@@ -15,21 +19,40 @@ import {
   type PendingConfirmation,
 } from '@/lib/scoring'
 import { buildLeaderboard } from '@/features/round/leaderboard'
+import { controllablePlayers } from '@/features/round/permissions'
 import { errorMessage } from '@/lib/validation'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
 
 /**
- * Phase 4 — Live scoring (Multi Phone). Self-score against the round's frozen
- * rule palette, watch a real-time leaderboard derived from the point-event
- * ledger, work the event feed (edit/undo your own), answer best-effort
- * multi-player confirmations, and leave/rejoin without breaking the round.
+ * Phases 4–5 — Live scoring. Multi Phone: each player self-scores. Single Phone:
+ * the controller scores for everyone (with a subject picker) and others are
+ * read-only spectators. Guests work in both modes (managed by a player, with
+ * reassignment). The leaderboard + feed derive from the point-event ledger;
+ * what a caller may log/edit/undo mirrors the server permission check.
  */
 export function LiveRoundScreen({ round }: { round: Round }) {
+  const { user } = useAuth()
   const { data: players = [] } = useRoundPlayers(round.id)
   const { data: rules = [] } = useRoundRules(round.id)
   const { data: events = [] } = usePointEvents(round.id)
   const { data: me } = useMyRoundPlayer(round.id)
   const { data: pending = [] } = useMyPendingConfirmations(round.id, me?.id)
+
+  const isController = round.created_by === user?.id
+  const isSinglePhone = round.scoring_mode === 'single_phone'
+
+  const controllable = useMemo(
+    () =>
+      controllablePlayers(players, user?.id, {
+        mode: round.scoring_mode,
+        isController,
+      }),
+    [players, user?.id, round.scoring_mode, isController],
+  )
+  const controllableIds = useMemo(
+    () => new Set(controllable.map((p) => p.id)),
+    [controllable],
+  )
 
   const leaderboard = useMemo(
     () => buildLeaderboard(players, events),
@@ -42,6 +65,8 @@ export function LiveRoundScreen({ round }: { round: Round }) {
   }, [players])
 
   const hasLeft = me?.roster_status === 'left'
+  const canScore = !hasLeft && controllable.length > 0
+  const isSpectator = Boolean(me) && !hasLeft && isSinglePhone && !canScore
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -57,14 +82,29 @@ export function LiveRoundScreen({ round }: { round: Round }) {
 
       {hasLeft ? <LeftBanner roundId={round.id} /> : null}
 
+      {isSpectator ? (
+        <p className="rounded-card border border-border bg-surface-alt p-4 font-label text-sm text-muted">
+          Single phone — the host is scoring this round. You're watching live.
+        </p>
+      ) : null}
+
       <Leaderboard rows={leaderboard} meId={me?.id} />
 
-      {me && !hasLeft ? (
+      {canScore ? (
         <RulePalette
           roundId={round.id}
-          me={me}
-          rules={rules}
+          subjects={controllable}
           players={players}
+          rules={rules}
+        />
+      ) : null}
+
+      {canScore ? (
+        <GuestManager
+          roundId={round.id}
+          players={players}
+          userId={user?.id}
+          canReassignAll={isSinglePhone && isController}
         />
       ) : null}
 
@@ -72,14 +112,20 @@ export function LiveRoundScreen({ round }: { round: Round }) {
         roundId={round.id}
         events={events}
         playerName={playerName}
-        meId={me?.id}
-        canScore={Boolean(me) && !hasLeft}
+        controllableIds={controllableIds}
+        canScore={canScore}
       />
     </div>
   )
 }
 
-function Header({ round, me }: { round: Round; me: RoundPlayer | null | undefined }) {
+function Header({
+  round,
+  me,
+}: {
+  round: Round
+  me: RoundPlayer | null | undefined
+}) {
   const leave = useSetRosterStatus(round.id)
   const hasLeft = me?.roster_status === 'left'
   return (
@@ -89,7 +135,9 @@ function Header({ round, me }: { round: Round; me: RoundPlayer | null | undefine
           {round.course_name || 'Live round'}
         </h1>
         <p className="font-label text-xs text-muted">
-          {round.played_on} · Multi phone · Code{' '}
+          {round.played_on} ·{' '}
+          {round.scoring_mode === 'single_phone' ? 'Single phone' : 'Multi phone'}{' '}
+          · Code{' '}
           <span className="font-numeral tracking-widest text-accent">
             {round.code}
           </span>
@@ -149,7 +197,9 @@ function Leaderboard({
                 key={row.player.id}
                 className="flex items-center justify-between gap-2 rounded-card px-2 py-1.5"
                 style={
-                  isMe ? { backgroundColor: 'var(--color-surface-alt)' } : undefined
+                  isMe
+                    ? { backgroundColor: 'var(--color-surface-alt)' }
+                    : undefined
                 }
               >
                 <span className="flex items-center gap-2 font-label text-sm text-text">
@@ -173,23 +223,29 @@ function Leaderboard({
 
 function RulePalette({
   roundId,
-  me,
-  rules,
+  subjects,
   players,
+  rules,
 }: {
   roundId: string
-  me: RoundPlayer
-  rules: RoundRule[]
+  subjects: RoundPlayer[]
   players: RoundPlayer[]
+  rules: RoundRule[]
 }) {
   const logPoint = useLogPoint(roundId)
+  const [subjectId, setSubjectId] = useState<string | undefined>(undefined)
   const [multiRule, setMultiRule] = useState<RoundRule | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Keep a valid subject even as the roster changes (guest added, player left).
+  const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0]
+  const choosesSubject = subjects.length > 1
+
   function logSingle(rule: RoundRule) {
+    if (!subject) return
     setError(null)
     logPoint.mutate(
-      { eventId: crypto.randomUUID(), subjectPlayerId: me.id, rule },
+      { eventId: crypto.randomUUID(), subjectPlayerId: subject.id, rule },
       { onError: (e) => setError(errorMessage(e)) },
     )
   }
@@ -210,9 +266,28 @@ function RulePalette({
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="font-label text-sm font-semibold text-text">Log a point</h2>
-      <p className="mt-1 font-label text-xs text-muted">
-        Tap a rule to score it for yourself.
-      </p>
+
+      {choosesSubject ? (
+        <label className="mt-2 flex items-center gap-2 font-label text-xs text-muted">
+          Scoring for
+          <Select
+            value={subject?.id}
+            onChange={(e) => setSubjectId(e.target.value)}
+          >
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.display_name}
+                {s.is_guest ? ' (guest)' : ''}
+              </option>
+            ))}
+          </Select>
+        </label>
+      ) : (
+        <p className="mt-1 font-label text-xs text-muted">
+          Tap a rule to score it for yourself.
+        </p>
+      )}
+
       <div className="mt-3 grid grid-cols-2 gap-2">
         {rules.map((rule) => (
           <button
@@ -238,10 +313,11 @@ function RulePalette({
       </div>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
 
-      {multiRule ? (
+      {multiRule && subject ? (
         <MultiPlayerPicker
           rule={multiRule}
-          me={me}
+          subjectId={subject.id}
+          subjectName={subject.display_name}
           players={players}
           pending={logPoint.isPending}
           onCancel={() => setMultiRule(null)}
@@ -250,7 +326,7 @@ function RulePalette({
             logPoint.mutate(
               {
                 eventId: crypto.randomUUID(),
-                subjectPlayerId: me.id,
+                subjectPlayerId: subject.id,
                 rule: multiRule,
                 involvedPlayerIds,
               },
@@ -268,21 +344,23 @@ function RulePalette({
 
 function MultiPlayerPicker({
   rule,
-  me,
+  subjectId,
+  subjectName,
   players,
   pending,
   onCancel,
   onConfirm,
 }: {
   rule: RoundRule
-  me: RoundPlayer
+  subjectId: string
+  subjectName: string
   players: RoundPlayer[]
   pending: boolean
   onCancel: () => void
   onConfirm: (involvedPlayerIds: string[]) => void
 }) {
   const others = players.filter(
-    (p) => p.id !== me.id && p.roster_status === 'active',
+    (p) => p.id !== subjectId && p.roster_status === 'active',
   )
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -298,10 +376,10 @@ function MultiPlayerPicker({
   return (
     <div className="mt-3 rounded-card border border-border bg-surface-alt p-3">
       <p className="font-label text-sm font-semibold text-text">
-        {rule.name_snapshot} — who else was involved?
+        {rule.name_snapshot} — who else was involved with {subjectName}?
       </p>
       <p className="mt-1 font-label text-xs text-muted">
-        Everyone selected gets +{rule.points_snapshot} and a chance to confirm.
+        Everyone selected also gets +{rule.points_snapshot}.
       </p>
       {others.length === 0 ? (
         <p className="mt-2 font-label text-xs text-muted">
@@ -318,6 +396,9 @@ function MultiPlayerPicker({
                   onChange={() => toggle(p.id)}
                 />
                 {p.display_name}
+                {p.is_guest ? (
+                  <span className="font-label text-xs text-muted">Guest</span>
+                ) : null}
               </label>
             </li>
           ))}
@@ -336,6 +417,96 @@ function MultiPlayerPicker({
         </Button>
       </div>
     </div>
+  )
+}
+
+function GuestManager({
+  roundId,
+  players,
+  userId,
+  canReassignAll,
+}: {
+  roundId: string
+  players: RoundPlayer[]
+  userId: string | undefined
+  canReassignAll: boolean
+}) {
+  const addGuest = useAddGuest(roundId)
+  const reassign = useReassignGuest(roundId)
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const guests = players.filter((p) => p.is_guest && p.roster_status === 'active')
+  const managers = players.filter(
+    (p) => !p.is_guest && p.roster_status === 'active' && p.profile_id,
+  )
+
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <h2 className="font-label text-sm font-semibold text-text">Guests</h2>
+      <p className="mt-1 font-label text-xs text-muted">
+        Add a player without a phone — you'll log points for them.
+      </p>
+
+      <div className="mt-2 flex gap-2">
+        <TextInput
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Guest name"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={addGuest.isPending || name.trim().length === 0}
+          onClick={() => {
+            setError(null)
+            addGuest.mutate(name.trim(), {
+              onSuccess: () => setName(''),
+              onError: (e) => setError(errorMessage(e)),
+            })
+          }}
+        >
+          Add
+        </Button>
+      </div>
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+
+      {guests.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-2">
+          {guests.map((g) => {
+            const canReassign = canReassignAll || g.managed_by === userId
+            return (
+              <li
+                key={g.id}
+                className="flex items-center justify-between gap-2 font-label text-sm text-text"
+              >
+                <span>{g.display_name}</span>
+                {canReassign && managers.length > 0 ? (
+                  <label className="flex items-center gap-1 font-label text-xs text-muted">
+                    Managed by
+                    <Select
+                      value={g.managed_by ?? ''}
+                      onChange={(e) =>
+                        reassign.mutate({
+                          guestId: g.id,
+                          newManagerId: e.target.value,
+                        })
+                      }
+                    >
+                      {managers.map((m) => (
+                        <option key={m.id} value={m.profile_id ?? ''}>
+                          {m.display_name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+    </section>
   )
 }
 
@@ -396,13 +567,13 @@ function EventFeed({
   roundId,
   events,
   playerName,
-  meId,
+  controllableIds,
   canScore,
 }: {
   roundId: string
   events: PointEvent[]
   playerName: Map<string, string>
-  meId: string | undefined
+  controllableIds: Set<string>
   canScore: boolean
 }) {
   return (
@@ -420,8 +591,13 @@ function EventFeed({
               roundId={roundId}
               event={ev}
               subjectName={playerName.get(ev.subject_player_id) ?? 'Player'}
-              // Multi Phone: you manage only your own points (spec §6).
-              canManage={canScore && ev.subject_player_id === meId && !ev.voided}
+              // You manage points for any subject you control (spec §6): in Multi
+              // Phone that's yourself + your guests; in Single Phone, everyone.
+              canManage={
+                canScore &&
+                !ev.voided &&
+                controllableIds.has(ev.subject_player_id)
+              }
             />
           ))}
         </ul>

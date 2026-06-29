@@ -233,6 +233,29 @@ export function useRespondToConfirmation(roundId: string | undefined) {
   })
 }
 
+/** Reassign a guest to a new manager (spec §6 — e.g. the manager's phone died). */
+export function useReassignGuest(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      guestId,
+      newManagerId,
+    }: {
+      guestId: string
+      newManagerId: string
+    }) => {
+      const { error } = await supabase.rpc('reassign_guest', {
+        p_guest_id: guestId,
+        p_new_manager_id: newManagerId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['round-players', roundId] })
+    },
+  })
+}
+
 /** Leave or rejoin the round (persistent roster; spec §5). */
 export function useSetRosterStatus(roundId: string | undefined) {
   const { user } = useAuth()

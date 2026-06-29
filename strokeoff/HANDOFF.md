@@ -15,8 +15,8 @@ _Last updated after Phase 4 (website integration done in the same branch)._
 - **Branch:** website-side work is on `claude/dabingabongo-app-dev-2e20v4`. The
   pre-integration history (Phases 0–3) is on `claude/strokeoff-phase-0-scaffold-khauv5`
   in the standalone StrokeOff repo. No per-phase branches in this setup.
-- **Phases complete: 0, 1, 2, 3, 4.** Next up: **Phase 5 — Single Phone & guests.**
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (24 tests) and `pnpm build`
+- **Phases complete: 0, 1, 2, 3, 4, 5.** Next up: **Phase 6 — End of round & history.**
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (28 tests) and `pnpm build`
   are all green. Dev server boots and serves.
 
 ### Important caveat — backend not yet live
@@ -56,13 +56,19 @@ real project is connected, apply migrations and exercise the flows.
   Realtime. Migration `0004`. Pure `features/round/leaderboard.ts` (+ tests).
   Route `/round/:roundId` now branches via `RoundDetailScreen` (lobby → live →
   complete); the lobby is presentational (`LobbyView`).
+- **Phase 5 — Single Phone & guests:** the same live screen now serves both modes.
+  **Single Phone:** the controller (round creator) scores for everyone via a
+  subject picker, edits/undoes anyone's points, and manages guests; non-controllers
+  are **read-only spectators**. **Guests in both modes:** add a guest you manage
+  (in-round) and **reassign** them to another active player if a phone dies. Pure
+  `features/round/permissions.ts#controllablePlayers` mirrors the server check and
+  drives the UI (palette subjects, feed manage); migration `0005` widens
+  `controls_round_player` to the single-phone controller (so the Phase 4 RPCs serve
+  both modes), skips multi-player confirmations in Single Phone (controller assigns
+  directly), and adds `reassign_guest`. New `useReassignGuest` hook.
 
 ## Stubbed / deferred (don't assume these exist)
 
-- **Single Phone scoring** (controller logs for everyone, spectator read-only) and
-  **guests *in scoring*** → Phase 5. Phase 4's live screen is Multi-Phone only;
-  the `log_point` permission already allows a guest's manager, but there's no
-  Single-Phone UI yet. Guest pre-add in the lobby exists from Phase 3.
 - **Celebration animations on a confirmed point** → Phase 8 (Phase 4 logs points
   with no confetti; `animations_enabled` is snapshotted but unused so far).
 - **One-time coach marks** on the live screen (spec §3) → deferred; Phase 4 ships
@@ -103,40 +109,47 @@ Full phase order (spec §15): **0** Scaffold · **1** Identity · **2** Groups &
 Rules · **3** Round setup & lobby · **4** Live scoring (Multi Phone) · **5**
 Single Phone & guests · **6** End of round & history · **7** Theme gallery · **8**
 Animations · **9** Guest claim flow · **10** Offline & PWA polish · **11**
-Community → People. (Phases 0–4 done.)
+Community → People. (Phases 0–5 done.)
 
 Paste the reusable phase prompt from `docs/PHASE-0-KICKOFF.md`, swapping in the
-phase. For Phase 5:
+phase. For Phase 6:
 
-> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 5 — Single
-> Phone & guests** (spec §6, §15) to its Deliverable. Honor the architecture
+> Read `CLAUDE.md` and `docs/strokeoff-spec.md`. Implement **only Phase 6 — End of
+> round & history** (spec §9, §10, §15) to its Deliverable. Honor the architecture
 > principles (theme tokens, snapshot, RLS-first, permission-on-writes,
 > derive-from-events). Add RLS to any new table in the same migration. Finish with
 > `pnpm typecheck && pnpm lint && pnpm test` clean.
 
-Phase 5 builds directly on Phase 4's scoring layer:
-- **Controller logging** — in a `single_phone` round, let the controller log/edit/
-  void for **any** active player, not just themselves. The `log_point` /
-  `edit_point_event` / `void_point_event` RPCs currently gate on
-  `controls_round_player` (self or a guest you manage); extend that to "controller
-  in a single-phone round" (the round creator, or generalize to any participant per
-  spec) so the same RPCs serve both modes. Mirror the check in the UI.
-- **Guests in scoring** — surface the Phase 3 guest pre-add inside the live screen
-  and let the manager log on a guest's behalf (the `managed_by` path already works
-  in `controls_round_player`). Add guest **reassign** (change `managed_by`).
-- **Spectator read-only** — a non-controller in a single-phone round sees the
-  leaderboard + feed but no log palette (the live screen already hides the palette
-  for players who can't score; branch on mode + controller).
-- The live screen is `src/routes/round/LiveRoundScreen.tsx`; scoring hooks are in
-  `src/lib/scoring.ts`; the permission helper is `controls_round_player` in
-  migration `0004` (add a new migration `0005`, don't edit `0004`).
+Phase 6 builds on the scoring + conversion layers already in place:
+- **End round (any participant)** with friction (⋯ menu + hold-to-confirm + dialog,
+  spec §9): an RPC that sets `rounds.status = 'complete'` and `ended_at`, callable
+  by any participant. Add it as a new migration `0006` (don't edit earlier ones).
+  The live screen already routes `complete` rounds to a placeholder in
+  `RoundDetailScreen` — replace that with the results flow.
+- **Regular-score entry** (`round_players.regular_strokes`) — Multi Phone: each
+  player enters their own (anyone can fill gaps); Single Phone: controller enters
+  all. The column + `round_players_update_self` RLS already exist; you may need a
+  controller-aware RPC for Single Phone.
+- **Conversion + adjusted finals** — reuse `strokesForPoints` in
+  `features/conversion/convert.ts` against `rounds.conversion_snapshot` and the
+  per-player point totals from `features/round/leaderboard.ts` (`tallyPoints`).
+- **Tie-breakers** (spec §10) — write `tiebreak_winner_id` / `tiebreak_method`
+  (already on `rounds`); coin flip / number picker / random draw, "by tie-breaker"
+  flag. Keep the methods extensible.
+- **History tab** (`src/routes/history/HistoryScreen.tsx`, currently a placeholder)
+  + detail + delete (delete = remove from your view; see spec §11 visibility).
+- **Image export** (full matrix + per-player cards) via `html-to-image` — listed
+  in the spec stack but **not yet a dependency**; add it. Themed scorecards lean on
+  Phase 7's gallery, so a clean matrix/solo card against current tokens is enough.
+- Key files: `LiveRoundScreen.tsx`, `RoundDetailScreen.tsx`, `lib/rounds.ts`,
+  `lib/scoring.ts`, `features/conversion/convert.ts`, `features/round/leaderboard.ts`.
 
 ## Connecting a real Supabase project (when ready)
 
 1. Create the project; copy URL + anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 2. Apply migrations: `npx supabase db push` (or `supabase db reset` locally).
-   Migrations live in `supabase/migrations/0001…0003`.
+   Migrations live in `supabase/migrations/0001…0005`.
 3. Enable **Anonymous sign-ins** and the **Email (magic link)** provider; add app
    origins to Auth → URL Configuration → Redirect URLs. See `supabase/README.md`.
 4. Set the same `VITE_` vars in the deploy environment — for this app that's the
