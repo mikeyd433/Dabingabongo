@@ -278,7 +278,7 @@ Fire when a point is **confirmed**; governed by the round's **animations master 
 
 - **Tier 1 — preset:** built-in library (confetti, fireworks, raining discs, screen flash, emoji burst, etc.) + color choices.
 - **Tier 2 — custom particle:** swap the particle for your own **emoji or uploaded image** (e.g. rain a custom icon). Images live in Supabase Storage, attached to the rule.
-- **Tier 3 — fully custom:** upload **Lottie/GIF/sprite** or a bespoke effect, with a **preview-before-save** step.
+- **Tier 3 — fully custom:** upload a **Lottie JSON** or an **animated image (GIF/WebP/APNG)** played as a centred overlay, with a **preview** step. (Sprite-sheet effects are a future add.)
 
 **Guardrails:** a **performance/duration cap** so a heavy effect can't jank the round; **group-shared assets** (everyone sees the same celebration for a rule); **graceful fallback to confetti** if a custom asset fails to load.
 

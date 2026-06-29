@@ -14,6 +14,9 @@ export type AnimationPreset =
   | 'emoji-burst'
   // Tier 2 — custom particle from an uploaded image (spec §12).
   | 'image-burst'
+  // Tier 3 — a full custom animation: a Lottie JSON or an animated image
+  // (GIF/WebP/APNG) played as a centred overlay (spec §12).
+  | 'custom-animation'
 
 /** Where the effect's colors come from: a named source or a literal hex string. */
 export type AnimationColor = 'theme' | 'rainbow' | string
@@ -21,7 +24,7 @@ export type AnimationColor = 'theme' | 'rainbow' | string
 // A type alias (not interface) so it carries an implicit index signature and slots
 // straight into the `animation_config` jsonb column (Record<string, unknown>).
 export type AnimationConfig = {
-  /** Spec §12 tiers: 1 = preset library, 2 = custom emoji/image particle. */
+  /** Spec §12 tiers: 1 = preset library, 2 = custom particle, 3 = full animation. */
   tier: number
   preset: AnimationPreset
   color: AnimationColor
@@ -29,6 +32,8 @@ export type AnimationConfig = {
   emoji?: string
   /** Public URL of the uploaded particle image for `image-burst` (tier 2). */
   imageUrl?: string
+  /** Public URL of the Lottie JSON / animated image for `custom-animation` (tier 3). */
+  assetUrl?: string
 }
 
 export const TIER1_PRESETS: AnimationPreset[] = [
@@ -39,8 +44,12 @@ export const TIER1_PRESETS: AnimationPreset[] = [
   'emoji-burst',
 ]
 
-/** Every renderable preset, including tier-2 custom-particle effects. */
-export const ALL_PRESETS: AnimationPreset[] = [...TIER1_PRESETS, 'image-burst']
+/** Every renderable preset, including the tier-2/3 custom effects. */
+export const ALL_PRESETS: AnimationPreset[] = [
+  ...TIER1_PRESETS,
+  'image-burst',
+  'custom-animation',
+]
 
 export const PRESET_LABELS: Record<AnimationPreset, string> = {
   confetti: 'Confetti',
@@ -49,6 +58,12 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   'screen-flash': 'Screen flash',
   'emoji-burst': 'Emoji burst',
   'image-burst': 'Custom image',
+  'custom-animation': 'Custom animation (Lottie/GIF)',
+}
+
+/** A Lottie asset is JSON; everything else is treated as an animated image. */
+export function isLottieAsset(url: string): boolean {
+  return url.split('?')[0].toLowerCase().endsWith('.json')
 }
 
 export const DEFAULT_ANIMATION: AnimationConfig = {
@@ -59,6 +74,7 @@ export const DEFAULT_ANIMATION: AnimationConfig = {
 
 // Guardrails so a heavy effect can't jank the round (spec §12).
 const MAX_DURATION_MS = 1500
+const MAX_OVERLAY_MS = 2500 // a full custom animation may run a touch longer
 const MAX_PARTICLES = 180
 
 const RAINBOW = [
@@ -84,7 +100,8 @@ export function normalizeAnimation(raw: unknown): AnimationConfig {
   const tier = typeof r.tier === 'number' ? r.tier : 1
   const emoji = typeof r.emoji === 'string' ? r.emoji : undefined
   const imageUrl = typeof r.imageUrl === 'string' ? r.imageUrl : undefined
-  return { tier, preset, color, emoji, imageUrl }
+  const assetUrl = typeof r.assetUrl === 'string' ? r.assetUrl : undefined
+  return { tier, preset, color, emoji, imageUrl, assetUrl }
 }
 
 export interface ResolvedAnimation {
@@ -92,6 +109,8 @@ export interface ResolvedAnimation {
   colors: string[]
   emoji: string | null
   imageUrl: string | null
+  /** Lottie/animated-image URL for `custom-animation`, else null. */
+  assetUrl: string | null
   durationMs: number
   particleCount: number
 }
@@ -108,9 +127,9 @@ function resolveColors(
 
 /**
  * Resolve a stored config (against the active theme's colors) into the concrete
- * inputs the canvas engine needs, applying the performance caps. Unknown presets
- * — and a `image-burst` with no uploaded image yet — fall back to confetti
- * (graceful degradation, spec §12).
+ * inputs the engine needs, applying the performance caps. A custom effect with no
+ * uploaded asset yet — and any unknown preset — falls back to confetti (graceful
+ * degradation, spec §12).
  */
 export function resolveAnimation(
   raw: unknown,
@@ -120,8 +139,9 @@ export function resolveAnimation(
   let preset: AnimationPreset = ALL_PRESETS.includes(cfg.preset)
     ? cfg.preset
     : 'confetti'
-  // The custom-image effect needs an image; without one, fall back.
+  // Custom effects need their uploaded asset; without one, fall back.
   if (preset === 'image-burst' && !cfg.imageUrl) preset = 'confetti'
+  if (preset === 'custom-animation' && !cfg.assetUrl) preset = 'confetti'
 
   const emoji =
     preset === 'emoji-burst'
@@ -130,20 +150,26 @@ export function resolveAnimation(
         ? cfg.emoji || '🥏'
         : null
 
-  const durationMs = Math.min(
-    preset === 'screen-flash' ? 450 : 1200,
-    MAX_DURATION_MS,
-  )
-  const particleCount = Math.min(
-    preset === 'screen-flash' ? 0 : preset === 'fireworks' ? 90 : 120,
-    MAX_PARTICLES,
-  )
+  // A full overlay animation (Lottie/GIF) gets a little longer than a particle
+  // burst, but still capped so it can't linger over the round.
+  const durationMs =
+    preset === 'custom-animation'
+      ? MAX_OVERLAY_MS
+      : Math.min(preset === 'screen-flash' ? 450 : 1200, MAX_DURATION_MS)
+  const particleCount =
+    preset === 'custom-animation'
+      ? 0
+      : Math.min(
+          preset === 'screen-flash' ? 0 : preset === 'fireworks' ? 90 : 120,
+          MAX_PARTICLES,
+        )
 
   return {
     preset,
     colors: resolveColors(cfg.color, theme),
     emoji,
     imageUrl: preset === 'image-burst' ? (cfg.imageUrl ?? null) : null,
+    assetUrl: preset === 'custom-animation' ? (cfg.assetUrl ?? null) : null,
     durationMs,
     particleCount,
   }

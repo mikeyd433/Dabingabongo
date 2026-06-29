@@ -244,8 +244,9 @@ function AnimationField({
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   function choosePreset(preset: AnimationPreset) {
-    // Custom image is the only tier-2 effect today; everything else is tier 1.
-    set({ preset, tier: preset === 'image-burst' ? 2 : 1 })
+    const tier =
+      preset === 'image-burst' ? 2 : preset === 'custom-animation' ? 3 : 1
+    set({ preset, tier })
   }
 
   function handleImage(e: ChangeEvent<HTMLInputElement>) {
@@ -254,6 +255,17 @@ function AnimationField({
     setUploadError(null)
     upload.mutate(file, {
       onSuccess: (url) => set({ preset: 'image-burst', tier: 2, imageUrl: url }),
+      onError: (err) => setUploadError(errorMessage(err)),
+    })
+  }
+
+  function handleAsset(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    upload.mutate(file, {
+      onSuccess: (url) =>
+        set({ preset: 'custom-animation', tier: 3, assetUrl: url }),
       onError: (err) => setUploadError(errorMessage(err)),
     })
   }
@@ -331,6 +343,29 @@ function AnimationField({
               disabled={upload.isPending}
             />
           </label>
+        </div>
+      ) : null}
+      {cfg.preset === 'custom-animation' ? (
+        <div className="flex flex-col gap-1">
+          <label className="inline-flex min-h-[44px] cursor-pointer items-center self-start rounded-card border border-border bg-surface px-4 font-label text-sm font-semibold text-text">
+            {upload.isPending
+              ? 'Uploading…'
+              : cfg.assetUrl
+                ? 'Replace animation'
+                : 'Upload animation'}
+            <input
+              type="file"
+              accept=".json,application/json,image/gif,image/webp,image/apng,image/png"
+              className="sr-only"
+              onChange={handleAsset}
+              disabled={upload.isPending}
+            />
+          </label>
+          <span className="font-label text-xs text-muted">
+            {cfg.assetUrl
+              ? 'Uploaded. Use Preview to see it play.'
+              : 'A Lottie JSON or an animated GIF/WebP — plays once when a point lands.'}
+          </span>
         </div>
       ) : null}
       {uploadError ? <FormMessage tone="error">{uploadError}</FormMessage> : null}

@@ -6,10 +6,10 @@ the source of truth. This file says **what's built, what's next, and what to wat
 _Last updated mid-session: all 12 phases (0–11) done, app **deployed to production**.
 Shipped to `main`: course par (0011), score-confirmation gate (0012), and a feature
 batch (haptics, email-redirect fix, Settings, share-app QR, camera QR, owner group
-mgmt (0013), profile stats). The latest **polish batch** — one-time coach marks,
-animation **Tier 2** (custom image-burst particle + preview), and **win/loss profile
-stats** — is also **migrated (0014 + 0015), merged to `main`, and deploying**. See
-"✅ Polish batch — SHIPPED" below._
+mgmt (0013), profile stats); a polish batch (coach marks, animation **Tier 2**
+image-burst, win/loss stats — 0014 + 0015); and now animation **Tier 3** (custom
+Lottie / animated-image overlay) — **no migration, merged to `main`, deploying**. See
+"✅ Animation Tier 3 — SHIPPED" below._
 
 ## Where things stand
 
@@ -29,9 +29,28 @@ stats** — is also **migrated (0014 + 0015), merged to `main`, and deploying**.
 - **App logo is in place** (real disc-basket "S/O" mark): `public/logo.png` (header
   wordmark) + generated `pwa-192/512`, `apple-touch-icon`, `favicon-32.png`. The
   spec §16 "icon is a placeholder" item is now resolved.
-- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**82 tests**, now on `main`)
+- **Checks:** `pnpm typecheck && pnpm lint && pnpm test` (**84 tests**, now on `main`)
   and `pnpm build` are all green. Dev server boots and serves; the build emits a
   Workbox SW (`dist/strokeoff/sw.js`, 15 precache entries) that opens the app offline.
+
+### ✅ Animation Tier 3 — SHIPPED
+A **fully custom celebration** (spec §12, Tier 3): a new `custom-animation` preset
+that plays an uploaded **Lottie JSON** or **animated image (GIF/WebP/APNG)** as a
+centred, pointer-transparent overlay when a point lands. **No migration** — reuses
+the `animation-assets` bucket (0015), which already accepts any file type.
+
+- **Engine** (`celebrate.ts`): `custom-animation` branch — Lottie renders via
+  **`lottie-web`, dynamically imported** (so it stays out of the main bundle); other
+  assets play as a native `<img>`. Capped at 2.5s, honors `prefers-reduced-motion`,
+  and **falls back to confetti** if the asset is missing or fails to load.
+- **Bundle:** `lottie-web` is split into a `lottie-*.js` chunk **excluded from the
+  Workbox precache** (`vite.config.ts` `manualChunks` + `globIgnores`), like the QR
+  decoder — ~308 KB fetched only when a custom animation actually plays.
+- **Types** (`types.ts`): `custom-animation` preset + `assetUrl` + `isLottieAsset()`;
+  `resolveAnimation` falls back without an asset (+2 tests). **Editor**
+  (`RuleEditor`): upload control (`.json` / gif / webp) + the existing **Preview**
+  button plays it. Tier 3 sprite-sheets remain a future add.
+- Built, tested (**84 tests**), merged to `main`, deploying. No DB change.
 
 ### ✅ Polish batch — SHIPPED
 Built, tested (82 tests), **migrated (0014 + 0015, applied + verified), merged to
@@ -349,10 +368,11 @@ doesn't work — verify via the MCP logs or the real app.
   future add.
 - **Settings contents** (spec §11 "Me → Settings") → ✅ built (haptics toggle +
   new-round defaults).
-- **Animations Tier 2** (custom particle = emoji/uploaded image) → ✅ built: emoji
-  burst (Tier 1) + the new **image-burst** preset (migration 0015 + upload + preview).
-  **Tier 3** (Lottie/GIF/sprite with preview) → still deferred; needs a player
-  dependency. Unknown/assetless higher-tier configs still **fall back to confetti**.
+- **Animations Tier 2 & 3** → ✅ built. Tier 2: emoji burst + **image-burst** custom
+  particle (0015). Tier 3: **custom-animation** — a Lottie JSON or animated image
+  (GIF/WebP) overlay (`lottie-web`, lazy-loaded; preview in the editor). Only
+  **sprite-sheet** effects remain a future add; assetless/unknown configs still
+  **fall back to confetti**.
 - **Full offline / local-only mode** (a round with no connection at all) → out of
   scope for v1 by design (spec §4); Phase 10 covers *intermittent* signal only.
 

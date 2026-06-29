@@ -22,10 +22,13 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Isolate the QR decoder in a predictably-named chunk so it can be
-        // lazy-loaded (only when scanning) and kept out of the offline precache.
+        // Isolate the heavy, lazily-loaded libraries in predictably-named chunks
+        // so they're fetched on demand and kept out of the offline precache: the
+        // QR decoder (only when scanning) and the Lottie player (only when a
+        // custom animation plays).
         manualChunks: {
           zxing: ['@zxing/browser', '@zxing/library'],
+          lottie: ['lottie-web'],
         },
       },
     },
@@ -39,9 +42,10 @@ export default defineConfig({
       workbox: {
         // Precache the built shell + assets so the app launches with no network.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        // …but not the QR decoder — it's only needed when actively scanning
-        // (which needs network anyway), so it's fetched on demand, not installed.
-        globIgnores: ['**/zxing-*.js'],
+        // …but not the lazily-loaded QR decoder / Lottie player — they're only
+        // needed for an explicit action (scanning, a custom animation), so
+        // they're fetched on demand rather than bloating the offline install.
+        globIgnores: ['**/zxing-*.js', '**/lottie-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         // SPA: serve the cached app shell for any in-app navigation while offline.

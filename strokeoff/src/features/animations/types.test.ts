@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_ANIMATION,
+  isLottieAsset,
   normalizeAnimation,
   resolveAnimation,
 } from './types'
@@ -22,6 +23,15 @@ describe('normalizeAnimation', () => {
     expect(cfg.preset).toBe('emoji-burst')
     expect(cfg.color).toBe('rainbow')
     expect(cfg.emoji).toBe('🔥')
+  })
+})
+
+describe('isLottieAsset', () => {
+  it('treats .json as Lottie and images as not', () => {
+    expect(isLottieAsset('https://x/a.json')).toBe(true)
+    expect(isLottieAsset('https://x/a.json?token=1')).toBe(true)
+    expect(isLottieAsset('https://x/a.gif')).toBe(false)
+    expect(isLottieAsset('https://x/a.webp')).toBe(false)
   })
 })
 
@@ -68,6 +78,20 @@ describe('resolveAnimation', () => {
     expect(resolveAnimation({ preset: 'lottie-thing' }, theme).preset).toBe(
       'confetti',
     )
+  })
+
+  it('plays a Tier 3 custom animation only once an asset is uploaded', () => {
+    expect(resolveAnimation({ preset: 'custom-animation' }, theme).preset).toBe(
+      'confetti',
+    )
+    const r = resolveAnimation(
+      { preset: 'custom-animation', tier: 3, assetUrl: 'https://x/a.json' },
+      theme,
+    )
+    expect(r.preset).toBe('custom-animation')
+    expect(r.assetUrl).toBe('https://x/a.json')
+    expect(r.particleCount).toBe(0)
+    expect(r.durationMs).toBeLessThanOrEqual(2500)
   })
 
   it('caps duration and particle count', () => {

@@ -1,11 +1,17 @@
-import { resolveAnimation, type AnimationPreset, type ResolvedAnimation } from './types'
+import {
+  isLottieAsset,
+  resolveAnimation,
+  type AnimationPreset,
+  type ResolvedAnimation,
+} from './types'
 
 /**
- * Token-driven celebration engine (spec §12, Tier 1). `celebrate(config)` resolves
- * a rule's animation against the *active theme's* colors and runs a short canvas
- * effect over the whole screen, cleaning itself up. Honors `prefers-reduced-motion`
- * and the duration/particle caps from `resolveAnimation`, so it can never jank the
- * round. No-ops outside the browser.
+ * Token-driven celebration engine (spec §12). `celebrate(config)` resolves a
+ * rule's animation against the *active theme's* colors and runs a short effect
+ * over the whole screen, cleaning itself up: Tier 1 canvas presets, a Tier 2
+ * custom-image burst, or a Tier 3 full overlay (Lottie JSON / animated image).
+ * Honors `prefers-reduced-motion` and the duration/particle caps, so it can never
+ * jank the round. No-ops outside the browser.
  */
 export function celebrate(raw: unknown): void {
   if (typeof document === 'undefined' || typeof window === 'undefined') return
@@ -20,6 +26,11 @@ export function celebrate(raw: unknown): void {
     runFlash(anim)
     return
   }
+  // Tier 3 custom animation: a Lottie JSON or an animated image, centred overlay.
+  if (anim.preset === 'custom-animation' && anim.assetUrl) {
+    runCustomAnimation(anim, anim.assetUrl)
+    return
+  }
   // Tier 2 custom image: preload the particle, then burst it. If it fails to
   // load, fall back to confetti so a celebration still fires.
   if (anim.preset === 'image-burst' && anim.imageUrl) {
@@ -32,6 +43,85 @@ export function celebrate(raw: unknown): void {
     return
   }
   runParticles(anim, null)
+}
+
+/** Confetti fallback used when a custom asset can't render. */
+function fallbackConfetti(anim: ResolvedAnimation) {
+  runParticles(
+    { ...anim, preset: 'confetti', assetUrl: null, durationMs: 1200 },
+    null,
+  )
+}
+
+/**
+ * Tier 3 — play a full custom animation as a centred, pointer-transparent
+ * overlay, removed after the (capped) duration. Lottie JSON renders via
+ * lottie-web (dynamically imported so it stays out of the main bundle + offline
+ * precache); anything else is treated as an animated image (GIF/WebP/APNG) the
+ * browser plays natively. Any failure degrades to confetti.
+ */
+function runCustomAnimation(anim: ResolvedAnimation, url: string) {
+  const host = document.createElement('div')
+  overlayStyle(host)
+  Object.assign(host.style, {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  })
+  document.body.appendChild(host)
+
+  let done = false
+  let destroy: (() => void) | undefined
+  const cleanup = () => {
+    if (done) return
+    done = true
+    destroy?.()
+    host.remove()
+  }
+  const timer = window.setTimeout(cleanup, anim.durationMs)
+
+  if (isLottieAsset(url)) {
+    void import('lottie-web')
+      .then(({ default: lottie }) => {
+        if (done) return
+        const box = document.createElement('div')
+        Object.assign(box.style, {
+          width: 'min(80vw, 80vh)',
+          height: 'min(80vw, 80vh)',
+        })
+        host.appendChild(box)
+        const player = lottie.loadAnimation({
+          container: box,
+          renderer: 'svg',
+          loop: false,
+          autoplay: true,
+          path: url,
+        })
+        destroy = () => player.destroy()
+        player.addEventListener('complete', () => {
+          window.clearTimeout(timer)
+          cleanup()
+        })
+      })
+      .catch(() => {
+        window.clearTimeout(timer)
+        cleanup()
+        fallbackConfetti(anim)
+      })
+    return
+  }
+
+  // Animated image (GIF/WebP/APNG): the browser animates it for us.
+  const img = document.createElement('img')
+  img.style.maxWidth = '80vw'
+  img.style.maxHeight = '80vh'
+  img.onerror = () => {
+    window.clearTimeout(timer)
+    cleanup()
+    fallbackConfetti(anim)
+  }
+  img.src = url
+  host.appendChild(img)
 }
 
 function overlayStyle(el: HTMLElement) {
