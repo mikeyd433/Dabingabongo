@@ -8,10 +8,11 @@ import { ThemePicker } from '@/features/round/ThemePicker'
 import { ActiveRulesPicker } from '@/features/round/ActiveRulesPicker'
 import { ConversionFields } from '@/features/conversion/ConversionFields'
 import type { ConversionValue } from '@/features/conversion/ConversionFields'
-import { DEFAULT_TIER_CONFIG } from '@/features/conversion/types'
+import { DEFAULT_RATIO_CONFIG } from '@/features/conversion/types'
 import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
 import { useGroupConversion } from '@/lib/conversion'
+import { useCourses } from '@/lib/courses'
 import { useRules } from '@/lib/rules'
 import { useCreateRound } from '@/lib/rounds'
 import { errorMessage } from '@/lib/validation'
@@ -45,6 +46,7 @@ export function RoundSetupScreen() {
     activeGroup?.default_conversion_id,
   )
   const { data: rules } = useRules(activeGroup?.id)
+  const { data: courses } = useCourses(activeGroup?.id)
 
   // Pre-fill from the player's saved Settings defaults (spec §11).
   const defaults = useMemo(() => getRoundDefaults(), [])
@@ -57,8 +59,8 @@ export function RoundSetupScreen() {
   const [animations, setAnimations] = useState(defaults.animations)
   const [themeId, setThemeId] = useState(defaults.themeId)
   const [conversion, setConversion] = useState<ConversionValue>({
-    mode: 'tier',
-    config: DEFAULT_TIER_CONFIG,
+    mode: 'ratio',
+    config: DEFAULT_RATIO_CONFIG,
   })
   const [selectedRules, setSelectedRules] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -129,6 +131,18 @@ export function RoundSetupScreen() {
     }
   }
 
+  // Picking (or typing) a saved course pre-fills its par, but only when par is
+  // still blank so it never clobbers a value you're entering by hand.
+  function handleCourseChange(value: string) {
+    setCourse(value)
+    const match = courses?.find(
+      (c) => c.name.toLowerCase() === value.trim().toLowerCase(),
+    )
+    if (match && match.par != null && par.trim() === '') {
+      setPar(String(match.par))
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5 p-4">
       <h1 className="font-display text-xl font-bold text-text">New round</h1>
@@ -152,9 +166,20 @@ export function RoundSetupScreen() {
         <TextInput
           id="round-course"
           value={course}
-          onChange={(e) => setCourse(e.target.value)}
+          onChange={(e) => handleCourseChange(e.target.value)}
           placeholder="Where are you playing?"
+          list="saved-courses"
+          autoComplete="off"
         />
+        {courses && courses.length > 0 ? (
+          <datalist id="saved-courses">
+            {courses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.par != null ? `Par ${c.par}` : ''}
+              </option>
+            ))}
+          </datalist>
+        ) : null}
       </Field>
 
       <Field label="Date" htmlFor="round-date">

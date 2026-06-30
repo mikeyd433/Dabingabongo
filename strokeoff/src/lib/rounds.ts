@@ -75,9 +75,12 @@ export function useRoundPlayers(roundId: string | undefined) {
     queryFn: async (): Promise<RoundPlayer[]> => {
       // Join each player's profile avatar (readable for round co-participants via
       // the profiles_select_visible RLS policy); guests have no profile, so null.
+      // round_players has two FKs to profiles (profile_id + managed_by), so the
+      // embed MUST name the profile_id constraint or PostgREST errors on the
+      // ambiguous relationship and returns no players.
       const { data, error } = await supabase
         .from('round_players')
-        .select('*, profiles(avatar_url)')
+        .select('*, profiles!round_players_profile_id_fkey(avatar_url)')
         .eq('round_id', roundId!)
         .order('joined_at', { ascending: true })
       if (error) throw error

@@ -92,6 +92,17 @@ export interface Rule {
   created_at: string
 }
 
+/** A course a group has played, remembered so it can be picked again (spec §5). */
+export interface Course {
+  id: UUID
+  group_id: UUID
+  name: string
+  /** Total course par, or null if it was never entered. */
+  par: number | null
+  created_by: UUID
+  created_at: string
+}
+
 export type ConversionMode = 'tier' | 'ratio'
 
 export interface ConversionTable {
