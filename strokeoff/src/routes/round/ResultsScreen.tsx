@@ -1013,15 +1013,16 @@ function ScorecardGallery({
         Swipe between the full card and each player's, then export or share the
         one you're viewing.
       </p>
-      {/* items-start keeps every card aligned to the same top edge, so swiping
-          doesn't shift the layout when cards differ in height. */}
+      {/* items-start keeps every card aligned to the same top edge; snap-center
+          plus the half-viewport-minus-half-card side padding sits the active
+          card in the middle of the screen (with neighbours peeking). */}
       <div
         ref={scrollRef}
-        className="-mx-4 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-2"
+        className="-mx-4 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto px-[calc(50%_-_9rem)] pb-2"
       >
         <div
           ref={(el) => (cardRefs.current[0] = el)}
-          className="w-[18rem] shrink-0 snap-start"
+          className="w-[18rem] shrink-0 snap-center"
         >
           <MatrixCard
             round={round}
@@ -1036,7 +1037,7 @@ function ScorecardGallery({
           <div
             key={row.player.id}
             ref={(el) => (cardRefs.current[i + 1] = el)}
-            className="w-[18rem] shrink-0 snap-start"
+            className="w-[18rem] shrink-0 snap-center"
           >
             <PlayerCard
               round={round}
