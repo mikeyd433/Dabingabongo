@@ -51,18 +51,33 @@ export function useUploadAvatar() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
+      // Resolve (and refresh if needed) the session up front. The avatars bucket
+      // is write-scoped to your own folder via RLS; if the storage request goes
+      // out without a live user token it falls back to the anon key, auth.uid()
+      // is null, and the upload is rejected with a row-level-security error.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? user?.id
+      if (!session || !uid) {
+        throw new Error('You need to be signed in to change your avatar.')
+      }
+
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
-      const path = `${user!.id}/avatar-${Date.now()}.${ext}`
+      const path = `${uid}/avatar-${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true })
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type || undefined,
+        })
       if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
       const { error } = await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
-        .eq('id', user!.id)
+        .eq('id', uid)
       if (error) throw error
       return data.publicUrl
     },
