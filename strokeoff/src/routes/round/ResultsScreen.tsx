@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { FormMessage } from '@/components/FormMessage'
@@ -99,13 +100,16 @@ export function ResultsScreen({ round }: { round: Round }) {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h1 className="font-display text-xl font-bold text-text">
-          {round.course_name || 'Round'} — final
-        </h1>
-        <p className="font-label text-xs text-muted">
-          {round.played_on} · Scoring locked
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-xl font-bold text-text">
+            {round.course_name || 'Round'} — final
+          </h1>
+          <p className="font-label text-xs text-muted">
+            {round.played_on} · Scoring locked
+          </p>
+        </div>
+        <CloseButton />
       </div>
 
       <ReopenScores round={round} players={players} />
@@ -138,6 +142,21 @@ export function ResultsScreen({ round }: { round: Round }) {
 
       <EventLog events={events} players={players} />
     </div>
+  )
+}
+
+/** Exit the completed round. It stays in History, so this just leaves the view. */
+function CloseButton() {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('/')}
+      aria-label="Close final score screen"
+      className="inline-flex min-h-[44px] shrink-0 items-center rounded-card border border-border bg-surface px-4 font-label text-sm font-semibold text-text"
+    >
+      Close
+    </button>
   )
 }
 
@@ -938,10 +957,21 @@ function ScorecardGallery({
   treatment: WinnerTreatment
 }) {
   const matrix = useMatrix(events, rules)
-  // One dot per card: the matrix card plus one per player row.
+  // One slide per card: the matrix card plus one per player row.
   const cardCount = rows.length + 1
   const scrollRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const [active, setActive] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Feature-detect once: the Share button only appears where the OS share sheet
+  // can take a file (mainly mobile / installed PWA).
+  const [canShare] = useState(canShareFiles)
+
+  const filenames = [
+    fileName(round, 'scorecard'),
+    ...rows.map((r) => fileName(round, r.player.display_name)),
+  ]
 
   useEffect(() => {
     const el = scrollRef.current
@@ -957,17 +987,42 @@ function ScorecardGallery({
     return () => el.removeEventListener('scroll', onScroll)
   }, [cardCount])
 
+  // Export/share whichever card is currently in view.
+  async function run(kind: 'export' | 'share') {
+    const node = cardRefs.current[active]
+    if (!node) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (kind === 'share') await shareNodeAsPng(node, filenames[active])
+      else await exportNodeToPng(node, filenames[active])
+    } catch (e) {
+      // A dismissed share sheet isn't an error — only surface real failures.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setError(errorMessage(e))
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="flex flex-col gap-2">
       <h2 className="font-label text-sm font-semibold text-text">Scorecards</h2>
       <p className="font-label text-xs text-muted">
-        Swipe between the full card and each player's. Export any as an image.
+        Swipe between the full card and each player's, then export or share the
+        one you're viewing.
       </p>
+      {/* items-start keeps every card aligned to the same top edge, so swiping
+          doesn't shift the layout when cards differ in height. */}
       <div
         ref={scrollRef}
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2"
+        className="-mx-4 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-2"
       >
-        <ExportCard filename={fileName(round, 'scorecard')}>
+        <div
+          ref={(el) => (cardRefs.current[0] = el)}
+          className="w-[18rem] shrink-0 snap-start"
+        >
           <MatrixCard
             round={round}
             rows={rows}
@@ -976,11 +1031,12 @@ function ScorecardGallery({
             winnerId={winnerId}
             treatment={treatment}
           />
-        </ExportCard>
-        {rows.map((row) => (
-          <ExportCard
+        </div>
+        {rows.map((row, i) => (
+          <div
             key={row.player.id}
-            filename={fileName(round, row.player.display_name)}
+            ref={(el) => (cardRefs.current[i + 1] = el)}
+            className="w-[18rem] shrink-0 snap-start"
           >
             <PlayerCard
               round={round}
@@ -989,14 +1045,12 @@ function ScorecardGallery({
               countFor={matrix.countFor}
               treatment={treatment}
             />
-          </ExportCard>
+          </div>
         ))}
       </div>
+
       {cardCount > 1 ? (
-        <div
-          aria-hidden
-          className="flex justify-center gap-1.5 pt-1"
-        >
+        <div aria-hidden className="flex justify-center gap-1.5 pt-1">
           {Array.from({ length: cardCount }, (_, i) => (
             <span
               key={i}
@@ -1009,65 +1063,17 @@ function ScorecardGallery({
           ))}
         </div>
       ) : null}
-    </section>
-  )
-}
 
-function ExportCard({
-  filename,
-  children,
-}: {
-  filename: string
-  children: React.ReactNode
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Feature-detect once on mount so the Share button only appears where the OS
-  // share sheet can take a file (mainly mobile / installed PWA).
-  const [canShare] = useState(canShareFiles)
-
-  async function exportPng() {
-    if (!ref.current) return
-    setBusy(true)
-    setError(null)
-    try {
-      await exportNodeToPng(ref.current, filename)
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function share() {
-    if (!ref.current) return
-    setBusy(true)
-    setError(null)
-    try {
-      await shareNodeAsPng(ref.current, filename)
-    } catch (e) {
-      // A dismissed share sheet isn't an error — only surface real failures.
-      if (!(e instanceof DOMException && e.name === 'AbortError')) {
-        setError(errorMessage(e))
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="flex w-[18rem] shrink-0 snap-start flex-col gap-2">
-      <div ref={ref}>{children}</div>
+      {/* One stable action bar for the card in view, so the controls never jump. */}
       <div className="flex gap-2">
         <Button
           type="button"
           variant="secondary"
           className="flex-1"
           disabled={busy}
-          onClick={exportPng}
+          onClick={() => run('export')}
         >
-          {busy ? 'Exporting…' : 'Export PNG'}
+          {busy ? 'Working…' : 'Export PNG'}
         </Button>
         {canShare ? (
           <Button
@@ -1075,14 +1081,14 @@ function ExportCard({
             variant="secondary"
             className="flex-1"
             disabled={busy}
-            onClick={share}
+            onClick={() => run('share')}
           >
             Share
           </Button>
         ) : null}
       </div>
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
-    </div>
+    </section>
   )
 }
 
