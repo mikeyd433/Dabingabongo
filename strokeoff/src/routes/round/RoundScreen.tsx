@@ -152,9 +152,18 @@ function RoundEntry() {
         title="No round in play"
         message="Start a new round, or join one with a QR code or round code."
         action={
-          <Button type="button" onClick={() => navigate('/round/new')}>
-            Start a round
-          </Button>
+          <div className="flex flex-col items-center gap-2">
+            <Button type="button" onClick={() => navigate('/round/new')}>
+              Start a round
+            </Button>
+            <button
+              type="button"
+              onClick={() => navigate('/courses')}
+              className="font-label text-xs text-accent underline"
+            >
+              Saved courses
+            </button>
+          </div>
         }
       />
       <JoinForm />

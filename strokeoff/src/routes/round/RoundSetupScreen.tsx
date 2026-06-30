@@ -180,6 +180,13 @@ export function RoundSetupScreen() {
             ))}
           </datalist>
         ) : null}
+        <button
+          type="button"
+          onClick={() => navigate('/courses')}
+          className="self-start font-label text-xs text-accent underline"
+        >
+          Manage saved courses
+        </button>
       </Field>
 
       <Field label="Date" htmlFor="round-date">

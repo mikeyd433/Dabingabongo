@@ -5,6 +5,7 @@ import { RoundScreen } from '@/routes/round/RoundScreen'
 import { RoundSetupScreen } from '@/routes/round/RoundSetupScreen'
 import { RoundDetailScreen } from '@/routes/round/RoundDetailScreen'
 import { RulesScreen } from '@/routes/rules/RulesScreen'
+import { CoursesScreen } from '@/routes/courses/CoursesScreen'
 import { HistoryScreen } from '@/routes/history/HistoryScreen'
 import { CommunityScreen } from '@/routes/community/CommunityScreen'
 import { PlayerProfileScreen } from '@/routes/community/PlayerProfileScreen'
@@ -22,6 +23,7 @@ export function App() {
         <Route path="round/new" element={<RoundSetupScreen />} />
         <Route path="round/:roundId" element={<RoundDetailScreen />} />
         <Route path="rules" element={<RulesScreen />} />
+        <Route path="courses" element={<CoursesScreen />} />
         <Route path="history" element={<HistoryScreen />} />
         <Route path="community" element={<CommunityScreen />} />
         <Route

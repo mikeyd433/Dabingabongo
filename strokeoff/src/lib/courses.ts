@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
+import { useAuth } from './auth'
 import type { Course } from '@/types'
 
 /**
@@ -20,5 +21,61 @@ export function useCourses(groupId: string | undefined) {
       if (error) throw error
       return data ?? []
     },
+  })
+}
+
+export interface CourseDraft {
+  name: string
+  par: number | null
+}
+
+export function useCreateCourse(groupId: string | undefined) {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (draft: CourseDraft): Promise<Course> => {
+      const { data, error } = await supabase
+        .from('courses')
+        .insert({ ...draft, group_id: groupId!, created_by: user!.id })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['courses', groupId] }),
+  })
+}
+
+export function useUpdateCourse(groupId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string
+      patch: Partial<CourseDraft>
+    }): Promise<Course> => {
+      const { data, error } = await supabase
+        .from('courses')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['courses', groupId] }),
+  })
+}
+
+export function useDeleteCourse(groupId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await supabase.from('courses').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['courses', groupId] }),
   })
 }
