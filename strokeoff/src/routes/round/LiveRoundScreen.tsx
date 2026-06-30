@@ -462,6 +462,8 @@ function RulePalette({
   const voidEvent = useVoidPointEvent(roundId)
   const [subjectId, setSubjectId] = useState<string | undefined>(undefined)
   const [modalRule, setModalRule] = useState<RoundRule | null>(null)
+  const [infoRule, setInfoRule] = useState<RoundRule | null>(null)
+  const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [undo, setUndo] = useState<UndoEntry | null>(null)
   const undoTimer = useRef<number | null>(null)
@@ -482,6 +484,20 @@ function RulePalette({
     }
     return m
   }, [events, subject])
+
+  // Searchable rule menu (matches name + description) so a long palette stays
+  // usable mid-round without scrolling past everything.
+  const visibleRules = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return rules
+    return rules.filter((r) =>
+      `${r.name_snapshot} ${r.display_name_snapshot ?? ''} ${
+        r.description_snapshot ?? ''
+      }`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [rules, search])
 
   useEffect(
     () => () => {
@@ -582,37 +598,70 @@ function RulePalette({
         </p>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {rules.map((rule) => {
-          const scored = subjectCounts.get(rule.rule_id) ?? 0
-          return (
-            <button
-              key={rule.rule_id}
-              type="button"
-              disabled={logPoint.isPending}
-              onClick={() => onTapRule(rule)}
-              className="flex min-h-[44px] flex-col items-start rounded-card border border-border bg-surface-alt px-3 py-2 text-left transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              <span className="font-label text-sm font-semibold text-text">
-                {rule.name_snapshot}
-              </span>
-              <span className="font-numeral text-xs text-muted">
-                +{rule.points_snapshot}
-                {rule.is_scalable
-                  ? `/${rule.quantity_label || 'unit'}`
-                  : ''}
-                {rule.player_scope === 'everyone'
-                  ? ' · everyone'
-                  : rule.player_scope === 'multi'
-                    ? ' · group'
-                    : ''}
-                {scored > 0 ? ` · ×${scored}` : ''}
-              </span>
-            </button>
-          )
-        })}
+      <div className="mt-2">
+        <TextInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search rules"
+          aria-label="Search rules"
+        />
       </div>
+
+      {visibleRules.length === 0 ? (
+        <p className="mt-3 font-label text-xs text-muted">
+          No rules match your search.
+        </p>
+      ) : (
+        // A capped, scrolling menu so a long palette doesn't fill the screen.
+        <div className="mt-2 max-h-72 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-2">
+            {visibleRules.map((rule) => {
+              const scored = subjectCounts.get(rule.rule_id) ?? 0
+              return (
+                <div key={rule.rule_id} className="relative">
+                  <button
+                    type="button"
+                    disabled={logPoint.isPending}
+                    onClick={() => onTapRule(rule)}
+                    className="flex min-h-[44px] w-full flex-col items-start rounded-card border border-border bg-surface-alt py-2 pl-3 pr-9 text-left transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    <span className="font-label text-sm font-semibold text-text">
+                      {rule.name_snapshot}
+                    </span>
+                    <span className="font-numeral text-xs text-muted">
+                      +{rule.points_snapshot}
+                      {rule.is_scalable
+                        ? `/${rule.quantity_label || 'unit'}`
+                        : ''}
+                      {rule.player_scope === 'everyone'
+                        ? ' · everyone'
+                        : rule.player_scope === 'multi'
+                          ? ' · group'
+                          : ''}
+                      {scored > 0 ? ` · ×${scored}` : ''}
+                    </span>
+                  </button>
+                  {rule.description_snapshot ? (
+                    <button
+                      type="button"
+                      onClick={() => setInfoRule(rule)}
+                      aria-label={`About ${rule.name_snapshot}`}
+                      className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface font-display text-xs font-bold italic text-muted"
+                    >
+                      i
+                    </button>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+
+      {infoRule ? (
+        <RuleInfo rule={infoRule} onClose={() => setInfoRule(null)} />
+      ) : null}
 
       {modalRule && subject ? (
         <LogModal
@@ -644,6 +693,43 @@ function RulePalette({
         </div>
       ) : null}
     </section>
+  )
+}
+
+/** Read-only detail for a rule mid-round: its meta and full description. */
+function RuleInfo({ rule, onClose }: { rule: RoundRule; onClose: () => void }) {
+  const scope =
+    rule.player_scope === 'everyone'
+      ? 'Everyone in the round'
+      : rule.player_scope === 'multi'
+        ? 'Multi-player'
+        : 'Single player'
+  return (
+    <div className="mt-3 rounded-card border border-border bg-surface-alt p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-label text-sm font-semibold text-text">
+          {rule.name_snapshot}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-[44px] shrink-0 px-2 font-label text-xs text-muted underline"
+        >
+          Close
+        </button>
+      </div>
+      <p className="mt-1 font-numeral text-xs text-muted">
+        +{rule.points_snapshot}
+        {rule.is_scalable ? ` per ${rule.quantity_label || 'unit'}` : ''} ·{' '}
+        {scope} ·{' '}
+        {rule.is_repeatable ? 'Repeatable' : 'Once per round'}
+      </p>
+      {rule.description_snapshot ? (
+        <p className="mt-2 font-label text-sm text-text">
+          {rule.description_snapshot}
+        </p>
+      ) : null}
+    </div>
   )
 }
 

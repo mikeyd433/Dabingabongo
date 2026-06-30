@@ -15,15 +15,18 @@ export function ThemePicker({
   onChange: (themeId: string) => void
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {themes.map((theme) => (
-        <ThemeTile
-          key={theme.id}
-          theme={theme}
-          selected={theme.id === value}
-          onClick={() => onChange(theme.id)}
-        />
-      ))}
+    // A capped, scrolling window so the gallery doesn't take up half the screen.
+    <div className="max-h-64 overflow-y-auto rounded-card border border-border p-2">
+      <div className="grid grid-cols-2 gap-3">
+        {themes.map((theme) => (
+          <ThemeTile
+            key={theme.id}
+            theme={theme}
+            selected={theme.id === value}
+            onClick={() => onChange(theme.id)}
+          />
+        ))}
+      </div>
     </div>
   )
 }
