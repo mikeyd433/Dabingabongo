@@ -157,7 +157,12 @@ function RuleLibrary({ groupId }: { groupId: string | undefined }) {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul
+          className={`flex flex-col gap-2 ${
+            // Cap into a scrolling window, but let the inline editor expand freely.
+            editing ? '' : 'max-h-[28rem] overflow-y-auto'
+          }`}
+        >
           {filtered.map((rule) =>
             editing?.id === rule.id ? (
               <li key={rule.id}>

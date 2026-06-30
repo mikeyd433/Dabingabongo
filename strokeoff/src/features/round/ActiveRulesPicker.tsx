@@ -67,7 +67,11 @@ export function ActiveRulesPicker({
         </div>
       </div>
 
-      <ul className="flex flex-col gap-1">
+      {filtered.length === 0 ? (
+        <p className="font-label text-xs text-muted">No rules match your search.</p>
+      ) : (
+      // A capped, scrolling window so a long library doesn't fill the screen.
+      <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
         {filtered.map((rule) => (
           <li key={rule.id}>
             <label className="flex min-h-[44px] items-center justify-between gap-3 rounded-card border border-border bg-surface px-3">
@@ -97,6 +101,7 @@ export function ActiveRulesPicker({
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }
