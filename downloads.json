@@ -39,6 +39,36 @@
       ]
     },
     {
+      "id": "lyric-chunker",
+      "name": "Lyric Chunker",
+      "tagline": "Blender add-on for the music visualizer pipeline",
+      "description": "Type a delimited lyric line, get styled 3D text split into per-syllable chunk objects, then batch-render each chunk as a transparent 16-bit PNG for compositing in DaVinci Resolve. Works on Blender 4.x and 5.x. Install via Edit > Preferences > Add-ons > Install from Disk.",
+      "icon": "🎤",
+      "category": "Blender Add-on",
+      "platforms": ["Blender"],
+      "version": "1.0.0",
+      "updated": "2026-07-11",
+      "featured": false,
+      "tags": ["blender", "add-on", "lyrics", "music", "visualizer", "render"],
+      "downloads": [
+        { "label": "Add-on (.py)", "platform": "Blender", "url": "/downloads/lyric_chunker.py", "size": "23 KB" }
+      ],
+      "links": [
+        { "label": "Source & docs (GitHub)", "url": "https://github.com/mikeyd433/LyricChunker" }
+      ],
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "date": "2026-07-11",
+          "notes": [
+            "First release on the downloads hub.",
+            "Syllable-chunk generation from delimited lyric lines with template-based styling.",
+            "Batch renders each chunk as a transparent 16-bit PNG, per-line output folders."
+          ]
+        }
+      ]
+    },
+    {
       "id": "template",
       "name": "App name",
       "tagline": "One-line pitch shown under the name",
