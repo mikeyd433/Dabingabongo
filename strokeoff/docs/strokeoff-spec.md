@@ -120,7 +120,7 @@ The tab bar is **always the same five tabs**; only their content adapts to round
 4. **Scoring mode** — **Multi Phone** or **Single Phone** (see §6).
 5. **Conversion config** — tier table *or* ratio mode, edited from the group default; **snapshots and locks on Start** (see §8).
 6. **Theme** — the round's visual theme (see §13), picked from a gallery of live previews; **snapshots and locks on Start** like the rest. Defaults to the group's house theme.
-7. **Active rules** — grouped Core-free library list with **search and bulk enable/disable**; **new rounds default to all rules on**.
+7. **Active rules** — grouped Core-free library list with **search and bulk enable/disable**; **new rounds default to all rules on**. Unlike conversion and theme, the active-rule set is **not frozen on Start** — the host can add, remove, or author rules on the fly from the lobby and the live round (see §7).
 8. **Animations toggle** — master on/off for celebrations this round.
 
 → Confirm to advance.
@@ -129,11 +129,11 @@ The tab bar is **always the same five tabs**; only their content adapts to round
 - **QR code + round code** appear here.
 - **Players populate live** as they scan/enter the code.
 - In Single Phone mode, the controller can also **pre-add players** who aren't holding a phone.
-- Creator hits **Start** → round config **snapshots and locks**, round goes live.
+- Creator hits **Start** → the round's **conversion and theme snapshot and lock**, round goes live. The **active-rule set stays host-editable** mid-round (§7).
 
 **Joining a round:** QR code is the fast path; **manual round-code entry** is the fallback. Reachable from Home and from the Round tab's camera scan.
 
-**Join / leave mid-round:** players can **join after Start** and **leave before the round ends** without breaking it. The roster is **persistent** — a player who leaves stays on the roster with their points intact and can **rejoin**; a player who joins late is added to the live roster. (The round's locked config — rules, conversion, theme — still applies to everyone regardless of when they joined.)
+**Join / leave mid-round:** players can **join after Start** and **leave before the round ends** without breaking it. The roster is **persistent** — a player who leaves stays on the roster with their points intact and can **rejoin**; a player who joins late is added to the live roster. (The round's locked config — conversion and theme — still applies to everyone regardless of when they joined; the host may adjust the active rules at any time, and changes reach every phone live.)
 
 ---
 
@@ -175,6 +175,8 @@ Guests cover anyone playing **without a logged-in app presence** — phoneless p
 - **Animation config** — Tier 1/2/3 (see §12).
 
 Point events **snapshot** the rule's name and point value at log time, so editing or deleting a rule later never rewrites a completed round's history.
+
+**Rules are editable mid-round (host only).** Unlike conversion and theme, a round's **active-rule set is not frozen on Start.** The **host** can toggle library rules on/off, pull in more rules, or **author a brand-new rule on the fly** — from the lobby and while the round is live. Each rule added to a round is **snapshotted at add time** (its name/points/scope frozen onto the round), so principle 2 still holds and past events keep their own log-time snapshot. Non-host participants see the current active rules **read-only**. Changes propagate to every phone live via Realtime.
 
 ---
 
@@ -243,7 +245,7 @@ The 25-character rule display name (§7) keeps the matrix's left column readable
 The fifth tab. Three sections.
 
 ### Me
-- **Avatar** (uploaded image, Supabase Storage) and **custom message / status** (short blurb) — **login-only**, **visible to others** wherever a player appears (leaderboard, feed, lobby).
+- **Avatar** (uploaded image, Supabase Storage) — **available to everyone**, including anonymous sessions (each uploads to its own Storage folder). **Custom message / status** (short blurb) stays **login-only**. Both are **visible to others** wherever a player appears (leaderboard, feed, lobby).
 - Identity / login status (anonymous vs signed-in), magic-link sign-in/upgrade.
 - **Account management:** **sign out**, **change email**, **delete account / data** (full erasure path, since emails and avatars are stored).
 - **Settings** — app preferences. Built: a **haptic-feedback toggle** and **new-round defaults** (default scoring mode, preferred theme, animations on/off). Further candidates (default conversion, notification preferences, units) remain open.

@@ -13,6 +13,29 @@ Lottie / animated-image overlay). The latest batch — **sprite-sheet animations
 is also **migrated, merged to `main`, and deploying**. See "✅ Sprites + winner
 treatments + per-rule stats — SHIPPED" below._
 
+### ✅ Avatars for everyone + mid-round rule editing — SHIPPED
+Post-Phase-11 adjustment. Built, tested (**87 tests**), **migration 0019 applied +
+verified on the live project**.
+
+- **Avatars available to everyone.** Removed the login-only gate on the profile
+  avatar uploader (`MeSection.tsx`) so **anonymous** players can add a photo too —
+  their anonymous session already writes to its own `{uid}/` folder under the
+  existing `avatars`-bucket RLS (no schema change needed). Custom messages stay
+  login-only. Spec §7/§11 + CLAUDE.md principle 7 updated to match.
+- **Mid-round rule editing (host only).** A round's active-rule set is no longer
+  frozen at Start (conversion + theme still are). The **host** can toggle library
+  rules on/off, pull in more, or author a brand-new rule on the fly — from the
+  lobby and the live round. New migration **0019** adds host-checked
+  `add_round_rule` / `remove_round_rule` SECURITY DEFINER RPCs (lobby/active only,
+  `auth.uid()` guarded) that snapshot the rule onto `round_rules`, and publishes
+  `round_rules` to Realtime; `useRoundRealtime` subscribes so changes reach every
+  participant live. New `RoundRulesManager` renders in the lobby and live round
+  (read-only for non-hosts). Hooks: `useAddRoundRule` / `useRemoveRoundRule` in
+  `scoring.ts`.
+- **Note:** 0019 was applied to the live DB via MCP with an `auth.uid() is null`
+  guard added after the fact; the migration file already includes the guard, so a
+  fresh `db push` is correct.
+
 ## Where things stand
 
 - **The app now lives in the website repo.** It was vendored into the

@@ -21,7 +21,11 @@ const confirmationsKey = (roundId?: string, playerId?: string) => [
   playerId,
 ]
 
-/** The round's frozen rule palette (snapshotted on Start; spec §5, §7). */
+/**
+ * The round's active-rule palette (spec §5, §7). Snapshotted at round creation,
+ * then editable mid-round by the host via the RPCs below — kept fresh by the
+ * round Realtime channel (round_rules is published in migration 0019).
+ */
 export function useRoundRules(roundId: string | undefined) {
   return useQuery({
     queryKey: ['round-rules', roundId],
@@ -34,6 +38,44 @@ export function useRoundRules(roundId: string | undefined) {
         .order('name_snapshot', { ascending: true })
       if (error) throw error
       return data ?? []
+    },
+  })
+}
+
+/**
+ * Add a group rule to a live round's active set (host only; enforced by the
+ * add_round_rule SECURITY DEFINER RPC in migration 0019). Snapshots the rule's
+ * fields onto the round so history stays frozen (principle 2).
+ */
+export function useAddRoundRule(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ruleId: string): Promise<void> => {
+      const { error } = await supabase.rpc('add_round_rule', {
+        p_round_id: roundId!,
+        p_rule_id: ruleId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['round-rules', roundId] })
+    },
+  })
+}
+
+/** Remove a rule from a live round's active set (host only; RPC-enforced). */
+export function useRemoveRoundRule(roundId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ruleId: string): Promise<void> => {
+      const { error } = await supabase.rpc('remove_round_rule', {
+        p_round_id: roundId!,
+        p_rule_id: ruleId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['round-rules', roundId] })
     },
   })
 }

@@ -29,7 +29,7 @@ These ripple through everything; get them right from Phase 0.
 4. **Realtime model.** One round = one set of Supabase Realtime subscriptions (Postgres changes on `point_events` / `round_players`, plus presence for the lobby). Live totals are derived from events, not stored counters.
 5. **Permission on writes.** You may log/edit points only for subjects you control: yourself (Multi Phone), or any subject as the controller / a managed guest (Single Phone). Enforce in both UI and RLS.
 6. **Offline-tolerant writes.** Point events are append-only with a **client-generated UUID**, written optimistically and reconciled on reconnect (full offline queue lands in its own phase, but design for it from the start — never assume a counter, always derive from events).
-7. **Login optional, never required.** Anonymous play works fully; magic-link is an upgrade that links in place. Group membership and avatars/messages are login-only.
+7. **Login optional, never required.** Anonymous play works fully; magic-link is an upgrade that links in place. **Avatars are available to everyone** (anonymous sessions upload to their own Storage folder). Group membership and custom messages are login-only.
 
 ## Repo conventions
 

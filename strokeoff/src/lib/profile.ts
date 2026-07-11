@@ -55,12 +55,14 @@ export function useUploadAvatar() {
       // is write-scoped to your own folder via RLS; if the storage request goes
       // out without a live user token it falls back to the anon key, auth.uid()
       // is null, and the upload is rejected with a row-level-security error.
+      // An anonymous session carries a real uid too, so avatars work for everyone
+      // (each session writes to its own {uid}/ folder under the existing policy).
       const {
         data: { session },
       } = await supabase.auth.getSession()
       const uid = session?.user?.id ?? user?.id
       if (!session || !uid) {
-        throw new Error('You need to be signed in to change your avatar.')
+        throw new Error('Your session expired — reload and try again.')
       }
 
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'

@@ -136,6 +136,20 @@ export function useRoundRealtime(roundId: string | undefined) {
         {
           event: '*',
           schema: 'public',
+          table: 'round_rules',
+          filter: `round_id=eq.${roundId}`,
+        },
+        () => {
+          // The host adjusted the active rules mid-round (spec §7) — refresh the
+          // palette on every participant's device (round_rules published in 0019).
+          void qc.invalidateQueries({ queryKey: ['round-rules', roundId] })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
           table: 'point_events',
           filter: `round_id=eq.${roundId}`,
         },

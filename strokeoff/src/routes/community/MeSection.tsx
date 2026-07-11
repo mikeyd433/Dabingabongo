@@ -240,7 +240,7 @@ function ProfileCard({ isAnonymous }: { isAnonymous: boolean }) {
 
   return (
     <Card title="Profile">
-      {!isAnonymous ? <AvatarRow /> : null}
+      <AvatarRow />
 
       <div className="mt-2">
         <DisplayNameForm
@@ -264,8 +264,8 @@ function ProfileCard({ isAnonymous }: { isAnonymous: boolean }) {
           </p>
           <Muted>
             Add your email to turn this into a permanent account (it stays on
-            this device until you do). Avatars and a custom message unlock once
-            you sign in.
+            this device until you do). A custom message unlocks once you sign
+            in.
           </Muted>
           <div className="mt-2">
             <EmailForm
