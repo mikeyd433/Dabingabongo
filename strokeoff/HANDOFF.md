@@ -13,6 +13,24 @@ Lottie / animated-image overlay). The latest batch — **sprite-sheet animations
 is also **migrated, merged to `main`, and deploying**. See "✅ Sprites + winner
 treatments + per-rule stats — SHIPPED" below._
 
+### ✅ Shared-award celebrations + "+N" points pop — SHIPPED
+Post-Phase-11 adjustment, **frontend only** (no migration). Built, tested (**92
+tests**), builds clean.
+
+- **"+N" points pop.** A large centered "+N" (quantity × points) flashes with the
+  celebration so the scorer sees the award. Tiny module store
+  (`animations/pointsPop.ts` → `showPointsPop`) + a token-driven, reduced-motion-
+  aware overlay (`animations/PointsPop.tsx`) mounted once in `LiveRoundScreen`.
+  Fired from the local log path and from remote awards.
+- **Everyone involved celebrates.** For **multi / everyone** rules, the
+  celebration + "+N" now fire on **each awarded player's own device**, not just
+  the logger's. `features/round/awardCelebrations.ts` (`useAwardCelebrations` +
+  pure `collectNewAwards`, unit-tested) watches the Realtime-fed point-event
+  ledger: a new event with me as subject, logged by someone else, on a
+  multi/everyone rule → celebrate. It seeds `seen` on first pass so joining
+  mid-round never replays history; the logger's own subject event is celebrated
+  locally and skipped here (deduped by event id + logged_by).
+
 ### ✅ Global (public) rule library + moderation — SHIPPED
 Post-Phase-11 adjustment. Built, tested (**87 tests**), **migration 0020 applied +
 verified on the live project**.

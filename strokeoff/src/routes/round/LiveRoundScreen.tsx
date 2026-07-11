@@ -34,6 +34,9 @@ import { controllablePlayers } from '@/features/round/permissions'
 import { parseConversion } from '@/features/round/results'
 import { strokesForPoints } from '@/features/conversion/convert'
 import { celebrate } from '@/features/animations/celebrate'
+import { PointsPop } from '@/features/animations/PointsPop'
+import { showPointsPop } from '@/features/animations/pointsPop'
+import { useAwardCelebrations } from '@/features/round/awardCelebrations'
 import { CoachMark } from '@/components/CoachMark'
 import { haptic } from '@/lib/haptics'
 import { errorMessage } from '@/lib/validation'
@@ -103,8 +106,13 @@ export function LiveRoundScreen({ round }: { round: Round }) {
   const canScore = !hasLeft && controllable.length > 0
   const isSpectator = Boolean(me) && !hasLeft && isSinglePhone && !canScore
 
+  // Celebrate on my device when another player scores me on a shared (multi /
+  // everyone) rule — the logger already celebrates locally (spec §6, §12).
+  useAwardCelebrations(events, me?.id, user?.id, rules, round.animations_enabled)
+
   return (
     <div className="flex flex-col gap-4 p-4">
+      <PointsPop />
       <Header round={round} me={me} />
 
       {pending.length > 0 ? (
@@ -548,6 +556,9 @@ function RulePalette({
         onSuccess: () => {
           setModalRule(null)
           celebrateFor(rule)
+          // Show how many points just landed for the subject I scored (spec §12).
+          // Co-players on multi/everyone rules get their own "+N" via Realtime.
+          showPointsPop(count * rule.points_snapshot)
           offerUndo(rule, eventId, count)
         },
         onError: (e) => setError(errorMessage(e)),

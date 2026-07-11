@@ -286,6 +286,10 @@ Fire when a point is **confirmed**; governed by the round's **animations master 
 - **Tier 2 — custom particle:** swap the particle for your own **emoji or uploaded image** (e.g. rain a custom icon). Images live in Supabase Storage, attached to the rule.
 - **Tier 3 — fully custom:** upload a **Lottie JSON**, an **animated image (GIF/WebP/APNG)**, or a **sprite sheet** (grid of frames + columns/rows/fps), played as a centred overlay, with a **preview** step.
 
+**"+N" points pop.** Alongside every celebration, a large **centered "+N"** flashes up showing exactly how many points just landed (quantity × the rule's points), so the scorer sees the award without reading the feed. It's theme-coloured and honors `prefers-reduced-motion` (fades without the scale).
+
+**Everyone involved sees it.** For a **multi-player** or **everyone** rule, the celebration + "+N" fire on **each awarded player's own device**, not just the logger's — driven off the round's Realtime point-event ledger (each co-player has their own event). The logger celebrates locally at log time; co-players celebrate as the award reaches them. History is never replayed (a device joining mid-round only celebrates awards that arrive after it loads).
+
 **Guardrails:** a **performance/duration cap** so a heavy effect can't jank the round; **group-shared assets** (everyone sees the same celebration for a rule); **graceful fallback to confetti** if a custom asset fails to load.
 
 Built as its own phase, sequenced **Tier 1 → Tier 2 → Tier 3**.
