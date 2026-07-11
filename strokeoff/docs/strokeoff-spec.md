@@ -178,6 +178,10 @@ Point events **snapshot** the rule's name and point value at log time, so editin
 
 **Rules are editable mid-round (host only).** Unlike conversion and theme, a round's **active-rule set is not frozen on Start.** The **host** can toggle library rules on/off, pull in more rules, or **author a brand-new rule on the fly** — from the lobby and while the round is live. Each rule added to a round is **snapshotted at add time** (its name/points/scope frozen onto the round), so principle 2 still holds and past events keep their own log-time snapshot. Non-host participants see the current active rules **read-only**. Changes propagate to every phone live via Realtime.
 
+**Global (public) library.** Alongside each group's private library there's a **global library** of shared rules. When authoring a rule, a signed-in player can mark it **public** (`is_public`), which publishes it to the global library where **anyone can browse it** (world-readable) — including anonymous players. From the Rules tab's **Global library** tab, a player can **copy a public rule into one of their groups** as a fresh, private, editable copy (the copy is theirs; the snapshot model means edits never disturb rounds that used the original). **Publishing is signed-in-only** (attributable); browsing and copying are open to everyone.
+
+**Moderation.** A backend-only safety valve can pull anything from the global library: service-role functions `moderate_unpublish_rule(id)` (un-publish, leaving the author's copy) and `moderate_delete_rule(id)` (delete outright). They're not exposed to any client role — run them from the Supabase SQL editor or a service-role context. Deleting cascades to `round_rules`; already-logged point events keep their own snapshot, so completed history is never rewritten.
+
 ---
 
 ## 8. Points → Strokes Conversion

@@ -8,15 +8,19 @@ import { RuleEditor } from '@/features/rules/RuleEditor'
 import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
 import {
+  useCopyPublicRule,
   useCreateRule,
   useDeleteRule,
+  usePublicRules,
   useRules,
   useUpdateRule,
 } from '@/lib/rules'
+import { errorMessage } from '@/lib/validation'
 import type { Rule } from '@/types'
 
 type ScopeFilter = 'all' | 'single' | 'multi' | 'everyone'
 type ActiveFilter = 'all' | 'active' | 'inactive'
+type LibraryView = 'group' | 'global'
 
 /** Rules tab (spec §3, §7): the group's shared, fully-editable rule library. */
 export function RulesScreen() {
@@ -24,6 +28,7 @@ export function RulesScreen() {
   const { data: groups } = useMyGroups()
 
   const [groupId, setGroupId] = useState<string | undefined>()
+  const [view, setView] = useState<LibraryView>('group')
   const activeGroupId =
     groupId ??
     groups?.find((g) => g.is_personal)?.id ??
@@ -43,7 +48,9 @@ export function RulesScreen() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      {groups && groups.length > 1 ? (
+      <ViewTabs view={view} onChange={setView} />
+
+      {view === 'group' && groups && groups.length > 1 ? (
         <label className="flex items-center gap-2">
           <span className="font-label text-sm text-muted">Group</span>
           <Select
@@ -60,7 +67,182 @@ export function RulesScreen() {
         </label>
       ) : null}
 
-      <RuleLibrary groupId={activeGroupId} />
+      {view === 'group' ? (
+        <RuleLibrary groupId={activeGroupId} />
+      ) : (
+        <GlobalLibrary groupId={activeGroupId} />
+      )}
+    </div>
+  )
+}
+
+/** Group library ↔ global library switch. */
+function ViewTabs({
+  view,
+  onChange,
+}: {
+  view: LibraryView
+  onChange: (v: LibraryView) => void
+}) {
+  const tabs: { id: LibraryView; label: string }[] = [
+    { id: 'group', label: 'My library' },
+    { id: 'global', label: 'Global library' },
+  ]
+  return (
+    <div
+      role="tablist"
+      aria-label="Rule library"
+      className="flex gap-1 rounded-card border border-border bg-surface p-1"
+    >
+      {tabs.map((t) => {
+        const selected = view === t.id
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(t.id)}
+            className="min-h-[44px] flex-1 rounded-card px-3 font-label text-sm font-semibold transition-colors"
+            style={
+              selected
+                ? {
+                    backgroundColor: 'var(--color-accent)',
+                    color: 'var(--color-accent-contrast)',
+                  }
+                : { color: 'var(--color-muted)' }
+            }
+          >
+            {t.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * The global library (spec §7): every published rule, browsable by anyone.
+ * "Copy to my group" imports a private, editable copy into the selected group.
+ */
+function GlobalLibrary({ groupId }: { groupId: string | undefined }) {
+  const { data: rules, isLoading, error } = usePublicRules()
+  const copyRule = useCopyPublicRule(groupId)
+  const [search, setSearch] = useState('')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<string | null>(null)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return rules ?? []
+    return (rules ?? []).filter((r) =>
+      `${r.name} ${r.description ?? ''}`.toLowerCase().includes(q),
+    )
+  }, [rules, search])
+
+  function copy(rule: Rule) {
+    setCopyError(null)
+    copyRule.mutate(rule.id, {
+      onSuccess: () => setCopiedId(rule.id),
+      onError: (e) => setCopyError(errorMessage(e)),
+    })
+  }
+
+  if (error) {
+    return <FormMessage tone="error">Couldn't load the global library.</FormMessage>
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <h1 className="font-display text-lg font-bold text-text">
+          Global library
+        </h1>
+        <p className="mt-0.5 font-label text-xs text-muted">
+          Rules players have made public. Copy any into your group to use and edit
+          it.
+        </p>
+      </div>
+
+      <TextInput
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search public rules"
+        aria-label="Search public rules"
+      />
+
+      {copyError ? <FormMessage tone="error">{copyError}</FormMessage> : null}
+
+      {isLoading ? (
+        <Centered>Loading global library…</Centered>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={rules?.length ? 'No matches' : 'Nothing public yet'}
+          message={
+            rules?.length
+              ? 'Try a different search.'
+              : 'Publish a rule from your library to seed the global library.'
+          }
+        />
+      ) : (
+        <ul className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto">
+          {filtered.map((rule) => (
+            <li key={rule.id}>
+              <PublicRuleRow
+                rule={rule}
+                copied={copiedId === rule.id}
+                pending={copyRule.isPending}
+                onCopy={() => copy(rule)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function PublicRuleRow({
+  rule,
+  copied,
+  pending,
+  onCopy,
+}: {
+  rule: Rule
+  copied: boolean
+  pending: boolean
+  onCopy: () => void
+}) {
+  return (
+    <div className="rounded-card border border-border bg-surface p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="font-label text-sm font-semibold text-text">
+            {rule.name}
+          </span>
+          {rule.description ? (
+            <p className="mt-0.5 font-label text-xs text-muted">
+              {rule.description}
+            </p>
+          ) : null}
+          <p className="mt-1 font-numeral text-xs text-muted">
+            +{rule.points} pt{rule.points === 1 ? '' : 's'}
+            {rule.is_scalable ? ` / ${rule.quantity_label || 'unit'}` : ''} ·{' '}
+            {scopeLabel(rule.player_scope)} ·{' '}
+            {rule.is_repeatable ? 'Repeatable' : 'Once per round'}
+          </p>
+        </div>
+        <div className="shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending || copied}
+            onClick={onCopy}
+          >
+            {copied ? 'Copied' : 'Copy to my group'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

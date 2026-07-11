@@ -88,6 +88,8 @@ export interface Rule {
   is_repeatable: boolean
   active: boolean
   animation_config: Record<string, unknown> | null
+  /** Published to the global library — any player can browse and copy it (spec §7). */
+  is_public: boolean
   created_by: UUID
   created_at: string
 }

@@ -18,6 +18,7 @@ export type RuleDraft = Pick<
   | 'is_repeatable'
   | 'active'
   | 'animation_config'
+  | 'is_public'
 >
 
 export function useRules(groupId: string | undefined) {
@@ -87,6 +88,45 @@ export function useDeleteRule(groupId: string | undefined) {
     mutationFn: async (id: string): Promise<void> => {
       const { error } = await supabase.from('rules').delete().eq('id', id)
       if (error) throw error
+    },
+    onSuccess: () => void invalidate(),
+  })
+}
+
+/**
+ * The global library — every rule anyone has published (spec §7). World-readable
+ * via the rules_select_public policy, so this works for anonymous players too.
+ */
+export function usePublicRules() {
+  return useQuery({
+    queryKey: ['public-rules'],
+    queryFn: async (): Promise<Rule[]> => {
+      const { data, error } = await supabase
+        .from('rules')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/**
+ * Copy a public rule into one of your groups as a fresh, private, editable copy
+ * (server-side copy_public_rule_to_group RPC, migration 0020). Refreshes that
+ * group's library so the import shows up immediately.
+ */
+export function useCopyPublicRule(groupId: string | undefined) {
+  const invalidate = useInvalidateRules(groupId)
+  return useMutation({
+    mutationFn: async (ruleId: string): Promise<Rule> => {
+      const { data, error } = await supabase.rpc('copy_public_rule_to_group', {
+        p_rule_id: ruleId,
+        p_group_id: groupId!,
+      })
+      if (error) throw error
+      return data as Rule
     },
     onSuccess: () => void invalidate(),
   })

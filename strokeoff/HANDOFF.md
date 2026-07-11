@@ -13,6 +13,26 @@ Lottie / animated-image overlay). The latest batch — **sprite-sheet animations
 is also **migrated, merged to `main`, and deploying**. See "✅ Sprites + winner
 treatments + per-rule stats — SHIPPED" below._
 
+### ✅ Global (public) rule library + moderation — SHIPPED
+Post-Phase-11 adjustment. Built, tested (**87 tests**), **migration 0020 applied +
+verified on the live project**.
+
+- **Global library.** New `rules.is_public` flag. When authoring a rule, a
+  **signed-in** player can flip **“Public — add to the global library”**
+  (`RuleEditor`). Public rules are **world-readable** (`rules_select_public`
+  policy) so anyone — including anonymous players — can browse them in the Rules
+  tab's new **Global library** view and **“Copy to my group”** to get a private,
+  editable copy (`copy_public_rule_to_group` RPC → `usePublicRules` /
+  `useCopyPublicRule`). The copy model means round pickers didn't need changes.
+- **Publishing is signed-in-only**, enforced by the `rules_guard_publish` trigger
+  (blocks only the false→true transition on an anonymous JWT, so an anonymous
+  group-mate can still edit an already-public rule's other fields).
+- **Moderation (backend only).** `moderate_unpublish_rule(id)` and
+  `moderate_delete_rule(id)` are **service-role only** (revoked from anon/
+  authenticated) — run them from the Supabase SQL editor:
+  `select moderate_unpublish_rule('<rule-id>');` or `moderate_delete_rule(...)`.
+  Delete cascades to `round_rules`; logged events keep their own snapshot.
+
 ### ✅ Avatars for everyone + mid-round rule editing — SHIPPED
 Post-Phase-11 adjustment. Built, tested (**87 tests**), **migration 0019 applied +
 verified on the live project**.

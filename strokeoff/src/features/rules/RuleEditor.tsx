@@ -4,6 +4,7 @@ import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { Select } from '@/components/Select'
 import { FormMessage } from '@/components/FormMessage'
+import { useAuth } from '@/lib/auth'
 import { errorMessage } from '@/lib/validation'
 import type { RuleDraft } from '@/lib/rules'
 import type { Rule } from '@/types'
@@ -42,14 +43,19 @@ function toDraft(rule?: Rule): RuleDraft {
     is_repeatable: rule?.is_repeatable ?? true,
     active: rule?.active ?? true,
     animation_config: rule?.animation_config ?? { ...DEFAULT_ANIMATION },
+    is_public: rule?.is_public ?? false,
   }
 }
 
 /** Add/edit a rule with all spec §7 fields. */
 export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
+  const { isAnonymous } = useAuth()
   const [draft, setDraft] = useState<RuleDraft>(() => toDraft(initial))
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  // Publishing to the global library is attributable, so it's signed-in only.
+  // An anonymous author still sees whether a rule is public (a signed-in
+  // group-mate may have published it), just read-only.
 
   function set<K extends keyof RuleDraft>(key: K, value: RuleDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -220,6 +226,27 @@ export function RuleEditor({ initial, onSave, onCancel }: RuleEditorProps) {
         checked={draft.active}
         onChange={(v) => set('active', v)}
       />
+
+      {!isAnonymous ? (
+        <div className="flex flex-col gap-1 rounded-card border border-border bg-surface p-3">
+          <Toggle
+            label="Public — add to the global library"
+            checked={draft.is_public}
+            onChange={(v) => set('is_public', v)}
+          />
+          <span className="font-label text-xs text-muted">
+            {draft.is_public
+              ? 'Any player can find this in the global library and copy it into their own group.'
+              : 'Keep off to keep this rule private to your group.'}
+          </span>
+        </div>
+      ) : (
+        <p className="font-label text-xs text-muted">
+          {draft.is_public
+            ? 'This rule is public in the global library.'
+            : 'Sign in to publish a rule to the global library.'}
+        </p>
+      )}
 
       <AnimationField
         value={draft.animation_config}
