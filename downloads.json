@@ -14,17 +14,39 @@
       "description": "A playable touch-grid synth. Grab the Android app, the desktop bundle, or run it straight in the browser.",
       "icon": "🎹",
       "category": "App",
-      "platforms": ["Android", "Desktop", "Web"],
+      "platforms": [
+        "Android",
+        "Desktop",
+        "Web"
+      ],
       "version": "1.0.0",
       "updated": "2026-07-11",
       "featured": true,
-      "tags": ["audio", "synth", "music", "instrument"],
+      "tags": [
+        "audio",
+        "synth",
+        "music",
+        "instrument"
+      ],
       "downloads": [
-        { "label": "Android APK", "platform": "Android", "url": "/touchsynth/TouchSynth.apk", "size": "1.8 MB" },
-        { "label": "Desktop bundle (.zip)", "platform": "Desktop", "url": "/touchsynth/TouchSynth.zip", "size": "1.7 MB" }
+        {
+          "label": "Android APK",
+          "platform": "Android",
+          "url": "/touchsynth/TouchSynth.apk",
+          "size": "1.8 MB"
+        },
+        {
+          "label": "Desktop bundle (.zip)",
+          "platform": "Desktop",
+          "url": "/touchsynth/TouchSynth.zip",
+          "size": "1.7 MB"
+        }
       ],
       "links": [
-        { "label": "Open web version", "url": "/touchsynth/" }
+        {
+          "label": "Open web version",
+          "url": "/touchsynth/"
+        }
       ],
       "changelog": [
         {
@@ -45,16 +67,33 @@
       "description": "Type a delimited lyric line, get styled 3D text split into per-syllable chunk objects, then batch-render each chunk as a transparent 16-bit PNG for compositing in DaVinci Resolve. Works on Blender 4.x and 5.x. Install via Edit > Preferences > Add-ons > Install from Disk.",
       "icon": "🎤",
       "category": "Blender Add-on",
-      "platforms": ["Blender"],
+      "platforms": [
+        "Blender"
+      ],
       "version": "1.0.0",
-      "updated": "2026-07-11",
+      "updated": "2026-07-13",
       "featured": false,
-      "tags": ["blender", "add-on", "lyrics", "music", "visualizer", "render"],
+      "tags": [
+        "blender",
+        "add-on",
+        "lyrics",
+        "music",
+        "visualizer",
+        "render"
+      ],
       "downloads": [
-        { "label": "Add-on (.py)", "platform": "Blender", "url": "/downloads/lyric_chunker.py", "size": "23 KB" }
+        {
+          "label": "Add-on (.py)",
+          "platform": "Blender",
+          "url": "/downloads/lyric_chunker.py",
+          "size": "23 KB"
+        }
       ],
       "links": [
-        { "label": "Source & docs (GitHub)", "url": "https://github.com/mikeyd433/LyricChunker" }
+        {
+          "label": "Source & docs (GitHub)",
+          "url": "https://github.com/mikeyd433/LyricChunker"
+        }
       ],
       "changelog": [
         {
@@ -75,24 +114,47 @@
       "description": "A sentence or two about what it does and who it's for.",
       "icon": "📦",
       "category": "App",
-      "platforms": ["Windows", "macOS", "Android", "Web"],
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Android",
+        "Web"
+      ],
       "version": "1.0.0",
       "updated": "2026-01-01",
       "featured": false,
       "template": true,
-      "tags": ["example", "template"],
+      "tags": [
+        "example",
+        "template"
+      ],
       "downloads": [
-        { "label": "Windows installer", "platform": "Windows", "url": "/downloads/App-1.0.0.exe", "size": "12 MB" },
-        { "label": "macOS (.dmg)", "platform": "macOS", "url": "https://example.com/App-1.0.0.dmg", "size": "14 MB" }
+        {
+          "label": "Windows installer",
+          "platform": "Windows",
+          "url": "/downloads/App-1.0.0.exe",
+          "size": "12 MB"
+        },
+        {
+          "label": "macOS (.dmg)",
+          "platform": "macOS",
+          "url": "https://example.com/App-1.0.0.dmg",
+          "size": "14 MB"
+        }
       ],
       "links": [
-        { "label": "Open web version", "url": "/app/" }
+        {
+          "label": "Open web version",
+          "url": "/app/"
+        }
       ],
       "changelog": [
         {
           "version": "1.0.0",
           "date": "2026-01-01",
-          "notes": ["First public release."]
+          "notes": [
+            "First public release."
+          ]
         }
       ]
     }
