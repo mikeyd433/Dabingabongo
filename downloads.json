@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.0.0",
+      "version": "2.1.0",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -96,6 +96,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.1.0",
+          "date": "2026-07-30",
+          "notes": [
+            "Ship the comp generator alongside the add-on as a downloads bundle (LyricChunker@5470c22)"
+          ]
+        },
         {
           "version": "2.0.0",
           "date": "2026-07-30",
