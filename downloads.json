@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.4.2",
+      "version": "2.4.3",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "122 KB"
+          "size": "124 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "102 KB"
+          "size": "103 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.4.3",
+          "date": "2026-07-30",
+          "notes": [
+            "Let the untimed cascade be set in frames as well as seconds (LyricChunker@7b5bd32)"
+          ]
+        },
         {
           "version": "2.4.2",
           "date": "2026-07-30",

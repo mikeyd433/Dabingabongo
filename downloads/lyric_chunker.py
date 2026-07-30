@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 4, 2),
+    "version": (2, 4, 3),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.4.2"
+ADDON_VERSION = "2.4.3"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -675,13 +675,16 @@ def _num(value):
     return text if text else "0"
 
 
-def line_local_frames(doc, untimed_seconds=DEFAULT_UNTIMED_SECONDS):
+def line_local_frames(doc, untimed_seconds=DEFAULT_UNTIMED_SECONDS,
+                      untimed_frames=None):
     """Per-chunk start frames relative to the line's own start, for
     comps that live on a per-line timeline clip starting at frame 0.
 
     Fully untimed lines get a length-weighted cascade across
-    ``untimed_seconds`` (§4.4-style scaffold). A partially timed line
-    keeps its timed chunks; the untimed ones land at 0 with a warning.
+    ``untimed_seconds`` — or exactly ``untimed_frames`` frames when
+    given, which overrides the seconds value (§4.4-style scaffold). A
+    partially timed line keeps its timed chunks; the untimed ones land
+    at 0 with a warning.
     """
     warnings = []
     render = doc.get("render", {})
@@ -691,7 +694,7 @@ def line_local_frames(doc, untimed_seconds=DEFAULT_UNTIMED_SECONDS):
     starts = [c.get("start_frame") for c in chunks]
 
     if all(s is None for s in starts):
-        span = fps * untimed_seconds
+        span = untimed_frames if untimed_frames else fps * untimed_seconds
         weights = [max(len(c.get("text", "")), UNTIMED_MIN_WEIGHT) for c in chunks]
         total = sum(weights)
         cursor = 0.0
@@ -699,10 +702,13 @@ def line_local_frames(doc, untimed_seconds=DEFAULT_UNTIMED_SECONDS):
         for w in weights:
             frames.append(round(cursor))
             cursor += span * (w / total)
+        spread = (
+            f"{untimed_frames} frames" if untimed_frames
+            else f"{untimed_seconds:g}s"
+        )
         warnings.append(
-            f"no timing data — chunks spread across the first "
-            f"{untimed_seconds:g}s as a scaffold; use markers or an SRT "
-            "for real timing"
+            f"no timing data — chunks spread across the first {spread} "
+            "as a scaffold; use markers or an SRT for real timing"
         )
         return frames, warnings
 
@@ -873,6 +879,7 @@ def generate_line_setting(
     dip_in=DEFAULT_DIP_IN,
     dip_out=DEFAULT_DIP_OUT,
     untimed_seconds=DEFAULT_UNTIMED_SECONDS,
+    untimed_frames=None,
 ):
     """Build the pasteable node-graph text for one line manifest.
 
@@ -884,7 +891,7 @@ def generate_line_setting(
     chunks = doc["chunks"]
     if not chunks:
         raise ValueError("manifest has no chunks")
-    frames, warnings = line_local_frames(doc, untimed_seconds)
+    frames, warnings = line_local_frames(doc, untimed_seconds, untimed_frames)
     length = comp_length(doc, frames)
 
     tools = []
@@ -934,6 +941,7 @@ import bpy
 from bpy.props import (
     BoolProperty,
     CollectionProperty,
+    EnumProperty,
     FloatProperty,
     IntProperty,
     PointerProperty,
@@ -1108,6 +1116,24 @@ class LyricChunkerProps(PropertyGroup):
         default=3.0,
         min=0.1,
         max=30.0,
+    )
+    untimed_spread_frames: IntProperty(
+        name="Untimed Spread",
+        description=(
+            "With no SRT or marker timing, Generate Fusion Comps cascades "
+            "each line's chunks across this many frames"
+        ),
+        default=24,
+        min=1,
+        max=10000,
+    )
+    untimed_spread_unit: EnumProperty(
+        name="Spread Unit",
+        items=(
+            ('SECONDS', "Seconds", "Set the untimed cascade in seconds"),
+            ('FRAMES', "Frames", "Set the untimed cascade in frames"),
+        ),
+        default='SECONDS',
     )
     use_markers: BoolProperty(
         name="Use Timeline Markers",
@@ -2457,7 +2483,12 @@ class LC_OT_generate_comps(Operator):
                 continue
             folder = os.path.dirname(path)
             text, warnings = generate_line_setting(
-                doc, folder, untimed_seconds=props.untimed_spread
+                doc, folder,
+                untimed_seconds=props.untimed_spread,
+                untimed_frames=(
+                    props.untimed_spread_frames
+                    if props.untimed_spread_unit == 'FRAMES' else None
+                ),
             )
             warned.extend(warnings)
             setting_path = os.path.splitext(path)[0] + ".setting"
@@ -2872,7 +2903,12 @@ class LC_PT_panel(Panel):
         box.label(text="Timing", icon='TIME')
         box.prop(props, "srt_path", text="SRT")
         box.prop(props, "use_markers")
-        box.prop(props, "untimed_spread")
+        row = box.row(align=True)
+        if props.untimed_spread_unit == 'FRAMES':
+            row.prop(props, "untimed_spread_frames")
+        else:
+            row.prop(props, "untimed_spread")
+        row.prop(props, "untimed_spread_unit", text="")
 
         box = layout.box()
         box.label(text="Style Presets", icon='PRESET')
