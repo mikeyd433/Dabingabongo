@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 3, 1),
+    "version": (2, 3, 2),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.3.1"
+ADDON_VERSION = "2.3.2"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -717,15 +717,16 @@ def _loader(name, filename, length, pos):
 \t\t\t\t\tID = "Clip1",
 \t\t\t\t\tFilename = {_lua_str(filename)},
 \t\t\t\t\tFormatID = "PNGFormat",
-\t\t\t\t\tStartFrame = 0,
-\t\t\t\t\tLengthSetManually = true,
+\t\t\t\t\tLength = 1,
+\t\t\t\t\tSaving = false,
 \t\t\t\t\tTrimIn = 0,
 \t\t\t\t\tTrimOut = 0,
 \t\t\t\t\tExtendFirst = 0,
 \t\t\t\t\tExtendLast = {length},
-\t\t\t\t\tLoop = 0,
+\t\t\t\t\tLoop = 1,
 \t\t\t\t\tAspectMode = 0,
 \t\t\t\t\tDepth = 0,
+\t\t\t\t\tTimeCode = 0,
 \t\t\t\t\tGlobalStart = 0,
 \t\t\t\t\tGlobalEnd = {length}
 \t\t\t\t}}
