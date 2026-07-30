@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 4, 0),
+    "version": (2, 4, 1),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.4.0"
+ADDON_VERSION = "2.4.1"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -733,7 +733,15 @@ def comp_length(doc, frames):
     return max(frames) + round(fps) if frames else round(fps)
 
 
-def _loader(name, filename, length, pos):
+def _loader(name, filename, length, pos, frame_index, clip_frames):
+    """One chunk's Loader.
+
+    Fusion resolves the numbered chunk PNGs into a single image
+    sequence (``Line17_Chunk##``) and re-bases every Loader to its
+    first frame, regardless of which file the Loader names — verified
+    against Resolve 21. Each Loader therefore pins its own chunk by
+    trimming to its 0-based ``frame_index`` in the ``clip_frames``-long
+    sequence, held via ExtendLast."""
     length = length + LOADER_HOLD_PADDING
     return f"""\
 \t\t{name} = Loader {{
@@ -742,10 +750,10 @@ def _loader(name, filename, length, pos):
 \t\t\t\t\tID = "Clip1",
 \t\t\t\t\tFilename = {_lua_str(filename)},
 \t\t\t\t\tFormatID = "PNGFormat",
-\t\t\t\t\tLength = 1,
+\t\t\t\t\tLength = {clip_frames},
 \t\t\t\t\tSaving = false,
-\t\t\t\t\tTrimIn = 0,
-\t\t\t\t\tTrimOut = 0,
+\t\t\t\t\tTrimIn = {frame_index},
+\t\t\t\t\tTrimOut = {frame_index},
 \t\t\t\t\tExtendFirst = 0,
 \t\t\t\t\tExtendLast = {length},
 \t\t\t\t\tLoop = 1,
@@ -889,7 +897,7 @@ def generate_line_setting(
         move = f"Move_{base}"
         tools.append(_loader(
             loader, _join_clip_path(png_dir, chunk["filename"]), length,
-            (0.0, y),
+            (0.0, y), frame_index=row, clip_frames=len(chunks),
         ))
         tools.append(_color_gain(color, loader, start, dip_in, highlight, (_COL_X, y)))
         tools.append(_transform(move, color, start, dip_in, dip_out, dip_depth, (2 * _COL_X, y)))

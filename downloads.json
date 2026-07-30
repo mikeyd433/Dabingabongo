@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.4.0",
+      "version": "2.4.1",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,7 +88,7 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "120 KB"
+          "size": "121 KB"
         },
         {
           "label": "Add-on only (.py)",
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.4.1",
+          "date": "2026-07-30",
+          "notes": [
+            "Pin each comp Loader to its own frame of the detected sequence (LyricChunker@2e89c45)"
+          ]
+        },
         {
           "version": "2.4.0",
           "date": "2026-07-30",
