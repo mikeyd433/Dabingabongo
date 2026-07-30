@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 2, 0),
+    "version": (2, 2, 1),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.2.0"
+ADDON_VERSION = "2.2.1"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -2388,6 +2388,8 @@ class LC_OT_verify_line(Operator):
 
 """Panel (3D Viewport sidebar > Lyric Chunker)."""
 
+import textwrap
+
 from bpy.types import Panel, UIList
 
 
@@ -2395,9 +2397,11 @@ from bpy.types import Panel, UIList
 class LC_UL_lyric_lines(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
                   active_prop, index):
-        row = layout.row(align=True)
-        row.label(text=f"Line {data.start_index + index}")
-        row.prop(item, "text", text="", emboss=False)
+        # Number-only label keeps most of the row width for the text;
+        # the full selected line is drawn wrapped under the list.
+        split = layout.split(factor=0.15)
+        split.label(text=str(data.start_index + index))
+        split.prop(item, "text", text="", emboss=False)
 
 
 class LC_PT_panel(Panel):
@@ -2432,6 +2436,16 @@ class LC_PT_panel(Panel):
             )
             col = row.column(align=True)
             col.operator(LC_OT_remove_line.bl_idname, text="", icon='REMOVE')
+            index = props.lyric_line_index
+            if 0 <= index < len(props.lyric_lines):
+                full = props.lyric_lines[index].text
+                view = box.column(align=True)
+                view.scale_y = 0.85
+                wrapped = textwrap.wrap(
+                    f"Line {props.start_index + index}:  {full}", width=42
+                ) or [""]
+                for text_row in wrapped[:6]:
+                    view.label(text=text_row)
         row = box.row(align=True)
         row.prop(props, "start_index")
         if not has_list:
