@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.3.2",
+      "version": "2.3.3",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.3.3",
+          "date": "2026-07-30",
+          "notes": [
+            "Premultiply Loader alpha to kill edge fringing in comps (LyricChunker@c9516a9)"
+          ]
+        },
         {
           "version": "2.3.2",
           "date": "2026-07-30",

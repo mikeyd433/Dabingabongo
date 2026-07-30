@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 3, 2),
+    "version": (2, 3, 3),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.3.2"
+ADDON_VERSION = "2.3.3"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -733,6 +733,7 @@ def _loader(name, filename, length, pos):
 \t\t\t}},
 \t\t\tInputs = {{
 \t\t\t\t["Gamut.SLogVersion"] = Input {{ Value = FuID {{ "SLog2" }}, }},
+\t\t\t\tPostMultiplyByAlpha = Input {{ Value = 1, }},
 \t\t\t}},
 \t\t\tViewInfo = OperatorInfo {{ Pos = {{ {_num(pos[0])}, {_num(pos[1])} }} }},
 \t\t}},
