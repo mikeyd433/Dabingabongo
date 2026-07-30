@@ -63,8 +63,8 @@
     {
       "id": "lyric-chunker",
       "name": "Lyric Chunker",
-      "tagline": "Blender add-on for the music visualizer pipeline",
-      "description": "Type a delimited lyric line, get styled 3D text split into per-syllable chunk objects, then batch-render each chunk as a transparent 16-bit PNG for compositing in DaVinci Resolve. Works on Blender 4.x and 5.x. Install via Edit > Preferences > Add-ons > Install from Disk.",
+      "tagline": "Blender add-on + Fusion comp generator for the music visualizer pipeline",
+      "description": "Type delimited lyrics, get styled 3D text split into per-syllable chunk objects, batch-render each chunk as a transparent 16-bit PNG with a JSON timing manifest per line, then generate a pasteable Fusion node graph (color-flip + bounce, timed from the manifest) for DaVinci Resolve. The bundle zip has both tools; the add-on installs via Edit > Preferences > Add-ons > Install from Disk, the comp generator runs with plain Python 3.",
       "icon": "🎤",
       "category": "Blender Add-on",
       "platforms": [
@@ -79,11 +79,19 @@
         "lyrics",
         "music",
         "visualizer",
-        "render"
+        "render",
+        "resolve",
+        "fusion"
       ],
       "downloads": [
         {
-          "label": "Add-on (.py)",
+          "label": "Bundle: add-on + comp generator (.zip)",
+          "platform": "Blender + Resolve",
+          "url": "/downloads/lyric_chunker_bundle.zip",
+          "size": "99 KB"
+        },
+        {
+          "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
           "size": "82 KB"
