@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.2.1",
+      "version": "2.3.0",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "105 KB"
+          "size": "117 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "88 KB"
+          "size": "99 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.3.0",
+          "date": "2026-07-30",
+          "notes": [
+            "Generate Fusion comps from a panel button, no terminal needed (LyricChunker@ffa7497)"
+          ]
+        },
         {
           "version": "2.2.1",
           "date": "2026-07-30",
