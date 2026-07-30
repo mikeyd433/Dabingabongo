@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 3, 0),
+    "version": (2, 3, 1),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.3.0"
+ADDON_VERSION = "2.3.1"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -647,6 +647,11 @@ DEFAULT_DIP_OUT = 3
 _COL_X = 110.0
 _ROW_Y = 33.0
 
+# Loaders hold their still well past the line's own span (10 min at
+# 24fps) so stretching the comp clip on the timeline never runs the
+# image out.
+LOADER_HOLD_PADDING = 14400
+
 
 def _join_clip_path(png_dir, filename):
     """Join using the clip dir's own separator style — the path is
@@ -704,6 +709,7 @@ def comp_length(doc, frames):
 
 
 def _loader(name, filename, length, pos):
+    length = length + LOADER_HOLD_PADDING
     return f"""\
 \t\t{name} = Loader {{
 \t\t\tClips = {{

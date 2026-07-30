@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.3.0",
+      "version": "2.3.1",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "117 KB"
+          "size": "118 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "99 KB"
+          "size": "100 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.3.1",
+          "date": "2026-07-30",
+          "notes": [
+            "Hold comp Loader stills far past the line span (LyricChunker@45e45e7)"
+          ]
+        },
         {
           "version": "2.3.0",
           "date": "2026-07-30",
