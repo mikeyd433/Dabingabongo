@@ -70,8 +70,8 @@
       "platforms": [
         "Blender"
       ],
-      "version": "1.0.0",
-      "updated": "2026-07-13",
+      "version": "2.0.0",
+      "updated": "2026-07-30",
       "featured": false,
       "tags": [
         "blender",
@@ -86,7 +86,7 @@
           "label": "Add-on (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "23 KB"
+          "size": "82 KB"
         }
       ],
       "links": [
@@ -96,6 +96,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.0.0",
+          "date": "2026-07-30",
+          "notes": [
+            "Bake the project house style into the default template (LyricChunker@b763031)"
+          ]
+        },
         {
           "version": "1.0.0",
           "date": "2026-07-11",
