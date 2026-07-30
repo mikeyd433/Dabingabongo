@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 4, 1),
+    "version": (2, 4, 2),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.4.1"
+ADDON_VERSION = "2.4.2"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -1098,6 +1098,16 @@ class LyricChunkerProps(PropertyGroup):
         ),
         subtype='FILE_PATH',
         default="",
+    )
+    untimed_spread: FloatProperty(
+        name="Untimed Spread",
+        description=(
+            "With no SRT or marker timing, Generate Fusion Comps cascades "
+            "each line's chunks across this many seconds"
+        ),
+        default=3.0,
+        min=0.1,
+        max=30.0,
     )
     use_markers: BoolProperty(
         name="Use Timeline Markers",
@@ -2446,7 +2456,9 @@ class LC_OT_generate_comps(Operator):
                 warned.append(f"{os.path.basename(path)}: {exc}")
                 continue
             folder = os.path.dirname(path)
-            text, warnings = generate_line_setting(doc, folder)
+            text, warnings = generate_line_setting(
+                doc, folder, untimed_seconds=props.untimed_spread
+            )
             warned.extend(warnings)
             setting_path = os.path.splitext(path)[0] + ".setting"
             try:
@@ -2860,6 +2872,7 @@ class LC_PT_panel(Panel):
         box.label(text="Timing", icon='TIME')
         box.prop(props, "srt_path", text="SRT")
         box.prop(props, "use_markers")
+        box.prop(props, "untimed_spread")
 
         box = layout.box()
         box.label(text="Style Presets", icon='PRESET')

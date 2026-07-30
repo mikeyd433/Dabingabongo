@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.4.1",
+      "version": "2.4.2",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "121 KB"
+          "size": "122 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "101 KB"
+          "size": "102 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.4.2",
+          "date": "2026-07-30",
+          "notes": [
+            "Expose the untimed cascade length in the Timing panel (LyricChunker@df89acf)"
+          ]
+        },
         {
           "version": "2.4.1",
           "date": "2026-07-30",
