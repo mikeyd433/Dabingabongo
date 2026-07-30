@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 1, 0),
+    "version": (2, 2, 0),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.1.0"
+ADDON_VERSION = "2.2.0"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -667,6 +667,17 @@ def _poll_font(self, obj):
     return obj.type == 'FONT'
 
 
+def _sync_selected_line(self, context):
+    """Keep line_number pointing at the selected list row so the
+    Generate/Render Line N buttons target what's highlighted."""
+    if 0 <= self.lyric_line_index < len(self.lyric_lines):
+        self.line_number = self.start_index + self.lyric_line_index
+
+
+class LCLyricLine(PropertyGroup):
+    text: StringProperty(name="Line", default="")
+
+
 class LCStylePreset(PropertyGroup):
     """Named style configuration captured from the template object (§5.2)."""
     name: StringProperty(name="Name", default="Preset")
@@ -710,15 +721,18 @@ class LyricChunkerProps(PropertyGroup):
         default=DEFAULT_DELIMITER,
         maxlen=8,
     )
+    lyric_lines: CollectionProperty(type=LCLyricLine)
+    lyric_line_index: IntProperty(default=0, update=_sync_selected_line)
     start_index: IntProperty(
         name="Start Index",
         description=(
-            "Line number of the first row in the lyrics text, so lines "
+            "Line number of the first row in the lyrics list, so lines "
             "12-20 can be rendered without renumbering (also offsets SRT "
             "entry mapping)"
         ),
         default=1,
         min=1,
+        update=_sync_selected_line,
     )
     line_number: IntProperty(
         name="Line Number",
@@ -1252,10 +1266,29 @@ def generate_line(context, line_no, raw_text, words, props):
 
 
 def parse_input_lines(props):
-    """Lines to generate from the panel state: the lyrics text block when
-    set (§5.3 multi-line), else the single-line field. Returns
-    (lines, warnings) with lines as (line_no, raw, words) tuples."""
-    if props.lyrics_text is not None:
+    """Lines to generate from the panel state, in priority order: the
+    panel lyric list, else an attached lyrics text block (§5.3), else
+    the single-line field. Returns (lines, warnings) with lines as
+    (line_no, raw, words) tuples."""
+    if len(props.lyric_lines):
+        lines = []
+        warnings = []
+        # List rows map 1:1 to numbers (start_index + row) so the panel
+        # labels, generate targets, and SRT mapping all agree — an empty
+        # row is skipped but keeps its number.
+        for row, item in enumerate(props.lyric_lines):
+            number = props.start_index + row
+            raw = item.text.strip()
+            if not raw:
+                warnings.append(f"Line {number}: empty row — skipped")
+                continue
+            words, w = split_line(raw, props.delimiter)
+            warnings.extend(f"Line {number}: {msg}" for msg in w)
+            if not words:
+                warnings.append(f"Line {number}: no chunks after splitting — skipped")
+                continue
+            lines.append((number, raw, words))
+    elif props.lyrics_text is not None:
         text = props.lyrics_text.as_string()
         lines, warnings = parse_block(text, props.delimiter, props.start_index)
     else:
@@ -1303,13 +1336,13 @@ class LC_OT_generate_chunks(Operator):
                 "Nothing to generate — enter a lyric line or pick a lyrics text",
             )
         if not self.all_lines:
-            if props.lyrics_text is not None:
+            if len(props.lyric_lines) or props.lyrics_text is not None:
                 wanted = props.line_number
                 lines = [entry for entry in lines if entry[0] == wanted]
                 if not lines:
                     return self.fail(
                         context,
-                        f"Line {wanted} is not in the lyrics text "
+                        f"Line {wanted} is not in the lyrics "
                         f"(rows start at {props.start_index})",
                     )
             # Single-line field mode already targets props.line_number.
@@ -1325,7 +1358,8 @@ class LC_OT_generate_chunks(Operator):
             replaced_any = replaced_any or replaced
             props.last_line = line_no
 
-        if props.lyrics_text is None and not self.all_lines:
+        if (not len(props.lyric_lines) and props.lyrics_text is None
+                and not self.all_lines):
             props.line_number = lines[-1][0] + 1
 
         message = f"Generated {len(lines)} line(s), {total_chunks} chunks"
@@ -1336,6 +1370,88 @@ class LC_OT_generate_chunks(Operator):
             for w in warnings:
                 self.report({'WARNING'}, w)
         set_status(context, message, error=False)
+        return {'FINISHED'}
+
+
+class LC_OT_add_line(Operator):
+    bl_idname = "lyric_chunker.add_line"
+    bl_label = "Add Line"
+    bl_description = (
+        "Add the typed lyric line to the list below, numbered after the "
+        "last entry"
+    )
+
+    def execute(self, context):
+        props = context.scene.lyric_chunker
+        raw = props.line_text.strip()
+        if not raw:
+            set_status(context, "Type a lyric line first", error=True)
+            self.report({'ERROR'}, "Type a lyric line first")
+            return {'CANCELLED'}
+        words, warnings = split_line(raw, props.delimiter)
+        if not words:
+            set_status(context, "Line has no chunks after splitting", error=True)
+            self.report({'ERROR'}, "Line has no chunks after splitting")
+            return {'CANCELLED'}
+        item = props.lyric_lines.add()
+        item.text = raw
+        props.lyric_line_index = len(props.lyric_lines) - 1
+        props.line_text = ""
+        number = props.start_index + len(props.lyric_lines) - 1
+        message = f"Added Line {number}: {raw}"
+        if warnings:
+            message += f" — {'; '.join(warnings)}"
+        set_status(context, message)
+        return {'FINISHED'}
+
+
+class LC_OT_remove_line(Operator):
+    bl_idname = "lyric_chunker.remove_line"
+    bl_label = "Remove Line"
+    bl_description = (
+        "Remove the selected line from the list (later rows shift down a "
+        "number, so regenerate them if already generated)"
+    )
+
+    def execute(self, context):
+        props = context.scene.lyric_chunker
+        index = props.lyric_line_index
+        if not (0 <= index < len(props.lyric_lines)):
+            return {'CANCELLED'}
+        removed = props.lyric_lines[index].text
+        props.lyric_lines.remove(index)
+        props.lyric_line_index = min(index, len(props.lyric_lines) - 1)
+        set_status(context, f"Removed line: {removed}")
+        return {'FINISHED'}
+
+
+class LC_OT_import_lines(Operator):
+    bl_idname = "lyric_chunker.import_lines"
+    bl_label = "Import Rows"
+    bl_description = (
+        "Append every non-empty row of the picked lyrics text block to "
+        "the line list (paste a whole song in the Text Editor, then pull "
+        "it in here)"
+    )
+
+    def execute(self, context):
+        props = context.scene.lyric_chunker
+        if props.lyrics_text is None:
+            set_status(context, "Pick a lyrics text block to import from", error=True)
+            self.report({'ERROR'}, "Pick a lyrics text block to import from")
+            return {'CANCELLED'}
+        added = 0
+        for raw in props.lyrics_text.as_string().splitlines():
+            if raw.strip():
+                item = props.lyric_lines.add()
+                item.text = raw.strip()
+                added += 1
+        if added:
+            props.lyric_line_index = len(props.lyric_lines) - 1
+        set_status(
+            context,
+            f"Imported {added} line(s) from '{props.lyrics_text.name}'",
+        )
         return {'FINISHED'}
 
 
@@ -2272,8 +2388,16 @@ class LC_OT_verify_line(Operator):
 
 """Panel (3D Viewport sidebar > Lyric Chunker)."""
 
-from bpy.types import Panel
+from bpy.types import Panel, UIList
 
+
+
+class LC_UL_lyric_lines(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data,
+                  active_prop, index):
+        row = layout.row(align=True)
+        row.label(text=f"Line {data.start_index + index}")
+        row.prop(item, "text", text="", emboss=False)
 
 
 class LC_PT_panel(Panel):
@@ -2297,33 +2421,45 @@ class LC_PT_panel(Panel):
         box = layout.box()
         box.label(text="Lyrics", icon='OUTLINER_OB_FONT')
         row = box.row(align=True)
-        row.prop(props, "lyrics_text", text="")
-        row.operator(LC_OT_new_lyrics_text.bl_idname, text="", icon='ADD')
-        if props.lyrics_text is None:
-            box.prop(props, "line_text", text="")
-        else:
-            box.label(text="Edit lines in the Text Editor", icon='INFO')
-            box.prop(props, "start_index")
+        row.prop(props, "line_text", text="", placeholder="Type a lyric line…")
+        row.operator(LC_OT_add_line.bl_idname, text="", icon='ADD')
+        has_list = len(props.lyric_lines) > 0
+        if has_list:
+            row = box.row()
+            row.template_list(
+                "LC_UL_lyric_lines", "", props, "lyric_lines",
+                props, "lyric_line_index", rows=4,
+            )
+            col = row.column(align=True)
+            col.operator(LC_OT_remove_line.bl_idname, text="", icon='REMOVE')
+        row = box.row(align=True)
+        row.prop(props, "start_index")
+        if not has_list:
+            row.prop(props, "line_number")
         row = box.row(align=True)
         row.prop(props, "delimiter")
-        row.prop(props, "line_number")
         box.prop(props, "force_uppercase")
         col = box.column(align=True)
         col.scale_y = 1.3
+        multi = has_list or props.lyrics_text is not None
         op = col.operator(
             LC_OT_generate_chunks.bl_idname,
-            text=f"Generate Line {props.line_number}"
-            if props.lyrics_text is not None else "Generate Chunks",
+            text=f"Generate Line {props.line_number}" if multi
+            else "Generate Chunks",
             icon='MOD_BUILD',
         )
         op.all_lines = False
-        if props.lyrics_text is not None:
+        if multi:
             op = col.operator(
                 LC_OT_generate_chunks.bl_idname,
                 text="Generate All Lines",
                 icon='MOD_BUILD',
             )
             op.all_lines = True
+        row = box.row(align=True)
+        row.prop(props, "lyrics_text", text="")
+        row.operator(LC_OT_new_lyrics_text.bl_idname, text="", icon='ADD')
+        row.operator(LC_OT_import_lines.bl_idname, text="", icon='IMPORT')
 
         box = layout.box()
         box.label(text="Timing", icon='TIME')
@@ -2389,11 +2525,16 @@ from bpy.props import PointerProperty
 
 
 classes = (
+    LCLyricLine,
     LCStylePreset,
     LyricChunkerProps,
     LyricChunkerPreferences,
+    LC_UL_lyric_lines,
     LC_OT_setup_scene,
     LC_OT_generate_chunks,
+    LC_OT_add_line,
+    LC_OT_remove_line,
+    LC_OT_import_lines,
     LC_OT_new_lyrics_text,
     LC_OT_render_queue,
     LC_OT_cancel_render,

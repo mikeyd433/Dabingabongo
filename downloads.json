@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.1.0",
+      "version": "2.2.0",
       "updated": "2026-07-30",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "99 KB"
+          "size": "104 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "82 KB"
+          "size": "87 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.2.0",
+          "date": "2026-07-30",
+          "notes": [
+            "Type lyric lines straight into the panel with a browsable line list (LyricChunker@16f9463)"
+          ]
+        },
         {
           "version": "2.1.0",
           "date": "2026-07-30",
