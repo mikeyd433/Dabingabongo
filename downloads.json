@@ -70,8 +70,8 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.4.3",
-      "updated": "2026-07-30",
+      "version": "2.5.0",
+      "updated": "2026-07-31",
       "featured": false,
       "tags": [
         "blender",
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "124 KB"
+          "size": "141 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "103 KB"
+          "size": "113 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.5.0",
+          "date": "2026-07-31",
+          "notes": [
+            "Add Tap Timing, viewport timing preview, and a Resolve build script (LyricChunker@ea91f25)"
+          ]
+        },
         {
           "version": "2.4.3",
           "date": "2026-07-30",
