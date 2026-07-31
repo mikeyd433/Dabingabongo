@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 5, 0),
+    "version": (2, 6, 0),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.5.0"
+ADDON_VERSION = "2.6.0"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -606,6 +606,187 @@ def measure_layout(context, template, words):
     return offsets, base
 
 
+# ===== comp/reactor.py ============================================
+
+"""Reactor elements — extra images that bounce on chunk timing.
+
+The second consumer of the manifest (§1): anything that should react to
+the vocal — a cut-out head, a logo, a prop rendered out of Blender —
+reads the same per-chunk start frames the lyrics use, so timing is
+captured once and drives everything.
+
+An element is a transparent PNG plus a rule for *which* chunks it
+reacts to. Two elements set to ``odd`` and ``even`` alternate; one
+element set to ``all`` bounces on every chunk. ``enabled`` switches an
+element off without deleting its configuration.
+
+Config lives in ``elements.json`` at the render output root, beside the
+Line#/ folders. Generation is otherwise identical to a lyric chunk:
+
+    Loader -> Place (static position/size) -> Bounce (PolyPath) -> Merge
+
+The bounce reuses the verified 3-point PolyPath, but an element bounces
+many times in one line, so its Displacement spline alternates direction
+each time — 0 -> 0.5 -> 1, then 1 -> 0.5 -> 0. Both ends of the path
+are the rest position, so consecutive bounces need no reset key and the
+element sits still between them.
+"""
+
+import os
+import re
+
+ELEMENTS_FILENAME = "elements.json"
+ELEMENTS_VERSION = 1
+
+DEFAULT_ELEMENT_DEPTH = 0.03
+DEFAULT_ELEMENT_DIP_IN = 1
+DEFAULT_ELEMENT_DIP_OUT = 3
+DEFAULT_ELEMENT_POSITION = (0.5, 0.5)
+
+_NAME_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
+
+
+def template_elements():
+    """Starter config: two heads alternating odd/even chunks.
+
+    Switching to a single bouncing object is two edits — set one
+    element's ``chunks`` to ``"all"`` and the other's ``enabled`` to
+    false.
+    """
+    return {
+        "elements_version": ELEMENTS_VERSION,
+        "_readme": [
+            "Elements bounce on chunk timing alongside the lyrics.",
+            "image: transparent PNG, relative to this file or absolute.",
+            "chunks: 'all', 'odd', 'even', or a list like [1, 3, 5] (1-based).",
+            "lines: 'all' or a list of line numbers like [17, 18].",
+            "position: normalized [x, y]; 0.5, 0.5 is frame centre.",
+            "in_front: true to sit over the lyrics, false to sit behind.",
+            "enabled: false switches an element off without deleting it.",
+            "Two elements set to 'odd' and 'even' alternate; one set to",
+            "'all' bounces on every chunk.",
+            "Avoid names ending in digits (head1.png, head2.png) — Fusion",
+            "may read those as an image sequence. Use head_left.png etc.",
+        ],
+        "elements": [
+            {
+                "name": "HeadLeft",
+                "image": "elements/head_left.png",
+                "chunks": "odd",
+                "lines": "all",
+                "position": [0.22, 0.35],
+                "size": 1.0,
+                "bounce_depth": DEFAULT_ELEMENT_DEPTH,
+                "dip_in": DEFAULT_ELEMENT_DIP_IN,
+                "dip_out": DEFAULT_ELEMENT_DIP_OUT,
+                "in_front": False,
+                "enabled": True,
+            },
+            {
+                "name": "HeadRight",
+                "image": "elements/head_right.png",
+                "chunks": "even",
+                "lines": "all",
+                "position": [0.78, 0.35],
+                "size": 1.0,
+                "bounce_depth": DEFAULT_ELEMENT_DEPTH,
+                "dip_in": DEFAULT_ELEMENT_DIP_IN,
+                "dip_out": DEFAULT_ELEMENT_DIP_OUT,
+                "in_front": False,
+                "enabled": True,
+            },
+        ],
+    }
+
+
+def load_elements(path):
+    """Read an elements.json. Returns ``(elements, warnings)`` with only
+    the enabled entries; a missing file is not an error."""
+    import json
+
+    if not os.path.exists(path):
+        return [], []
+    with open(path, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+    version = doc.get("elements_version")
+    if version != ELEMENTS_VERSION:
+        raise ValueError(
+            f"elements_version {version!r} in {path} — this build reads "
+            f"version {ELEMENTS_VERSION}"
+        )
+    warnings = []
+    elements = []
+    for index, element in enumerate(doc.get("elements", []), start=1):
+        name = element.get("name") or f"Element{index}"
+        if not element.get("enabled", True):
+            continue
+        if not element.get("image"):
+            warnings.append(f"element '{name}' has no image — skipped")
+            continue
+        elements.append(element)
+    return elements, warnings
+
+
+def safe_name(name):
+    cleaned = _NAME_SAFE_RE.sub("_", str(name)).strip("_")
+    return cleaned or "Element"
+
+
+def is_absolute(image):
+    return os.path.isabs(image) or bool(re.match(r"^[A-Za-z]:", image))
+
+
+def applies_to_line(element, line_no):
+    lines = element.get("lines", "all")
+    if isinstance(lines, str):
+        return lines.lower() == "all"
+    return line_no in lines
+
+
+def chunk_indices(element, chunk_count):
+    """0-based chunk indices this element reacts to."""
+    selector = element.get("chunks", "all")
+    if isinstance(selector, str):
+        key = selector.lower()
+        if key == "all":
+            return list(range(chunk_count))
+        if key == "odd":
+            return [i for i in range(chunk_count) if i % 2 == 0]
+        if key == "even":
+            return [i for i in range(chunk_count) if i % 2 == 1]
+        return []
+    return [n - 1 for n in selector if 1 <= n <= chunk_count]
+
+
+def displacement_keys(starts, dip_in, dip_out):
+    """Alternating-direction bounce keys for one element.
+
+    Each bounce traverses the 3-point path in the opposite direction to
+    the last, so the element rests between bounces without a reset key.
+    Bounces that would overlap the previous one are dropped.
+    """
+    keys = []
+    warnings = []
+    value = 0.0
+    last_end = None
+    for start in starts:
+        if last_end is not None and start < last_end:
+            warnings.append(
+                f"bounce at frame {start} overlaps the previous one — skipped"
+            )
+            continue
+        target = 1.0 - value
+        end = start + dip_in + dip_out
+        if keys and keys[-1][0] == start:
+            keys.pop()
+        keys.append((start, value))
+        keys.append((start + dip_in, 0.5))
+        keys.append((end, target))
+        value = target
+        last_end = end
+    return keys, warnings
+
+
 # ===== comp/settings_gen.py =======================================
 
 """Fusion node-graph generation from a line manifest (spec addendum §6).
@@ -638,6 +819,7 @@ and connecting Media Pool imports by hand.
 
 import re
 
+
 DEFAULT_HIGHLIGHT_GAIN = (1.0, 0.4, 0.05)
 DEFAULT_DIP_DEPTH = 0.015
 DEFAULT_DIP_IN = 1
@@ -664,6 +846,15 @@ def _join_clip_path(png_dir, filename):
     consumed by Resolve on the user's machine, not this one."""
     sep = "\\" if ("\\" in png_dir or re.match(r"^[A-Za-z]:", png_dir)) else "/"
     return png_dir.rstrip("/\\") + sep + filename
+
+
+def _element_path(image, base_dir):
+    """Element images may be absolute or relative to elements.json."""
+    if is_absolute(image):
+        return image
+    sep = "\\" if ("\\" in base_dir or re.match(r"^[A-Za-z]:", base_dir)) else "/"
+    tail = image.replace("/", sep).replace("\\", sep)
+    return base_dir.rstrip("/\\") + sep + tail
 
 
 def _lua_str(value):
@@ -819,11 +1010,29 @@ def _color_gain(name, source, start, dip_in, highlight, pos):
     return "".join(parts)
 
 
-def _transform(name, source, start, dip_in, dip_out, depth, pos):
+def _place_transform(name, source, position, size, pos):
+    """Static placement for an element that is not already full-frame.
+
+    Full-frame elements (the recommended form, matching the chunk PNGs)
+    need no placement at all — this is only emitted when a position or
+    size is actually given."""
+    return f"""\
+\t\t{name} = Transform {{
+\t\t\tInputs = {{
+\t\t\t\tInput = Input {{ SourceOp = {_lua_str(source)}, Source = "Output", }},
+\t\t\t\tCenter = Input {{ Value = {{ {_num(position[0])}, {_num(position[1])} }}, }},
+\t\t\t\tSize = Input {{ Value = {_num(size)}, }},
+\t\t\t}},
+\t\t\tViewInfo = OperatorInfo {{ Pos = {{ {_num(pos[0])}, {_num(pos[1])} }} }},
+\t\t}},
+"""
+
+
+def _bounce_transform(name, source, keys, depth, pos):
     """Transform whose Center rides a 3-point PolyPath (rest, -depth,
-    rest) via a Displacement spline keyed 0 -> 0.5 -> 1 at S, S+dip_in,
-    S+dip_in+dip_out — the exact structure of the reference comp's
-    hand-animated bounce, so it edits identically in the spline editor."""
+    rest), driven by an explicit Displacement key list — the exact
+    structure of the reference comp's hand-animated bounce, so it edits
+    identically in the spline editor."""
     path = name + "Path"
     return f"""\
 \t\t{name} = Transform {{
@@ -851,11 +1060,48 @@ def _transform(name, source, start, dip_in, dip_out, depth, pos):
 \t\t\t\t}}
 \t\t\t}},
 \t\t}},
-""" + _spline(
-        path + "Displacement", (255, 0, 255),
-        [(start, 0.0), (start + dip_in, 0.5), (start + dip_in + dip_out, 1.0)],
-        locked_y=True,
-    )
+""" + _spline(path + "Displacement", (255, 0, 255), keys, locked_y=True)
+
+
+def _transform(name, source, start, dip_in, dip_out, depth, pos):
+    """A lyric chunk's single bounce at its start frame."""
+    keys = [
+        (start, 0.0),
+        (start + dip_in, 0.5),
+        (start + dip_in + dip_out, 1.0),
+    ]
+    return _bounce_transform(name, source, keys, depth, pos)
+
+
+def _element_branch(element, base_dir, starts, length, row):
+    """One reactor element: Loader -> optional Place -> Bounce."""
+    name = safe_name(element.get("name"))
+    y = row * _ROW_Y
+    loader = f"Load_El_{name}"
+    depth = float(element.get("bounce_depth", DEFAULT_ELEMENT_DEPTH))
+    dip_in = int(element.get("dip_in", DEFAULT_ELEMENT_DIP_IN))
+    dip_out = int(element.get("dip_out", DEFAULT_ELEMENT_DIP_OUT))
+    position = tuple(element.get("position", DEFAULT_ELEMENT_POSITION))
+    size = float(element.get("size", 1.0))
+
+    # Element images are standalone files, so no sequence trimming.
+    parts = [_loader(
+        loader, _element_path(element["image"], base_dir), length,
+        (0.0, y), frame_index=0, clip_frames=1,
+    )]
+    tip = loader
+    if position != tuple(DEFAULT_ELEMENT_POSITION) or size != 1.0:
+        place = f"Place_El_{name}"
+        parts.append(_place_transform(place, tip, position, size, (_COL_X, y)))
+        tip = place
+
+    keys, warnings = displacement_keys(starts, dip_in, dip_out)
+    warnings = [f"element '{name}': {w}" for w in warnings]
+    if keys:
+        bounce = f"Bounce_El_{name}"
+        parts.append(_bounce_transform(bounce, tip, keys, depth, (2 * _COL_X, y)))
+        tip = bounce
+    return "".join(parts), tip, warnings
 
 
 def _merge(name, background, foreground, pos):
@@ -880,21 +1126,51 @@ def generate_line_setting(
     dip_out=DEFAULT_DIP_OUT,
     untimed_seconds=DEFAULT_UNTIMED_SECONDS,
     untimed_frames=None,
+    elements=None,
+    elements_dir=None,
 ):
     """Build the pasteable node-graph text for one line manifest.
 
     ``png_dir`` is the directory holding the chunk PNGs (normally the
-    manifest's own folder). Returns ``(text, warnings)``. The graph ends
-    at the last Merge (or the single chunk's Transform) — wire that to
-    MediaOut after pasting.
+    manifest's own folder). ``elements`` is the optional reactor element
+    list (§ reactor.py), resolved against ``elements_dir``. Returns
+    ``(text, warnings)``. The graph ends at the last Merge (or a single
+    branch's tip) — wire that to MediaOut after pasting.
     """
     chunks = doc["chunks"]
     if not chunks:
         raise ValueError("manifest has no chunks")
     frames, warnings = line_local_frames(doc, untimed_seconds, untimed_frames)
     length = comp_length(doc, frames)
+    line_no = doc["line"]["index"]
+
+    behind, in_front = [], []
+    for element in (elements or []):
+        if not applies_to_line(element, line_no):
+            continue
+        (in_front if element.get("in_front") else behind).append(element)
 
     tools = []
+
+    def add_elements(group, first_row):
+        """Element branches, returning their tip names in order."""
+        tips = []
+        for offset, element in enumerate(group):
+            starts = [
+                frames[i] for i in chunk_indices(element, len(chunks))
+            ]
+            text, tip, element_warnings = _element_branch(
+                element, elements_dir or png_dir, starts, length,
+                first_row + offset,
+            )
+            tools.append(text)
+            warnings.extend(element_warnings)
+            tips.append(tip)
+        return tips
+
+    # Behind the lyrics first — the merge chain stacks in list order.
+    back_tips = add_elements(behind, len(chunks))
+
     branch_tips = []
     for row, (chunk, start) in enumerate(zip(chunks, frames)):
         base = chunk["name"]
@@ -910,9 +1186,11 @@ def generate_line_setting(
         tools.append(_transform(move, color, start, dip_in, dip_out, dip_depth, (2 * _COL_X, y)))
         branch_tips.append(move)
 
-    line_no = doc["line"]["index"]
-    current = branch_tips[0]
-    for i, tip in enumerate(branch_tips[1:], start=1):
+    front_tips = add_elements(in_front, len(chunks) + len(behind))
+    ordered_tips = back_tips + branch_tips + front_tips
+
+    current = ordered_tips[0]
+    for i, tip in enumerate(ordered_tips[1:], start=1):
         merge = f"Merge_Line{line_no}_{i}"
         tools.append(_merge(
             merge, current, tip,
@@ -2474,8 +2752,14 @@ class LC_OT_generate_comps(Operator):
                 f"No Line#.json manifests under {out_root} — render lines first",
             )
 
+        elements_path = os.path.join(out_root, ELEMENTS_FILENAME)
+        try:
+            elements, element_warnings = load_elements(elements_path)
+        except (ValueError, OSError) as exc:
+            return self.fail(context, f"Cannot read {elements_path}: {exc}")
+
         written = 0
-        warned = []
+        warned = list(element_warnings)
         for path in manifests:
             try:
                 doc = read_manifest(path)
@@ -2490,6 +2774,8 @@ class LC_OT_generate_comps(Operator):
                     props.untimed_spread_frames
                     if props.untimed_spread_unit == 'FRAMES' else None
                 ),
+                elements=elements,
+                elements_dir=out_root,
             )
             warned.extend(warnings)
             setting_path = os.path.splitext(path)[0] + ".setting"
@@ -2501,8 +2787,10 @@ class LC_OT_generate_comps(Operator):
             written += 1
 
         message = (
-            f"Wrote {written} .setting file(s) — open in a text editor, copy "
-            "all, paste into Fusion, wire the last Merge to MediaOut"
+            f"Wrote {written} .setting file(s)"
+            + (f" with {len(elements)} element(s)" if elements else "")
+            + " — open in a text editor, copy all, paste into Fusion, wire "
+            "the last Merge to MediaOut"
         )
         if warned:
             message += f" — {len(warned)} warning(s), see console"
@@ -3057,6 +3345,139 @@ class LC_OT_clear_preview(Operator):
         return {'FINISHED'}
 
 
+# ===== ops_elements.py ============================================
+
+"""Reactor elements — Blender-side helpers.
+
+The reactor itself is comp-side (``comp/reactor.py``): elements are
+transparent PNGs that bounce on chunk timing, configured in
+``elements.json`` at the render output root. These two operators cover
+the Blender end of that:
+
+- **Create Elements File** writes the starter config (two heads
+  alternating odd/even chunks) plus the ``elements/`` folder.
+- **Render Element** renders the selected objects alone, full-frame and
+  transparent, straight into ``elements/`` — so an element modelled in
+  Blender enters the pipeline exactly like a photo cut-out does.
+"""
+
+import json
+import os
+
+import bpy
+from bpy.types import Operator
+
+
+ELEMENTS_DIRNAME = "elements"
+
+
+class LC_OT_create_elements(Operator):
+    bl_idname = "lyric_chunker.create_elements"
+    bl_label = "Create Elements File"
+    bl_description = (
+        "Write a starter elements.json at the output root — two images "
+        "alternating on odd and even chunks, with notes on switching to "
+        "a single bouncing element"
+    )
+
+    def fail(self, context, message):
+        set_status(context, message, error=True)
+        self.report({'ERROR'}, message)
+        return {'CANCELLED'}
+
+    def execute(self, context):
+        props = context.scene.lyric_chunker
+        if not props.output_root:
+            return self.fail(context, "Set an output root folder first")
+        out_root = bpy.path.abspath(props.output_root)
+        path = os.path.join(out_root, ELEMENTS_FILENAME)
+        if os.path.exists(path):
+            return self.fail(
+                context, f"{ELEMENTS_FILENAME} already exists — edit it"
+            )
+        try:
+            os.makedirs(os.path.join(out_root, ELEMENTS_DIRNAME), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(template_elements(), fh, indent=2)
+                fh.write("\n")
+        except OSError as exc:
+            return self.fail(context, f"Cannot write {path}: {exc}")
+        set_status(
+            context,
+            f"Wrote {path} — put element PNGs in {ELEMENTS_DIRNAME}/, edit "
+            "the file, then Generate Fusion Comps",
+        )
+        return {'FINISHED'}
+
+
+class LC_OT_render_element(Operator):
+    bl_idname = "lyric_chunker.render_element"
+    bl_label = "Render Element"
+    bl_description = (
+        "Render the selected objects alone as a full-frame transparent "
+        "PNG into elements/, ready to use as a bouncing element"
+    )
+
+    def fail(self, context, message):
+        set_status(context, message, error=True)
+        self.report({'ERROR'}, message)
+        return {'CANCELLED'}
+
+    def execute(self, context):
+        scene = context.scene
+        props = scene.lyric_chunker
+        if props.is_rendering:
+            return self.fail(context, "A render batch is running")
+        if not props.output_root:
+            return self.fail(context, "Set an output root folder first")
+        if active_camera(context) is None:
+            return self.fail(context, "No camera")
+        selected = [obj for obj in context.selected_objects]
+        if not selected:
+            return self.fail(
+                context, "Select the object(s) to render as an element"
+            )
+
+        name = (context.active_object or selected[0]).name
+        out_dir = os.path.join(
+            bpy.path.abspath(props.output_root), ELEMENTS_DIRNAME
+        )
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except OSError as exc:
+            return self.fail(context, f"Output path not writable: {exc}")
+        filepath = os.path.join(out_dir, f"{name}.png")
+
+        keep = set(selected)
+        saved = {}
+        assert_render_settings(scene)
+        guard = RenderSettingsGuard(scene)
+        try:
+            # Everything except the selection is hidden, so the element
+            # lands full-frame and transparent like a lyric chunk.
+            for obj in scene.objects:
+                saved[obj] = obj.hide_render
+                obj.hide_render = obj not in keep
+            scene.render.filepath = filepath
+            bpy.ops.render.render(write_still=True)
+        except Exception as exc:
+            return self.fail(context, f"Element render failed: {exc}")
+        finally:
+            for obj, hidden in saved.items():
+                try:
+                    obj.hide_render = hidden
+                except ReferenceError:
+                    pass
+            guard.restore()
+
+        set_status(
+            context,
+            f"Rendered element to {filepath} — reference it as "
+            f"'{ELEMENTS_DIRNAME}/{name}.png' in {ELEMENTS_FILENAME}",
+        )
+        return {'FINISHED'}
+
+
 # ===== ui.py ======================================================
 
 """Panel (3D Viewport sidebar > Lyric Chunker)."""
@@ -3221,6 +3642,11 @@ class LC_PT_panel(Panel):
             row = box.row(align=True)
             row.operator(LC_OT_verify_line.bl_idname, icon='CHECKMARK')
             row.operator(LC_OT_contact_sheet.bl_idname, icon='IMAGE_DATA')
+            row = box.row(align=True)
+            row.operator(LC_OT_create_elements.bl_idname, text="Elements",
+                         icon='FILE_NEW')
+            row.operator(LC_OT_render_element.bl_idname, text="Render Element",
+                         icon='RENDER_RESULT')
             row = box.row()
             row.scale_y = 1.3
             row.operator(LC_OT_generate_comps.bl_idname, icon='NODETREE')
@@ -3261,6 +3687,8 @@ classes = (
     LC_OT_tap_timing,
     LC_OT_preview_timing,
     LC_OT_clear_preview,
+    LC_OT_create_elements,
+    LC_OT_render_element,
     LC_OT_preset_save,
     LC_OT_preset_apply,
     LC_OT_preset_remove,

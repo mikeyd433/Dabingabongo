@@ -70,7 +70,7 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.5.0",
+      "version": "2.6.0",
       "updated": "2026-07-31",
       "featured": false,
       "tags": [
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "141 KB"
+          "size": "167 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "113 KB"
+          "size": "128 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.6.0",
+          "date": "2026-07-31",
+          "notes": [
+            "Add reactor elements: images that bounce on chunk timing (LyricChunker@b599f03)"
+          ]
+        },
         {
           "version": "2.5.0",
           "date": "2026-07-31",
