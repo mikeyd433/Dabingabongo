@@ -20,8 +20,13 @@ The generated migration is idempotent: it matches existing rows on
 (name, town) and (course, layout name) and leaves them alone, so re-running it
 never clobbers a par someone has corrected in the app.
 
-Correcting a course is normally something you do **in the app**, not here — this
-path is for re-importing a whole revised roster.
+The directory is backend-maintained: no client role can write to it. For a
+one-off correction use the admin helpers from migration 0023 in the Supabase SQL
+editor (`admin_set_course_par`, `admin_set_layout_par`, `admin_set_layout_holes`,
+`admin_add_course`); this path is for re-importing a whole revised roster.
+
+Players don't correct courses at all — they set par on their own round, which
+never writes back here.
 
 ## What the data does and doesn't claim
 
@@ -29,7 +34,7 @@ Par is a property of a **layout**, not a course. Most Massachusetts courses have
 never hosted a sanctioned event, so no body has ever assigned them a par: 95 of
 the 120 courses import with `total_par` null, deliberately. Filling those in with
 3 × holes would be a fiction for any course with a par 4 or 5, so the directory
-leaves them blank and the app's editor exists to fill them.
+leaves them blank. A round can still set its own par, listed or not.
 
 Where a course has several sourced layouts, its headline par comes from the
 layout named Default/Standard/Regular/Main, and otherwise from the median — not

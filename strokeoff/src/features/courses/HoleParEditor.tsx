@@ -5,51 +5,52 @@ import { FormMessage } from '@/components/FormMessage'
 import { defaultHoles, sumHolePars } from '@/features/courses/parMath'
 import type { HoleDraft } from '@/features/courses/parMath'
 import { errorMessage } from '@/lib/validation'
-import type { CourseHole, CourseLayout } from '@/types'
 
 const MAX_HOLES = 36
 
 interface HoleParEditorProps {
-  layout: CourseLayout
-  holes: CourseHole[]
+  /** What this card belongs to — a round, or a course layout. */
+  title: string
+  holes: HoleDraft[]
+  /** Sizes a blank card when there are no holes yet. */
+  fallbackHoleCount?: number
+  /** Distances matter for a course layout, not for a round's card. */
+  showDistance?: boolean
   onSave: (holes: HoleDraft[]) => Promise<void>
-  onClear: () => Promise<void>
+  /** Omitted when there's no existing card to remove. */
+  onClear?: () => Promise<void>
+  clearLabel?: string
   onCancel: () => void
 }
 
-function toDrafts(layout: CourseLayout, holes: CourseHole[]): HoleDraft[] {
-  if (holes.length > 0) {
-    return holes
-      .slice()
-      .sort((a, b) => a.hole_number - b.hole_number)
-      .map((h) => ({
-        hole_number: h.hole_number,
-        par: h.par,
-        distance_ft: h.distance_ft,
-      }))
-  }
-  return defaultHoles(layout.hole_count ?? 18)
-}
-
 /**
- * Hole-by-hole par for one layout. While hole detail exists the layout's total
- * is the sum of these — the two can't drift apart — so this is also how you set
- * a layout's par precisely rather than as a single number.
+ * Hole-by-hole par. While a card exists its total is the sum of these — the two
+ * can't drift apart — so this is also how a par gets set precisely rather than
+ * as a single number.
  */
 export function HoleParEditor({
-  layout,
+  title,
   holes,
+  fallbackHoleCount = 18,
+  showDistance = false,
   onSave,
   onClear,
+  clearLabel = 'Remove hole pars',
   onCancel,
 }: HoleParEditorProps) {
   const [drafts, setDrafts] = useState<HoleDraft[]>(() =>
-    toDrafts(layout, holes),
+    holes.length > 0
+      ? holes
+          .slice()
+          .sort((a, b) => a.hole_number - b.hole_number)
+          .map((h) => ({ ...h }))
+      : defaultHoles(fallbackHoleCount),
   )
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   const total = sumHolePars(drafts)
+  const invalid = drafts.some((h) => h.par < 1 || h.par > 10)
 
   function setHole(index: number, patch: Partial<HoleDraft>) {
     setDrafts((current) =>
@@ -87,7 +88,7 @@ export function HoleParEditor({
     <div className="flex flex-col gap-3 rounded-card border border-border bg-surface-alt p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="font-label text-sm font-semibold text-text">
-          Hole pars — {layout.name}
+          {title}
         </span>
         <span className="font-numeral text-sm text-text">
           Par {total} · {drafts.length} holes
@@ -108,8 +109,8 @@ export function HoleParEditor({
 
       {drafts.length === 0 ? (
         <FormMessage>
-          Set a hole count to start the card, or cancel and edit the layout's
-          total par directly.
+          Set a hole count to start the card, or cancel and set the total par
+          directly.
         </FormMessage>
       ) : (
         <ul className="flex flex-col gap-1.5">
@@ -131,25 +132,27 @@ export function HoleParEditor({
                   aria-label={`Par for hole ${hole.hole_number}`}
                 />
               </label>
-              <label className="flex flex-1 items-center gap-1.5">
-                <span className="font-label text-xs text-muted">Feet</span>
-                <TextInput
-                  type="number"
-                  inputMode="numeric"
-                  className="w-20"
-                  placeholder="—"
-                  value={
-                    hole.distance_ft == null ? '' : String(hole.distance_ft)
-                  }
-                  onChange={(e) =>
-                    setHole(i, {
-                      distance_ft:
-                        e.target.value === '' ? null : Number(e.target.value),
-                    })
-                  }
-                  aria-label={`Distance for hole ${hole.hole_number}`}
-                />
-              </label>
+              {showDistance ? (
+                <label className="flex flex-1 items-center gap-1.5">
+                  <span className="font-label text-xs text-muted">Feet</span>
+                  <TextInput
+                    type="number"
+                    inputMode="numeric"
+                    className="w-20"
+                    placeholder="—"
+                    value={
+                      hole.distance_ft == null ? '' : String(hole.distance_ft)
+                    }
+                    onChange={(e) =>
+                      setHole(i, {
+                        distance_ft:
+                          e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                    aria-label={`Distance for hole ${hole.hole_number}`}
+                  />
+                </label>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -160,7 +163,7 @@ export function HoleParEditor({
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          disabled={pending || drafts.some((h) => h.par < 1)}
+          disabled={pending || invalid || drafts.length === 0}
           onClick={() => void run(() => onSave(drafts))}
         >
           {pending ? 'Saving…' : 'Save hole pars'}
@@ -173,20 +176,20 @@ export function HoleParEditor({
         >
           Cancel
         </Button>
-        {holes.length > 0 ? (
+        {onClear && holes.length > 0 ? (
           <Button
             type="button"
             variant="secondary"
             disabled={pending}
             onClick={() => void run(onClear)}
           >
-            Remove hole detail
+            {clearLabel}
           </Button>
         ) : null}
       </div>
-      {drafts.some((h) => h.par < 1) ? (
+      {invalid ? (
         <FormMessage tone="error">
-          Every hole needs a par of at least 1.
+          Every hole needs a par between 1 and 10.
         </FormMessage>
       ) : null}
     </div>

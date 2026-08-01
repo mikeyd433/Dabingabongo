@@ -10,7 +10,6 @@ import { usePointEvents, useRoundRules } from '@/lib/scoring'
 import {
   useRecordRoundFinish,
   useSetRegularStrokes,
-  useSetRoundPar,
   useSetScoreConfirmed,
   useSetTiebreak,
 } from '@/lib/endRound'
@@ -25,6 +24,7 @@ import {
   type ResultRow,
   type ScoreConfirmation,
 } from '@/features/round/results'
+import { RoundParEditor } from '@/features/round/RoundParEditor'
 import { errorMessage } from '@/lib/validation'
 import { useTheme, winnerTreatment, type WinnerTreatment } from '@/themes'
 import type { PointEvent, Round, RoundPlayer, RoundRule } from '@/types'
@@ -114,7 +114,7 @@ export function ResultsScreen({ round }: { round: Round }) {
 
       <ReopenScores round={round} players={players} />
 
-      <ParEditor roundId={round.id} par={round.par} />
+      <RoundParEditor round={round} />
 
       {needsTiebreak ? (
         <TiebreakTool roundId={round.id} tied={results.tiedForWin} />
@@ -273,58 +273,6 @@ function EventLog({
           ))}
         </ul>
       )}
-    </section>
-  )
-}
-
-/** Set or correct the course par so finals show as over/under par. */
-function ParEditor({ roundId, par }: { roundId: string; par: number | null }) {
-  const setPar = useSetRoundPar(roundId)
-  const [value, setValue] = useState(par?.toString() ?? '')
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setValue(par?.toString() ?? '')
-  }, [par])
-
-  function commit() {
-    const trimmed = value.trim()
-    const next = trimmed === '' ? null : Number(trimmed)
-    if (next !== null && (!Number.isInteger(next) || next < 0)) {
-      setError('Enter a whole number for par.')
-      return
-    }
-    if (next === par) return
-    setError(null)
-    setPar.mutate(next, { onError: (e) => setError(errorMessage(e)) })
-  }
-
-  return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="font-label text-sm font-semibold text-text">
-            Course par
-          </h2>
-          <p className="mt-1 font-label text-xs text-muted">
-            Set it to see each final as over/under par.
-          </p>
-        </div>
-        <div className="w-24">
-          <TextInput
-            value={value}
-            inputMode="numeric"
-            placeholder="—"
-            aria-label="Course par"
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-            }}
-          />
-        </div>
-      </div>
-      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
     </section>
   )
 }

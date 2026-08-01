@@ -79,26 +79,50 @@ npx supabase ...  # migrations / local stack
 node supabase/seed/build-seed-migration.mjs
 ```
 
-## Courses — two tables, two jobs
+## Courses and par — who can change what
 
-- **`courses`** is the group's **saved-course bank**: the handful you actually
+Three tables, and the split between them is the whole design:
+
+- **`courses`** — the group's **saved-course bank**: the handful you actually
   play, with the par you actually use. Group-scoped, remembered automatically
   when a round is created. This is `/courses`.
-- **`course_directory`** (+ `course_layouts`, `course_holes`) is the **shared
-  reference library** behind it — every course in the region, world-readable,
-  correctable by anyone signed in. This is `/courses/directory`.
+- **`course_directory`** (+ `course_layouts`, `course_holes`) — the **shared
+  reference library**: every course in the region. World-readable, and
+  **read-only to every client role**. This is `/courses/directory`.
+- **`round_holes`** — **this round's** hole-by-hole card, editable by any
+  participant mid-round. Drives `rounds.par`.
 
-Two rules matter in the directory:
+**Players change par on their round, never on the course.** A basket has been
+moved short and hole 7 is playing as a 4 — that's a fact about today, not a
+correction to the listing. `round_holes` is a copy: `load_round_hole_pars` seeds
+it from a directory layout, and editing it afterwards never writes back.
+
+**The directory is maintained from the backend** (migration 0023), like the
+0020 rule-moderation valves. From the Supabase SQL editor:
+
+```sql
+select public.admin_set_course_par('<course-id>', 54, 'Measured 2026-08');
+select public.admin_set_layout_par('<layout-id>', 56);
+select public.admin_set_layout_holes('<layout-id>', array[3,4,3,5, ...]);
+select public.admin_add_course('Backyard Basket', 'Franklin', 9, 27);
+```
+
+Bulk changes belong in `supabase/seed/ma-courses.json` + a regenerated seed
+migration. All four helpers are service-role only; no client role can execute
+them, and the directory tables have no write policy at all.
+
+Two rules hold wherever par is stored:
 
 - **Par belongs to a layout, not a course.** The course's `total_par` is a
   headline; `par_low`/`par_high` keep the spread across layouts visible. A layout
-  with hole-by-hole detail derives its total from its holes (DB trigger) — don't
-  write `total_par` on those from the client.
+  with hole-by-hole detail derives its total from its holes (DB trigger), and so
+  does a round with a hole card — `set_round_par` refuses while one exists, so
+  the total and the breakdown can never disagree.
 - **Never invent a par.** `total_par` is null when nothing has been sourced. 3 x
   holes is wrong for any course with a par 4 or 5. `par_confidence` records
   provenance; `is_seed` marks imported rows and is immutable from the client.
 
-Round setup is unchanged in shape: it still writes a plain `rounds.par`, now
+Round setup is unchanged in shape: it still writes a plain `rounds.par`,
 autofilled from the bank first and the directory second.
 
 ## Environment

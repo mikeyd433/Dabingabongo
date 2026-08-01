@@ -28,6 +28,7 @@ import {
   type PendingConfirmation,
 } from '@/lib/scoring'
 import { RoundRulesManager } from '@/features/round/RoundRulesManager'
+import { RoundParEditor } from '@/features/round/RoundParEditor'
 import { buildLeaderboard } from '@/features/round/leaderboard'
 import { groupLiveEvents, type FeedGroup } from '@/features/round/feed'
 import { controllablePlayers } from '@/features/round/permissions'
@@ -153,6 +154,7 @@ export function LiveRoundScreen({ round }: { round: Round }) {
 
       {/* Host can add/change active rules mid-round (spec §7); others see them
           read-only. Shown to spectators too, so it isn't gated behind canScore. */}
+      <RoundParEditor round={round} />
       <RoundRulesManager round={round} isHost={isController} />
 
       {canScore ? (

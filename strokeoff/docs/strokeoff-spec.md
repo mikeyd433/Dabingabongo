@@ -391,6 +391,10 @@ course_layouts      (id, course_id -> course_directory, name,
 course_holes        (id, layout_id, hole_number, par, distance_ft NULLABLE)
                     -- when these exist they drive their layout's total_par
 
+round_holes         (id, round_id, hole_number, par)
+                    -- this round's own card; any participant edits it mid-round,
+                    -- it drives rounds.par, and it never writes back to a course
+
 rounds              (id, group_id, code, course_name, played_on DATE,
                      scoring_mode ['multi_phone'|'single_phone'],
                      status ['setup'|'lobby'|'active'|'complete'],

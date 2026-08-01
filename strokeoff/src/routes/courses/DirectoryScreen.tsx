@@ -1,35 +1,26 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { Select } from '@/components/Select'
 import { EmptyState } from '@/components/EmptyState'
 import { FormMessage } from '@/components/FormMessage'
 import { Chip, ConfidenceChip } from '@/features/courses/CourseChips'
-import { CourseEditor } from '@/features/courses/CourseEditor'
 import { formatPar, formatParRange } from '@/features/courses/parMath'
-import { useAuth } from '@/lib/auth'
-import {
-  useDirectoryCourses,
-  useCreateDirectoryCourse,
-} from '@/lib/courseDirectory'
+import { useDirectoryCourses } from '@/lib/courseDirectory'
 import type { DirectoryCourse } from '@/types'
 
 type ParFilter = 'all' | 'with-par' | 'needs-par'
 
 /**
  * The course directory — the shared reference library behind a group's
- * saved-course bank. Seeded from an imported Massachusetts roster and
- * correctable by anyone playing.
+ * saved-course bank. Look a course up here; change what you're playing to on
+ * the round itself.
  */
 export function DirectoryScreen() {
-  const { user } = useAuth()
   const { data: courses, isLoading, error } = useDirectoryCourses()
-  const createCourse = useCreateDirectoryCourse()
 
   const [search, setSearch] = useState('')
   const [parFilter, setParFilter] = useState<ParFilter>('all')
-  const [adding, setAdding] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -54,33 +45,16 @@ export function DirectoryScreen() {
 
   return (
     <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-lg font-bold text-text">
-          Course directory
-        </h1>
-        {user && !adding ? (
-          <Button type="button" onClick={() => setAdding(true)}>
-            Add course
-          </Button>
-        ) : null}
-      </div>
+      <h1 className="font-display text-lg font-bold text-text">
+        Course directory
+      </h1>
 
       {courses?.length ? (
         <p className="font-label text-xs text-muted">
-          {courses.length} courses · {withPar} with a sourced par. Par comes
-          from tournament and course records — fill in the rest as you play
-          them. Starting a round autofills par from here.
+          {courses.length} courses · {withPar} with a sourced par, from
+          tournament and course records. Starting a round autofills par from
+          here — and you can change it on the round without touching this list.
         </p>
-      ) : null}
-
-      {adding ? (
-        <CourseEditor
-          onSave={async (draft) => {
-            await createCourse.mutateAsync(draft)
-            setAdding(false)
-          }}
-          onCancel={() => setAdding(false)}
-        />
       ) : null}
 
       <TextInput
@@ -96,19 +70,19 @@ export function DirectoryScreen() {
         className="w-full"
       >
         <option value="all">All courses</option>
-        <option value="with-par">Par set</option>
-        <option value="needs-par">Needs par</option>
+        <option value="with-par">Par listed</option>
+        <option value="needs-par">No par listed</option>
       </Select>
 
       {isLoading ? (
         <Centered>Loading courses…</Centered>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={courses?.length ? 'No matches' : 'No courses yet'}
+          title={courses?.length ? 'No matches' : 'Directory is empty'}
           message={
             courses?.length
               ? 'Try a different search or filter.'
-              : 'Add the courses you play to start the directory.'
+              : "The course list hasn't been imported yet."
           }
         />
       ) : (
@@ -152,7 +126,7 @@ function CourseRow({ course }: { course: DirectoryCourse }) {
           {formatPar(course.total_par)}
         </span>
         {course.total_par == null ? (
-          <Chip tone="accent">Needs par</Chip>
+          <Chip tone="accent">No par</Chip>
         ) : (
           <ConfidenceChip confidence={course.par_confidence} />
         )}

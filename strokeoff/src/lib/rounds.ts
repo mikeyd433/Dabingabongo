@@ -136,6 +136,19 @@ export function useRoundRealtime(roundId: string | undefined) {
         {
           event: '*',
           schema: 'public',
+          table: 'round_holes',
+          filter: `round_id=eq.${roundId}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ['round-holes', roundId] })
+          void qc.invalidateQueries({ queryKey: ['round', roundId] })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
           table: 'round_rules',
           filter: `round_id=eq.${roundId}`,
         },

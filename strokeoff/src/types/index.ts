@@ -157,6 +157,20 @@ export interface CourseLayout {
   updated_at: string
 }
 
+/**
+ * A round's own per-hole par. Editable by any participant mid-round; when these
+ * exist they drive `rounds.par`. Copied from a layout at most as a starting
+ * point — editing them never touches the directory.
+ */
+export interface RoundHole {
+  id: UUID
+  round_id: UUID
+  hole_number: number
+  par: number
+  created_at: string
+  updated_at: string
+}
+
 /** Per-hole par for a layout. When these exist they drive the layout's total. */
 export interface CourseHole {
   id: UUID

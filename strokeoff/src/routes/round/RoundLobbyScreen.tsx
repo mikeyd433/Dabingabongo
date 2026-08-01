@@ -7,6 +7,7 @@ import { FormMessage } from '@/components/FormMessage'
 import { useAuth } from '@/lib/auth'
 import { useAddGuest, useRoundPlayers, useStartRound } from '@/lib/rounds'
 import { RoundRulesManager } from '@/features/round/RoundRulesManager'
+import { RoundParEditor } from '@/features/round/RoundParEditor'
 import { errorMessage } from '@/lib/validation'
 import type { Round } from '@/types'
 
@@ -48,6 +49,7 @@ export function LobbyView({ round }: { round: Round }) {
 
       <Roster players={players} />
 
+      <RoundParEditor round={round} />
       <RoundRulesManager round={round} isHost={isCreator} />
 
       {round.scoring_mode === 'single_phone' ? (
