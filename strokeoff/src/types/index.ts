@@ -105,6 +105,69 @@ export interface Course {
   created_at: string
 }
 
+export type ParConfidence = 'verified' | 'community' | 'unverified' | 'user'
+
+/**
+ * A course in the shared reference directory (spec §5b) — the library behind the
+ * group's saved-course bank above. `total_par` is the headline par; it is null
+ * when no par has ever been sourced, never guessed from the hole count, since
+ * that would be a fiction for any course with a par 4 or 5. `par_low`/`par_high`
+ * keep the spread across documented layouts visible behind that one number.
+ */
+export interface DirectoryCourse {
+  id: UUID
+  name: string
+  city: string | null
+  state: string
+  hole_count: number | null
+  total_par: number | null
+  par_low: number | null
+  par_high: number | null
+  par_source: string | null
+  par_confidence: ParConfidence
+  sourced_on: string | null
+  external_url: string | null
+  duplicate_note: string | null
+  notes: string | null
+  is_seed: boolean
+  created_by: UUID | null
+  updated_by: UUID | null
+  created_at: string
+  updated_at: string
+}
+
+/** Data-quality flag carried over from the imported reference data. */
+export type LayoutStatus = 'ok' | 'conflict' | 'superseded' | 'uncertain'
+
+/** One configuration of a directory course (tee/basket combination). */
+export interface CourseLayout {
+  id: UUID
+  course_id: UUID
+  name: string
+  hole_count: number | null
+  total_par: number | null
+  length_ft: number | null
+  source: string | null
+  status: LayoutStatus
+  note: string | null
+  is_seed: boolean
+  created_by: UUID | null
+  updated_by: UUID | null
+  created_at: string
+  updated_at: string
+}
+
+/** Per-hole par for a layout. When these exist they drive the layout's total. */
+export interface CourseHole {
+  id: UUID
+  layout_id: UUID
+  hole_number: number
+  par: number
+  distance_ft: number | null
+  created_at: string
+  updated_at: string
+}
+
 export type ConversionMode = 'tier' | 'ratio'
 
 export interface ConversionTable {

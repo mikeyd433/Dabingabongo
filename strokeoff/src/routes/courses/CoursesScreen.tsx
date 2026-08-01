@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { TextInput } from '@/components/TextInput'
 import { Select } from '@/components/Select'
@@ -63,6 +64,14 @@ export function CoursesScreen() {
       ) : null}
 
       <CourseLibrary groupId={activeGroupId} />
+
+      <p className="font-label text-xs text-muted">
+        Don't know a course's par?{' '}
+        <Link to="/courses/directory" className="text-accent underline">
+          Look it up in the course directory
+        </Link>{' '}
+        — every course in the area, with the layouts each one plays as.
+      </p>
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth'
 import { useMyGroups } from '@/lib/profile'
 import { useGroupConversion } from '@/lib/conversion'
 import { useCourses } from '@/lib/courses'
+import { useDirectoryCourses } from '@/lib/courseDirectory'
 import { useRules } from '@/lib/rules'
 import { useCreateRound } from '@/lib/rounds'
 import { errorMessage } from '@/lib/validation'
@@ -47,6 +48,7 @@ export function RoundSetupScreen() {
   )
   const { data: rules } = useRules(activeGroup?.id)
   const { data: courses } = useCourses(activeGroup?.id)
+  const { data: directory } = useDirectoryCourses()
 
   // Pre-fill from the player's saved Settings defaults (spec §11).
   const defaults = useMemo(() => getRoundDefaults(), [])
@@ -131,16 +133,20 @@ export function RoundSetupScreen() {
     }
   }
 
-  // Picking (or typing) a saved course pre-fills its par, but only when par is
-  // still blank so it never clobbers a value you're entering by hand.
+  // Picking (or typing) a course pre-fills its par, but only when par is still
+  // blank so it never clobbers a value you're entering by hand. The group's own
+  // saved courses win over the directory — that's the par you actually play.
   function handleCourseChange(value: string) {
     setCourse(value)
-    const match = courses?.find(
-      (c) => c.name.toLowerCase() === value.trim().toLowerCase(),
-    )
-    if (match && match.par != null && par.trim() === '') {
-      setPar(String(match.par))
+    if (par.trim() !== '') return
+    const needle = value.trim().toLowerCase()
+    const saved = courses?.find((c) => c.name.toLowerCase() === needle)
+    if (saved?.par != null) {
+      setPar(String(saved.par))
+      return
     }
+    const listed = directory?.find((c) => c.name.toLowerCase() === needle)
+    if (listed?.total_par != null) setPar(String(listed.total_par))
   }
 
   return (
@@ -171,22 +177,43 @@ export function RoundSetupScreen() {
           list="saved-courses"
           autoComplete="off"
         />
-        {courses && courses.length > 0 ? (
-          <datalist id="saved-courses">
-            {courses.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.par != null ? `Par ${c.par}` : ''}
+        <datalist id="saved-courses">
+          {(courses ?? []).map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.par != null ? `Par ${c.par}` : 'Saved course'}
+            </option>
+          ))}
+          {(directory ?? [])
+            .filter(
+              (d) =>
+                !(courses ?? []).some(
+                  (c) => c.name.toLowerCase() === d.name.toLowerCase(),
+                ),
+            )
+            .map((d) => (
+              <option key={d.id} value={d.name}>
+                {[d.city, d.total_par != null ? `par ${d.total_par}` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
               </option>
             ))}
-          </datalist>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => navigate('/courses')}
-          className="self-start font-label text-xs text-accent underline"
-        >
-          Manage saved courses
-        </button>
+        </datalist>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/courses')}
+            className="font-label text-xs text-accent underline"
+          >
+            Manage saved courses
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/courses/directory')}
+            className="font-label text-xs text-accent underline"
+          >
+            Browse the course directory
+          </button>
+        </div>
       </Field>
 
       <Field label="Date" htmlFor="round-date">

@@ -6,6 +6,8 @@ import { RoundSetupScreen } from '@/routes/round/RoundSetupScreen'
 import { RoundDetailScreen } from '@/routes/round/RoundDetailScreen'
 import { RulesScreen } from '@/routes/rules/RulesScreen'
 import { CoursesScreen } from '@/routes/courses/CoursesScreen'
+import { DirectoryScreen } from '@/routes/courses/DirectoryScreen'
+import { DirectoryCourseScreen } from '@/routes/courses/DirectoryCourseScreen'
 import { HistoryScreen } from '@/routes/history/HistoryScreen'
 import { CommunityScreen } from '@/routes/community/CommunityScreen'
 import { PlayerProfileScreen } from '@/routes/community/PlayerProfileScreen'
@@ -24,6 +26,12 @@ export function App() {
         <Route path="round/:roundId" element={<RoundDetailScreen />} />
         <Route path="rules" element={<RulesScreen />} />
         <Route path="courses" element={<CoursesScreen />} />
+        {/* Shared reference directory behind the group's saved-course bank. */}
+        <Route path="courses/directory" element={<DirectoryScreen />} />
+        <Route
+          path="courses/directory/:courseId"
+          element={<DirectoryCourseScreen />}
+        />
         <Route path="history" element={<HistoryScreen />} />
         <Route path="community" element={<CommunityScreen />} />
         <Route

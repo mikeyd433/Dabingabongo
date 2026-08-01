@@ -74,7 +74,32 @@ pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint
 pnpm test         # vitest
 npx supabase ...  # migrations / local stack
+
+# Course directory: edit supabase/seed/ma-courses.json, then regenerate
+node supabase/seed/build-seed-migration.mjs
 ```
+
+## Courses — two tables, two jobs
+
+- **`courses`** is the group's **saved-course bank**: the handful you actually
+  play, with the par you actually use. Group-scoped, remembered automatically
+  when a round is created. This is `/courses`.
+- **`course_directory`** (+ `course_layouts`, `course_holes`) is the **shared
+  reference library** behind it — every course in the region, world-readable,
+  correctable by anyone signed in. This is `/courses/directory`.
+
+Two rules matter in the directory:
+
+- **Par belongs to a layout, not a course.** The course's `total_par` is a
+  headline; `par_low`/`par_high` keep the spread across layouts visible. A layout
+  with hole-by-hole detail derives its total from its holes (DB trigger) — don't
+  write `total_par` on those from the client.
+- **Never invent a par.** `total_par` is null when nothing has been sourced. 3 x
+  holes is wrong for any course with a par 4 or 5. `par_confidence` records
+  provenance; `is_seed` marks imported rows and is immutable from the client.
+
+Round setup is unchanged in shape: it still writes a plain `rounds.par`, now
+autofilled from the bank first and the directory second.
 
 ## Environment
 

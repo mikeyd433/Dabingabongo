@@ -371,6 +371,26 @@ rules               (id, group_id, name, display_name, description, points,
 conversion_tables   (id, group_id NULLABLE, name,
                      mode ['tier'|'ratio'], config JSONB)
 
+courses             (id, group_id, name, par NULLABLE, created_by)
+                    -- the group's saved-course bank: the courses you play
+
+course_directory    (id, name, city, state, hole_count NULLABLE,
+                     total_par NULLABLE, par_low NULLABLE, par_high NULLABLE,
+                     par_source NULLABLE, sourced_on DATE NULLABLE,
+                     par_confidence ['verified'|'community'|'unverified'|'user'],
+                     external_url NULLABLE, duplicate_note NULLABLE,
+                     notes NULLABLE, is_seed BOOL, created_by, updated_by)
+                    -- shared reference library behind the bank; world-readable
+
+course_layouts      (id, course_id -> course_directory, name,
+                     hole_count NULLABLE, total_par NULLABLE,
+                     length_ft NULLABLE, source NULLABLE,
+                     status ['ok'|'conflict'|'superseded'|'uncertain'],
+                     note NULLABLE, is_seed BOOL, created_by, updated_by)
+
+course_holes        (id, layout_id, hole_number, par, distance_ft NULLABLE)
+                    -- when these exist they drive their layout's total_par
+
 rounds              (id, group_id, code, course_name, played_on DATE,
                      scoring_mode ['multi_phone'|'single_phone'],
                      status ['setup'|'lobby'|'active'|'complete'],
