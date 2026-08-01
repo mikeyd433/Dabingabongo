@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Lyric Chunker",
     "author": "Mikey D",
-    "version": (2, 6, 0),
+    "version": (2, 7, 0),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar (N) > Lyric Chunker",
     "description": "Delimited lyrics to per-syllable stills with a timing manifest",
@@ -126,7 +126,7 @@ MANIFEST_VERSION = 1
 # Single source of truth for the add-on version; blender_manifest.toml
 # must match (the single-file build script asserts it).
 ADDON_ID = "lyric_chunker"
-ADDON_VERSION = "2.6.0"
+ADDON_VERSION = "2.7.0"
 
 RESERVED_FILENAMES = {"song.json"}
 
@@ -643,6 +643,13 @@ DEFAULT_ELEMENT_DIP_IN = 1
 DEFAULT_ELEMENT_DIP_OUT = 3
 DEFAULT_ELEMENT_POSITION = (0.5, 0.5)
 
+# Travel mode: the element hops between words, arriving on each chunk's
+# start frame rather than leaving on it — a bouncing-ball pointer lands
+# on the beat.
+DEFAULT_HOP_FRAMES = 6
+DEFAULT_ARC_HEIGHT = 0.12
+DEFAULT_TRAVEL_OFFSET = (0.0, 0.08)
+
 _NAME_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
 
 
@@ -663,36 +670,43 @@ def template_elements():
             "position: normalized [x, y]; 0.5, 0.5 is frame centre.",
             "in_front: true to sit over the lyrics, false to sit behind.",
             "enabled: false switches an element off without deleting it.",
+            "motion: 'travel' hops the element from word to word, landing",
+            "on each chunk as it lights up; 'bob' dips it in place.",
+            "Travel wants a tight cut-out (it is positioned for you); bob",
+            "wants a full-frame PNG with the image already in place.",
+            "offset: [x, y] from the word's top-centre, so 0, 0.08 rides",
+            "just above the text. hop_frames is how long the arc takes,",
+            "arc_height how high it peaks.",
             "Two elements set to 'odd' and 'even' alternate; one set to",
-            "'all' bounces on every chunk.",
+            "'all' reacts to every chunk.",
             "Avoid names ending in digits (head1.png, head2.png) — Fusion",
             "may read those as an image sequence. Use head_left.png etc.",
         ],
         "elements": [
             {
-                "name": "HeadLeft",
-                "image": "elements/head_left.png",
+                "name": "HeadOne",
+                "image": "elements/head_one.png",
+                "motion": "travel",
                 "chunks": "odd",
                 "lines": "all",
-                "position": [0.22, 0.35],
+                "offset": list(DEFAULT_TRAVEL_OFFSET),
                 "size": 1.0,
-                "bounce_depth": DEFAULT_ELEMENT_DEPTH,
-                "dip_in": DEFAULT_ELEMENT_DIP_IN,
-                "dip_out": DEFAULT_ELEMENT_DIP_OUT,
-                "in_front": False,
+                "hop_frames": DEFAULT_HOP_FRAMES,
+                "arc_height": DEFAULT_ARC_HEIGHT,
+                "in_front": True,
                 "enabled": True,
             },
             {
-                "name": "HeadRight",
-                "image": "elements/head_right.png",
+                "name": "HeadTwo",
+                "image": "elements/head_two.png",
+                "motion": "travel",
                 "chunks": "even",
                 "lines": "all",
-                "position": [0.78, 0.35],
+                "offset": list(DEFAULT_TRAVEL_OFFSET),
                 "size": 1.0,
-                "bounce_depth": DEFAULT_ELEMENT_DEPTH,
-                "dip_in": DEFAULT_ELEMENT_DIP_IN,
-                "dip_out": DEFAULT_ELEMENT_DIP_OUT,
-                "in_front": False,
+                "hop_frames": DEFAULT_HOP_FRAMES,
+                "arc_height": DEFAULT_ARC_HEIGHT,
+                "in_front": True,
                 "enabled": True,
             },
         ],
@@ -756,6 +770,56 @@ def chunk_indices(element, chunk_count):
             return [i for i in range(chunk_count) if i % 2 == 1]
         return []
     return [n - 1 for n in selector if 1 <= n <= chunk_count]
+
+
+def _dedupe(keys):
+    """Sorted, one key per frame — later keys win."""
+    merged = {}
+    for frame, value in keys:
+        merged[frame] = value
+    return [(frame, merged[frame]) for frame in sorted(merged)]
+
+
+def travel_keys(starts, landings, hop_frames=DEFAULT_HOP_FRAMES,
+                arc_height=DEFAULT_ARC_HEIGHT):
+    """X and Y keyframes for an element hopping between word positions.
+
+    The element rests on a word, then arcs to the next one so that it
+    *lands* exactly on that chunk's start frame — the hop occupies the
+    frames before the beat, not after it. The arc peaks between the two
+    landings, ``arc_height`` above the higher of them.
+
+    Returns ``(x_keys, y_keys, warnings)``.
+    """
+    warnings = []
+    if not starts:
+        return [], [], warnings
+
+    x_keys = [(starts[0], landings[0][0])]
+    y_keys = [(starts[0], landings[0][1])]
+    for index in range(1, len(starts)):
+        previous, current = starts[index - 1], starts[index]
+        gap = current - previous
+        if gap <= 0:
+            warnings.append(
+                f"hop landing on frame {current} is not after the previous "
+                "one — skipped"
+            )
+            continue
+        hop = max(1, min(hop_frames, gap))
+        launch = current - hop
+        from_x, from_y = landings[index - 1]
+        to_x, to_y = landings[index]
+        if launch > previous:
+            # Hold on the current word until the hop begins.
+            x_keys.append((launch, from_x))
+            y_keys.append((launch, from_y))
+        apex_frame = launch + hop // 2
+        if launch < apex_frame < current:
+            y_keys.append((apex_frame, max(from_y, to_y) + arc_height))
+        x_keys.append((current, to_x))
+        y_keys.append((current, to_y))
+    return _dedupe(x_keys), _dedupe(y_keys), warnings
 
 
 def displacement_keys(starts, dip_in, dip_out):
@@ -921,6 +985,34 @@ def line_local_frames(doc, untimed_seconds=DEFAULT_UNTIMED_SECONDS,
     return frames, warnings
 
 
+def pixel_resolution(doc):
+    render = doc.get("render", {})
+    pct = render.get("resolution_percentage", 100) / 100.0
+    return (
+        max(1, round(render.get("resolution_x", 1920) * pct)),
+        max(1, round(render.get("resolution_y", 1080) * pct)),
+    )
+
+
+def chunk_landing(chunk, resolution, offset):
+    """Where a travelling element should land on this chunk: the top
+    centre of its pixel bbox, plus the element's offset.
+
+    ``bbox_px`` is [x_min, y_min, x_max, y_max] with the origin at
+    bottom-left (§1.4), which is already Fusion's convention — so the
+    normalized result drops straight into a Transform centre.
+    """
+    res_x, res_y = resolution
+    bbox = chunk.get("bbox_px")
+    if bbox and len(bbox) == 4 and bbox[2] > bbox[0]:
+        x = ((bbox[0] + bbox[2]) / 2.0) / res_x
+        y = bbox[3] / res_y
+    else:
+        screen = chunk.get("screen_position") or (0.5, 0.5)
+        x, y = screen[0], screen[1]
+    return (x + offset[0], y + offset[1])
+
+
 def comp_length(doc, frames):
     render = doc.get("render", {})
     fps = render.get("fps", 24) / render.get("fps_base", 1.0)
@@ -1028,6 +1120,31 @@ def _place_transform(name, source, position, size, pos):
 """
 
 
+def _travel_transform(name, source, x_keys, y_keys, size, pos):
+    """Transform whose Centre is driven by an XYPath — independent X and
+    Y splines, so the horizontal hop and the vertical arc are keyed
+    exactly rather than inferred from path geometry."""
+    path = name + "Path"
+    return f"""\
+\t\t{name} = Transform {{
+\t\t\tInputs = {{
+\t\t\t\tInput = Input {{ SourceOp = {_lua_str(source)}, Source = "Output", }},
+\t\t\t\tCenter = Input {{ SourceOp = {_lua_str(path)}, Source = "Value", }},
+\t\t\t\tSize = Input {{ Value = {_num(size)}, }},
+\t\t\t}},
+\t\t\tViewInfo = OperatorInfo {{ Pos = {{ {_num(pos[0])}, {_num(pos[1])} }} }},
+\t\t}},
+\t\t{path} = XYPath {{
+\t\t\tDrawMode = "ModifyOnly",
+\t\t\tInputs = {{
+\t\t\t\tX = Input {{ SourceOp = {_lua_str(path + "X")}, Source = "Value", }},
+\t\t\t\tY = Input {{ SourceOp = {_lua_str(path + "Y")}, Source = "Value", }},
+\t\t\t}},
+\t\t}},
+""" + _spline(path + "X", (255, 128, 0), x_keys) \
+    + _spline(path + "Y", (255, 0, 128), y_keys)
+
+
 def _bounce_transform(name, source, keys, depth, pos):
     """Transform whose Center rides a 3-point PolyPath (rest, -depth,
     rest), driven by an explicit Displacement key list — the exact
@@ -1073,15 +1190,15 @@ def _transform(name, source, start, dip_in, dip_out, depth, pos):
     return _bounce_transform(name, source, keys, depth, pos)
 
 
-def _element_branch(element, base_dir, starts, length, row):
-    """One reactor element: Loader -> optional Place -> Bounce."""
+def _element_branch(element, base_dir, starts, landings, length, row):
+    """One reactor element.
+
+    ``travel`` motion hops the element between word positions, landing
+    on each chunk's start frame; ``bob`` (the default) dips it in place.
+    """
     name = safe_name(element.get("name"))
     y = row * _ROW_Y
     loader = f"Load_El_{name}"
-    depth = float(element.get("bounce_depth", DEFAULT_ELEMENT_DEPTH))
-    dip_in = int(element.get("dip_in", DEFAULT_ELEMENT_DIP_IN))
-    dip_out = int(element.get("dip_out", DEFAULT_ELEMENT_DIP_OUT))
-    position = tuple(element.get("position", DEFAULT_ELEMENT_POSITION))
     size = float(element.get("size", 1.0))
 
     # Element images are standalone files, so no sequence trimming.
@@ -1090,6 +1207,25 @@ def _element_branch(element, base_dir, starts, length, row):
         (0.0, y), frame_index=0, clip_frames=1,
     )]
     tip = loader
+
+    if str(element.get("motion", "bob")).lower() == "travel":
+        x_keys, y_keys, warnings = travel_keys(
+            starts, landings,
+            int(element.get("hop_frames", DEFAULT_HOP_FRAMES)),
+            float(element.get("arc_height", DEFAULT_ARC_HEIGHT)),
+        )
+        if x_keys:
+            travel = f"Travel_El_{name}"
+            parts.append(_travel_transform(
+                travel, tip, x_keys, y_keys, size, (_COL_X, y)
+            ))
+            tip = travel
+        return "".join(parts), tip, [f"element '{name}': {w}" for w in warnings]
+
+    depth = float(element.get("bounce_depth", DEFAULT_ELEMENT_DEPTH))
+    dip_in = int(element.get("dip_in", DEFAULT_ELEMENT_DIP_IN))
+    dip_out = int(element.get("dip_out", DEFAULT_ELEMENT_DIP_OUT))
+    position = tuple(element.get("position", DEFAULT_ELEMENT_POSITION))
     if position != tuple(DEFAULT_ELEMENT_POSITION) or size != 1.0:
         place = f"Place_El_{name}"
         parts.append(_place_transform(place, tip, position, size, (_COL_X, y)))
@@ -1152,15 +1288,23 @@ def generate_line_setting(
 
     tools = []
 
+    resolution = pixel_resolution(doc)
+
     def add_elements(group, first_row):
         """Element branches, returning their tip names in order."""
         tips = []
         for offset, element in enumerate(group):
-            starts = [
-                frames[i] for i in chunk_indices(element, len(chunks))
+            indices = chunk_indices(element, len(chunks))
+            starts = [frames[i] for i in indices]
+            travel_offset = tuple(
+                element.get("offset", DEFAULT_TRAVEL_OFFSET)
+            )
+            landings = [
+                chunk_landing(chunks[i], resolution, travel_offset)
+                for i in indices
             ]
             text, tip, element_warnings = _element_branch(
-                element, elements_dir or png_dir, starts, length,
+                element, elements_dir or png_dir, starts, landings, length,
                 first_row + offset,
             )
             tools.append(text)

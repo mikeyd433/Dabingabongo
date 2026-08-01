@@ -70,8 +70,8 @@
       "platforms": [
         "Blender"
       ],
-      "version": "2.6.0",
-      "updated": "2026-07-31",
+      "version": "2.7.0",
+      "updated": "2026-08-01",
       "featured": false,
       "tags": [
         "blender",
@@ -88,13 +88,13 @@
           "label": "Bundle: add-on + comp generator (.zip)",
           "platform": "Blender + Resolve",
           "url": "/downloads/lyric_chunker_bundle.zip",
-          "size": "167 KB"
+          "size": "178 KB"
         },
         {
           "label": "Add-on only (.py)",
           "platform": "Blender",
           "url": "/downloads/lyric_chunker.py",
-          "size": "128 KB"
+          "size": "133 KB"
         }
       ],
       "links": [
@@ -104,6 +104,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "2.7.0",
+          "date": "2026-08-01",
+          "notes": [
+            "Add travel motion: elements that hop word to word and land on the beat (LyricChunker@150d85b)"
+          ]
+        },
         {
           "version": "2.6.0",
           "date": "2026-07-31",
