@@ -2,12 +2,24 @@
   command = "bash build.sh"
   publish = "dist"
 
-# The Stroke Off app (built into /strokeoff by build.sh) needs these set in the
-# Netlify UI → Site settings → Environment (NOT committed here):
+# Set in the Netlify UI → Site settings → Environment (NOT committed here).
+#
+# Stroke Off (/strokeoff):
 #   VITE_SUPABASE_URL       - Supabase project URL
 #   VITE_SUPABASE_ANON_KEY  - Supabase anon/public key
 # Without them the app still builds and runs; its Supabase health check just reports
 # "not configured" until they're provided.
+#
+# The Delve (/delve):
+#   DELVE_SUPABASE_URL              - Supabase project URL  (project: the-delve)
+#   DELVE_SUPABASE_PUBLISHABLE_KEY  - Supabase publishable key
+# Named separately because both apps read VITE_SUPABASE_URL and they are different
+# projects; build.sh maps these onto the VITE_ names for The Delve's build alone.
+# Without them /delve builds fine and its two offline screens — /delve/preview and
+# /delve/story/demo — work, but signing in and loading a real story will not.
+#
+# Signing in also needs dabingabongo.com added to the Supabase project's allowed
+# redirect URLs, or the magic link will bounce.
 
 [[headers]]
   for = "/*"

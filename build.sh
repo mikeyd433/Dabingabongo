@@ -50,11 +50,22 @@ echo "==> Building The Delve (separate repo, pnpm)..."
 (
   set -e
   rm -rf .delve-src
-  # Defaults to main. Set DELVE_REF in the Netlify UI to build a branch instead
-  # — needed until the build branch is merged, since main has no app on it yet.
+  # Defaults to main. Set DELVE_REF in the Netlify UI to build a branch instead,
+  # which is how you put an unmerged change on the live site to look at.
   git clone --depth 1 --branch "${DELVE_REF:-main}" \
     https://github.com/mikeyd433/PhoneDungeonBuilder.git .delve-src
   cd .delve-src
+
+  # Stroke Off and The Delve BOTH read VITE_SUPABASE_URL, and they are separate
+  # Supabase projects — so a single Netlify variable of that name cannot serve
+  # both, and whichever app it doesn't belong to would fail at runtime with no
+  # build error to show for it.
+  #
+  # DELVE_SUPABASE_URL / DELVE_SUPABASE_PUBLISHABLE_KEY win for this build only
+  # (this is a subshell, so nothing leaks back). Left unset, the shared names are
+  # used as-is, which is the right answer if the two apps ever do share a project.
+  export VITE_SUPABASE_URL="${DELVE_SUPABASE_URL:-$VITE_SUPABASE_URL}"
+  export VITE_SUPABASE_PUBLISHABLE_KEY="${DELVE_SUPABASE_PUBLISHABLE_KEY:-$VITE_SUPABASE_PUBLISHABLE_KEY}"
   if ! command -v pnpm >/dev/null 2>&1; then
     corepack enable || npm install -g pnpm@10.33.0
   fi
