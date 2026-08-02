@@ -25,6 +25,32 @@
   [headers.values]
   Cache-Control = "no-cache"
 
+# ---------------------------------------------------------------- The Delve
+#
+# The Delve (dungeon-crawl authoring tool for the phone adventure) lives in its
+# own repo — mikeyd433/PhoneDungeonBuilder — and deploys as its own Netlify
+# site. Unlike strokeoff/harmony/brainstorm, it is NOT built by build.sh; it is
+# proxied in here so it keeps the dabingabongo.com/delve URL.
+#
+# status = 200 makes these rewrites rather than redirects, so the address bar
+# stays on dabingabongo.com. The Delve is built with Vite base = "/delve/", so
+# its own asset paths already line up with this prefix and :splat passes through
+# unchanged.
+#
+# TODO: DELVE_ORIGIN below is a placeholder — point it at the real Netlify site
+# for PhoneDungeonBuilder once that site exists, then remove this note.
+[[redirects]]
+  from = "/delve"
+  to   = "https://the-delve.netlify.app/delve/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/delve/*"
+  to   = "https://the-delve.netlify.app/delve/:splat"
+  status = 200
+  force = true
+
 # Short, typeable link for the TouchSynth APK
 [[redirects]]
   from = "/touchsynth/apk"
