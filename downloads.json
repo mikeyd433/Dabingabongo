@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.8.0",
+      "version": "0.9.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.9.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Artwork matching sees past take numbers like \"growl 03\" and now reaches the actual subject of a sound.",
+            "Prefers the thing over the place it lives in, and stops offering generic words like death or player as matches."
+          ]
+        },
         {
           "version": "0.8.0",
           "date": "2026-08-02",
