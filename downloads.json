@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.2.1",
+      "version": "0.3.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,15 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.3.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Filter by whether a sound has wiki artwork, with a live count of how many do not.",
+            "Re-match artwork on its own from the Update button, without re-downloading any audio.",
+            "Match artwork for \"Equip <item>\" sounds, which were previously all discarded."
+          ]
+        },
         {
           "version": "0.2.1",
           "date": "2026-08-02",
