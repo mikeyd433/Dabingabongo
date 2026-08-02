@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.7.0",
+      "version": "0.8.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.8.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Artwork matching now considers every word of a sound name, not just the start, so the entity gets found wherever it sits.",
+            "Change icon opens with the plausible subjects from the name as one-click chips."
+          ]
+        },
         {
           "version": "0.7.0",
           "date": "2026-08-02",
