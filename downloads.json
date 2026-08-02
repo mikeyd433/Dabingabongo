@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.10.0",
+      "version": "0.11.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.11.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Merge duplicates: one pad per sound instead of one per take, with the other takes a right-click away.",
+            "Level-up jingles reliably get their skill icon \u2014 a curated rule no longer loses to a weaker filename guess."
+          ]
+        },
         {
           "version": "0.10.0",
           "date": "2026-08-02",
