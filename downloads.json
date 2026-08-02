@@ -221,6 +221,60 @@
       ]
     },
     {
+      "id": "osrs-soundboard",
+      "name": "OSRS Soundboard",
+      "tagline": "Desktop soundboard and music player for Old School RuneScape audio",
+      "description": "A standalone desktop app — not a browser tab — with two tabs of its own: a pad grid of every OSRS sound effect that fires instantly and overlaps when you hammer it, and a searchable library of the music tracks and jingles with a full transport bar. Both share one mixer, so a track can run under the board while you fire effects over it. The app ships empty and assembles its own library from the OSRS Wiki on first run: sound effects and short jingles are stored locally so pads have no latency, and music streams on demand rather than filling 7 GB of disk. Esc stops every voice instantly.",
+      "icon": "🔊",
+      "category": "App",
+      "platforms": [
+        "Windows"
+      ],
+      "version": "0.1.0",
+      "updated": "2026-08-02",
+      "featured": false,
+      "tags": [
+        "audio",
+        "soundboard",
+        "osrs",
+        "runescape",
+        "music",
+        "desktop",
+        "tauri"
+      ],
+      "downloads": [
+        {
+          "label": "Windows installer (.exe)",
+          "platform": "Windows",
+          "url": "https://github.com/mikeyd433/ScapeSoundboard/releases/latest/download/OSRS-Soundboard-Setup-x64.exe"
+        },
+        {
+          "label": "Windows (.msi)",
+          "platform": "Windows",
+          "url": "https://github.com/mikeyd433/ScapeSoundboard/releases/latest/download/OSRS-Soundboard-x64.msi"
+        }
+      ],
+      "links": [
+        {
+          "label": "Source & docs (GitHub)",
+          "url": "https://github.com/mikeyd433/ScapeSoundboard"
+        }
+      ],
+      "changelog": [
+        {
+          "version": "0.1.0",
+          "date": "2026-08-02",
+          "notes": [
+            "First release. Tauri desktop shell; the installer adds a desktop shortcut.",
+            "First-run setup reads the wiki file index and downloads sound effects and short jingles, resumable if you quit halfway.",
+            "Soundboard tab: virtualized pad grid, overlapping polyphonic playback, per-pad volume and pitch.",
+            "Library tab: virtualized list with crossfading transport, variant chips, favourites.",
+            "Search with cat: filters, current-only and length filters, Esc panic."
+          ]
+        }
+      ]
+    },
+    {
       "id": "template",
       "name": "App name",
       "tagline": "One-line pitch shown under the name",
