@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.9.0",
+      "version": "0.10.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.10.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Artwork matching now searches the wiki the same way the Change icon dialog does, so sounds whose subject is not an article title of its own still find a picture."
+          ]
+        },
         {
           "version": "0.9.0",
           "date": "2026-08-02",
