@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.4.0",
+      "version": "0.5.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,15 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.5.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Match artwork for engine-style names like \"100 goblin falls\" by digging the entity out of the filename.",
+            "Sort the board by artwork first, A\u2013Z or length \u2014 alphabetical used to bury everything behind hundreds of numbered quest sounds.",
+            "Cleaner fallback tiles: a leading number no longer eats both initials."
+          ]
+        },
         {
           "version": "0.4.0",
           "date": "2026-08-02",
