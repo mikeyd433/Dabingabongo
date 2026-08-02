@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.3.0",
+      "version": "0.4.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.4.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Search sounds by what they are, not just their filename \u2014 searching \"being hit\" or \"special attack\" now finds the right pad.",
+            "Pads show what the sound is underneath the name."
+          ]
+        },
         {
           "version": "0.3.0",
           "date": "2026-08-02",
