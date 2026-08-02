@@ -12,7 +12,7 @@
       "name": "TouchSynth",
       "tagline": "Expressive multi-touch synthesizer",
       "description": "A playable touch-grid synth. Grab the Android app, the desktop bundle, or run it straight in the browser.",
-      "icon": "🎹",
+      "icon": "\ud83c\udfb9",
       "category": "App",
       "platforms": [
         "Android",
@@ -65,7 +65,7 @@
       "name": "Lyric Chunker",
       "tagline": "Blender add-on + Fusion comp generator for the music visualizer pipeline",
       "description": "Type delimited lyrics, get styled 3D text split into per-syllable chunk objects, batch-render each chunk as a transparent 16-bit PNG with a JSON timing manifest per line, then generate a pasteable Fusion node graph (color-flip + bounce, timed from the manifest) for DaVinci Resolve. The bundle zip has both tools; the add-on installs via Edit > Preferences > Add-ons > Install from Disk, the comp generator runs with plain Python 3.",
-      "icon": "🎤",
+      "icon": "\ud83c\udfa4",
       "category": "Blender Add-on",
       "platforms": [
         "Blender"
@@ -223,14 +223,14 @@
     {
       "id": "osrs-soundboard",
       "name": "OSRS Soundboard",
-      "tagline": "Desktop soundboard and music player for Old School RuneScape audio",
-      "description": "A standalone desktop app — not a browser tab — with two tabs of its own: a pad grid of every OSRS sound effect that fires instantly and overlaps when you hammer it, and a searchable library of the music tracks and jingles with a full transport bar. Both share one mixer, so a track can run under the board while you fire effects over it. The app ships empty and assembles its own library from the OSRS Wiki on first run: sound effects and short jingles are stored locally so pads have no latency, and music streams on demand rather than filling 7 GB of disk. Esc stops every voice instantly.",
-      "icon": "🔊",
+      "tagline": "Desktop soundboard, music player and sample grabber for Old School RuneScape audio",
+      "description": "A standalone desktop app \u2014 not a browser tab \u2014 with two tabs of its own: a pad grid of every OSRS sound effect that fires instantly and overlaps when you hammer it, and a searchable library of the music tracks and jingles with a full transport bar. Both share one mixer, so a track can run under the board while you fire effects over it. Save 4\u00d74 or 8\u00d78 boards and play them from the number and QWERTY rows, drag sounds straight out into REAPER, Resolve or Discord, and let it match each sound to its wiki artwork. The app ships empty and assembles its own library from the OSRS Wiki on first run: sound effects and short jingles are stored locally so pads have no latency, and music streams on demand rather than filling 7 GB of disk. Esc stops every voice instantly.",
+      "icon": "\ud83d\udd0a",
       "category": "App",
       "platforms": [
         "Windows"
       ],
-      "version": "0.1.0",
+      "version": "0.2.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -240,7 +240,8 @@
         "runescape",
         "music",
         "desktop",
-        "tauri"
+        "tauri",
+        "sampler"
       ],
       "downloads": [
         {
@@ -262,6 +263,16 @@
       ],
       "changelog": [
         {
+          "version": "0.2.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Saved boards: 4\u00d74 and 8\u00d78 layouts, Alt+1\u20139 to switch, slots 1\u201316 bound to the number and QWERTY rows.",
+            "Drag sounds out into other apps, with grab handles on pads and library rows and an optional whole-pad gesture. Files are handed over under their real names.",
+            "Wiki sprite matching: sounds are linked to their artwork via the SFX Project index, with an inline search to override any icon by hand.",
+            "Sound effects now carry their in-game sound ID and config name, and both are searchable."
+          ]
+        },
+        {
           "version": "0.1.0",
           "date": "2026-08-02",
           "notes": [
@@ -279,7 +290,7 @@
       "name": "App name",
       "tagline": "One-line pitch shown under the name",
       "description": "A sentence or two about what it does and who it's for.",
-      "icon": "📦",
+      "icon": "\ud83d\udce6",
       "category": "App",
       "platforms": [
         "Windows",
