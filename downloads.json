@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.6.0",
+      "version": "0.7.0",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -257,6 +257,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.0",
+          "date": "2026-08-02",
+          "notes": [
+            "Level-up jingles really do show their skill icon now, including the Unlocks, Even and Odd variants, plus Combat."
+          ]
+        },
         {
           "version": "0.6.0",
           "date": "2026-08-02",
