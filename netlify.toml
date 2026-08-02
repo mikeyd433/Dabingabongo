@@ -25,6 +25,18 @@
   [headers.values]
   Cache-Control = "no-cache"
 
+# Never cache The Delve's service worker or web manifest, so its PWA update
+# flow works — same reasoning as Stroke Off above.
+[[headers]]
+  for = "/delve/sw.js"
+  [headers.values]
+  Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/delve/manifest.webmanifest"
+  [headers.values]
+  Cache-Control = "no-cache"
+
 # Short, typeable link for the TouchSynth APK
 [[redirects]]
   from = "/touchsynth/apk"
@@ -69,6 +81,18 @@
 [[redirects]]
   from = "/strokeoff/*"
   to   = "/strokeoff/index.html"
+  status = 200
+
+# SPA fallback for The Delve (built from the PhoneDungeonBuilder repo by
+# build.sh), so client-side routes resolve on deep link or refresh.
+[[redirects]]
+  from = "/delve"
+  to   = "/delve/"
+  status = 301
+
+[[redirects]]
+  from = "/delve/*"
+  to   = "/delve/index.html"
   status = 200
 
 [[redirects]]
