@@ -230,7 +230,7 @@
       "platforms": [
         "Windows"
       ],
-      "version": "0.2.0",
+      "version": "0.2.1",
       "updated": "2026-08-02",
       "featured": false,
       "tags": [
@@ -248,11 +248,6 @@
           "label": "Windows installer (.exe)",
           "platform": "Windows",
           "url": "https://github.com/mikeyd433/ScapeSoundboard/releases/latest/download/OSRS-Soundboard-Setup-x64.exe"
-        },
-        {
-          "label": "Windows (.msi)",
-          "platform": "Windows",
-          "url": "https://github.com/mikeyd433/ScapeSoundboard/releases/latest/download/OSRS-Soundboard-x64.msi"
         }
       ],
       "links": [
@@ -262,6 +257,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.2.1",
+          "date": "2026-08-02",
+          "notes": [
+            "One Windows installer instead of two \u2014 the MSI only mattered for managed deployment, so it is gone."
+          ]
+        },
         {
           "version": "0.2.0",
           "date": "2026-08-02",
