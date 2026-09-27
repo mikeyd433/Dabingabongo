@@ -20,6 +20,16 @@
 #
 # Signing in also needs dabingabongo.com added to the Supabase project's allowed
 # redirect URLs, or the magic link will bounce.
+#
+# Not A Book Club (/nabc):
+#   NABC_SUPABASE_URL       - Supabase project URL       (project: not-a-book-club)
+#   NABC_SUPABASE_ANON_KEY  - Supabase anon/publishable key
+# Named separately for the same reason as DELVE_*: NABC also reads
+# VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY but is yet another distinct
+# Supabase project, so build.sh maps these onto the VITE_ names for NABC's
+# build alone. Without them /nabc builds fine but magic-link sign-in and all
+# data will fail at runtime. Signing in also needs dabingabongo.com added to
+# this Supabase project's allowed redirect URLs.
 
 [[headers]]
   for = "/*"
@@ -46,6 +56,18 @@
 
 [[headers]]
   for = "/delve/manifest.webmanifest"
+  [headers.values]
+  Cache-Control = "no-cache"
+
+# Never cache NABC's service worker or web manifest, so its PWA update flow
+# works — same reasoning as Stroke Off and The Delve above.
+[[headers]]
+  for = "/nabc/sw.js"
+  [headers.values]
+  Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/nabc/manifest.webmanifest"
   [headers.values]
   Cache-Control = "no-cache"
 
@@ -105,6 +127,19 @@
 [[redirects]]
   from = "/delve/*"
   to   = "/delve/index.html"
+  status = 200
+
+# SPA fallback for Not A Book Club (built from the Not_A_Book_Club repo by
+# build.sh), so client-side routes (e.g. /nabc/book/:id) resolve on deep
+# link or refresh.
+[[redirects]]
+  from = "/nabc"
+  to   = "/nabc/"
+  status = 301
+
+[[redirects]]
+  from = "/nabc/*"
+  to   = "/nabc/index.html"
   status = 200
 
 [[redirects]]
