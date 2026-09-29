@@ -77,4 +77,34 @@ echo "==> Building The Delve (separate repo, pnpm)..."
   rm -rf .delve-src
 ) || echo "!! The Delve failed to build — skipping it and deploying the rest of the site."
 
+echo "==> Building Not A Book Club (separate repo, pnpm)..."
+# NABC's source lives in its own repo — mikeyd433/Not_A_Book_Club — but it is
+# served from this site at /nabc, so it is fetched and built here the same
+# way The Delve is above. The repo is public, so no deploy key or token is
+# needed.
+(
+  set -e
+  rm -rf .nabc-src
+  # Defaults to main. Set NABC_REF in the Netlify UI to build a branch instead.
+  git clone --depth 1 --branch "${NABC_REF:-main}" \
+    https://github.com/mikeyd433/Not_A_Book_Club.git .nabc-src
+  cd .nabc-src
+
+  # NABC is its own Supabase project, distinct from Stroke Off's and The
+  # Delve's, so it needs its own override pair the same way DELVE_* does —
+  # a bare VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY here would silently build
+  # NABC against whichever app's project those shared names belong to.
+  export VITE_SUPABASE_URL="${NABC_SUPABASE_URL:-$VITE_SUPABASE_URL}"
+  export VITE_SUPABASE_ANON_KEY="${NABC_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY}"
+  if ! command -v pnpm >/dev/null 2>&1; then
+    corepack enable || npm install -g pnpm@10.33.0
+  fi
+  pnpm install --frozen-lockfile
+  pnpm build
+  cd ..
+  mkdir -p dist/nabc
+  cp -r .nabc-src/dist/. dist/nabc/
+  rm -rf .nabc-src
+) || echo "!! Not A Book Club failed to build — skipping it and deploying the rest of the site."
+
 echo "==> Done. Output in dist/"
