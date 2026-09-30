@@ -82,6 +82,12 @@ echo "==> Building Not A Book Club (separate repo, pnpm)..."
 # served from this site at /nabc, so it is fetched and built here the same
 # way The Delve is above. The repo is public, so no deploy key or token is
 # needed.
+#
+# Since this clones NABC fresh on every build, a push to NABC's own repo
+# does NOT by itself trigger a new Netlify build here -- Netlify's GitHub
+# integration only watches this repo's branch. A commit like this one
+# (or the "Trigger deploy" button in Netlify's dashboard) is what actually
+# picks up NABC's latest commits.
 (
   set -e
   rm -rf .nabc-src
